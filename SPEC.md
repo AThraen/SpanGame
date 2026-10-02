@@ -143,7 +143,8 @@ BG.Model.validate(level, design)   // -> { ok, errors:[{type, msg, beamIndex?, n
                                    //    duplicate beam, pier out of zone / too many, zero-length,
                                    //    in_terrain (joint in rock, or beam passing through rock),
                                    //    near_terrain (user joint < TERRAIN_CLEARANCE = 0.5 m from the ground:
-                                   //    only anchors and piers may bear on rock)
+                                   //    only anchors and piers may bear on rock),
+                                   //    underwater (user joint below terrain.waterY; see §10)
 BG.Model.roadConnected(level, design)   // road/reinforced road path from the left road anchor to the right one
 BG.Model.segmentInTerrain(level, x1, y1, x2, y2, tol), BG.Model.terrainDistance(level, x, y)
 BG.Model.clone(design), BG.Model.serialize(design), BG.Model.deserialize(str)
@@ -355,3 +356,29 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
+
+## 10. Terrain fix — what you see is what you can build (feature/terrain-fix)
+
+Players could build joints in what looked like rock under the water. Cause: the renderer's decorative
+"receding valley walls" (`R._drawValleyBack`) were drawn as sloped, lit, stratified rock reaching far
+into the gap and showing through the water, while `BG.Model`'s terrain is vertical cliffs at
+`leftEdge`/`rightEdge` down to `floorY`.
+
+- **Rule (BG.Model).** A user joint may not lie below `terrain.waterY` (lava counts as water):
+  `validate` reports `{type:'underwater', msg: BG.Model.UNDERWATER_MSG, nodeId}`. The waterline itself is
+  legal. Anchors and pier tops may be under water, and so may beams between them (a beam's lowest point is
+  an endpoint, so no separate beam check is needed). Helpers: `BG.Model.belowWater(level, x, y, tol)`,
+  `BG.Model.UNDERWATER_MSG` ("Can't build under water — use a pier"). All 100 solution designs already
+  kept every joint at or above the waterline. Levels whose build area reaches under water: 11, 13, 14, 18, 30.
+- **Editor.** `_pointProblem` returns `'underwater'` (so ghosts go red, joint drags clamp at the waterline,
+  mirror partners are not created there); a rejected placement for that reason toasts `UNDERWATER_MSG`.
+  The renderer's ghost label shows the same text.
+- **Rendering.** Valley walls are distant scenery: narrow (reach ≤ 22 % / 12 % of the span), washed into the
+  theme fog, soft (canvas blur), no rim lights/strata, clipped above the waterline and extra faint above the
+  lowest buildable height. The drawn cliff faces bulge at most 0.4 m into the gap above
+  `max(waterY, buildArea.y0)` (inside the 0.5 m joint clearance) and flare into scree only below it.
+- **Overlay (`js/features/terrain-fix.js`, `BG.TerrainFix`).** `limitBand(level)` → `{x0,x1,y0,y1}` or null;
+  `drawWaterLimit(renderer, ctx, state)` draws a dashed waterline + hatched "piers only" band (edit mode,
+  only where the build area reaches below the water). Called from one hook line in `R.render`.
+- Tests: `tools/test-terrain-fix.js`. Iron Road levels (§9) inherit the rule automatically; rail levels
+  that want joints below the water would need a level flag (not added).

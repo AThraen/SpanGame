@@ -341,6 +341,7 @@
       if (inTerrain(lv, x, y, 0.05)) return 'in_terrain';
       const M = BG.Model;
       if (M && M.terrainDistance && M.TERRAIN_CLEARANCE && M.terrainDistance(lv, x, y) < M.TERRAIN_CLEARANCE - 1e-6) return 'near_terrain';
+      if (M && M.belowWater && M.belowWater(lv, x, y)) return 'underwater'; // terrain-fix: piers only below the waterline
       return null;
     }
     _segProblem(ax, ay, bx, by) {
@@ -605,7 +606,11 @@
     // ---------------------------------------------------------------- high-level operations
     /** Place a beam from joint `fromId` following ghost g (with mirror). Returns end joint id or null. */
     _placeBeam(fromId, g) {
-      if (!g || !g.valid) { this._sfx('error'); return null; }
+      if (!g || !g.valid) {
+        this._sfx('error');
+        if (g && g.reason === 'underwater') this._toast((BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water - use a pier"); // terrain-fix
+        return null;
+      }
       this._begin();
       const fresh = !g.snapNode;
       let end = g.snapNode || this._addNode(g.x2, g.y2);

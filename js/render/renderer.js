@@ -89,6 +89,7 @@
   }
   function humanize(r) {
     if (!r) return null;
+    if (r === 'underwater') return (BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water"; // terrain-fix
     r = String(r).replace(/_/g, ' ');
     return r.charAt(0).toUpperCase() + r.slice(1);
   }
@@ -560,6 +561,11 @@
     if (!(fy < Math.min(ly, ry) - 0.5)) fy = Math.min(ly, ry) - 0.5;
     const seed = (typeof L.id === 'number' ? L.id : String(L.id || L.name || 'x').length * 7) * 31 + 5;
     const ABUT = 2.6;
+    // terrain-fix: the model's cliffs are vertical at leftEdge/rightEdge, so where joints may go (above the
+    // waterline and the build area's floor) the drawn rock may only bulge into the gap a little (< the 0.5 m
+    // joint clearance); below that limit the face may flare out into scree as before.
+    const lim = Math.max(typeof t.waterY === 'number' ? t.waterY : -1e9, L.buildArea && typeof L.buildArea.y0 === 'number' ? L.buildArea.y0 : -1e9);
+    const cliffCap = function (y) { return 0.4 + Math.max(0, lim - y) * 0.07; };
     const cliff = function (edge, topY, side) { // side -1 left bank (cliff goes toward +x), +1 right bank
       const pts = [{ x: edge, y: topY }, { x: edge, y: topY - ABUT }];
       const depth = topY - fy;
@@ -570,7 +576,7 @@
         const nn = (fbm(d * 0.35, seed + (side < 0 ? 3 : 9), 3) - 0.5) * 1.1;
         let off = 0.12 + (d - ABUT) * 0.07 + nn;
         if (i === n) off = Math.max(off, 0.6 + (d - ABUT) * 0.07); // a little scree at the toe
-        off = Math.max(0.05, off);
+        off = Math.max(0.05, Math.min(off, cliffCap(y) + (i === n ? 0.3 : 0))); // terrain-fix: cap (see cliffCap)
         pts.push({ x: edge - side * off, y });
       }
       return pts;
@@ -926,14 +932,26 @@
       g.fillStyle = rgba('#ffffff', 0.35);
       g.fillRect(T.le - 1, wy - 0.08, span + 2, 0.08);
     }
+    // terrain-fix: the receding walls are distant scenery, not ground. They used to read as solid rock
+    // reaching into the buildable gap (and showed through the water as "underwater cliffs"), so now they
+    // stay narrow, are washed out into the haze, have no lit rims or strata, are soft-edged and never
+    // appear below the waterline. The real (collidable) cliffs are drawn by _drawTerrain.
+    const wet = wy !== null && wy !== undefined && wy > T.fy;
+    g.save();
+    if (wet) { g.beginPath(); g.rect(T.le - 1, wy, span + 2, top - wy + 60); g.clip(); }
+    try { if ('filter' in g) g.filter = 'blur(' + Math.max(1, Math.round(2 * this.dpr)) + 'px)'; } catch (e) { /* optional */ }
+    // fainter still where joints may go (above the lowest buildable height), a bit stronger below it
+    const ba = this.level.buildArea;
+    const lim = Math.max(wet ? wy : -1e9, ba && typeof ba.y0 === 'number' ? ba.y0 : -1e9);
+    const passes = [[lim, top + 60, 0.32], [T.fy - 60, lim, 0.6]];
     const layers = [
-      { k: 0.5, fog: 0.55, dark: 0.1, seed: 31 },
-      { k: 0.3, fog: 0.3, dark: 0.25, seed: 37 }
+      { k: 0.22, fog: 0.7, dark: 0.1, seed: 31 },
+      { k: 0.12, fog: 0.55, dark: 0.2, seed: 37 }
     ];
     for (const Ly of layers) {
       const pts = [];
       const n = Math.max(6, Math.ceil(depth / 0.8));
-      const reach = Math.min(span * Ly.k, depth * 1.6);
+      const reach = Math.min(span * Ly.k, depth * 0.9); // terrain-fix: was min(span * k, depth * 1.6)
       for (let i = 0; i <= n; i++) {
         const t = i / n, y = top - depth * t - 0.5;
         const nn = (fbm(t * 6 + Ly.seed, T.seed + Ly.seed, 3) - 0.5) * Math.min(4, span * 0.06);
@@ -945,32 +963,28 @@
         const nn = (fbm(t * 6 + Ly.seed + 50, T.seed + Ly.seed, 3) - 0.5) * Math.min(4, span * 0.06);
         rp.push({ x: T.re - reach * Math.pow(t, 0.8) - nn - 0.4, y });
       }
-      g.beginPath();
-      g.moveTo(T.le, T.ly - 0.3);
-      for (const q of pts) g.lineTo(q.x, q.y);
-      g.lineTo(pts[pts.length - 1].x, T.fy - 50);
-      g.lineTo(rp[0].x, T.fy - 50);
-      for (const q of rp) g.lineTo(q.x, q.y);
-      g.lineTo(T.re, T.ry - 0.3);
-      g.lineTo(T.re, T.fy - 50); g.lineTo(T.le, T.fy - 50);
-      g.closePath();
+      const wall = new Path2D(); // terrain-fix: Path2D so it can be filled once per alpha pass
+      wall.moveTo(T.le, T.ly - 0.3);
+      for (const q of pts) wall.lineTo(q.x, q.y);
+      wall.lineTo(pts[pts.length - 1].x, T.fy - 50);
+      wall.lineTo(rp[0].x, T.fy - 50);
+      for (const q of rp) wall.lineTo(q.x, q.y);
+      wall.lineTo(T.re, T.ry - 0.3);
+      wall.lineTo(T.re, T.fy - 50); wall.lineTo(T.le, T.fy - 50);
+      wall.closePath();
       const gr = g.createLinearGradient(0, top, 0, T.fy);
-      gr.addColorStop(0, mix(mix(G.soil[0], G.strata[1], 0.5), th.fog, Ly.fog));
-      gr.addColorStop(1, mix(mix(G.soil[1], '#000000', Ly.dark), th.fog, Ly.fog * 0.7));
+      // terrain-fix: tinted like the distant hills (nearC) rather than like the near rock (soil/strata)
+      gr.addColorStop(0, mix(mix(mix(G.soil[0], G.strata[1], 0.5), nearC, 0.6), th.fog, Ly.fog));
+      gr.addColorStop(1, mix(mix(mix(G.soil[1], nearC, 0.6), '#000000', Ly.dark), th.fog, Ly.fog * 0.7));
       g.fillStyle = gr;
-      g.fill();
-      // lit rim along the wall profiles
-      g.strokeStyle = rgba(mix(G.strata[2], '#ffffff', 0.3), 0.18); g.lineWidth = 0.3;
-      g.beginPath(); pts.forEach(function (q, i) { i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y); }); g.stroke();
-      g.beginPath(); rp.forEach(function (q, i) { i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y); }); g.stroke();
-      // faint receding strata
-      g.save(); g.clip();
-      g.strokeStyle = rgba(th.fog, 0.18); g.lineWidth = 0.25;
-      for (let y = top - 1.5; y > T.fy; y -= 1.8 + hash(Math.round(y * 10)) * 1.5) {
-        g.beginPath(); g.moveTo(T.le, y); g.lineTo(T.re, y + (hash(Math.round(y)) - 0.5) * 0.8); g.stroke();
+      for (const ps of passes) {
+        if (!(ps[1] > ps[0])) continue;
+        g.save(); g.beginPath(); g.rect(T.le - 1, ps[0], span + 2, ps[1] - ps[0]); g.clip();
+        g.globalAlpha = ps[2]; g.fill(wall); g.restore();
       }
-      g.restore();
+      // terrain-fix: no lit rims / strata on the distant walls (they made them look like near, solid rock)
     }
+    g.restore();
   };
 
   // props standing on the bank tops (behind the road)
@@ -2755,6 +2769,7 @@
     // overlays
     if (editUI) {
       this._drawNoBuild(ctx, state);
+      if (BG.TerrainFix && BG.TerrainFix.drawWaterLimit) BG.TerrainFix.drawWaterLimit(this, ctx, state); // terrain-fix: waterline = build limit
       this._drawEditOver(ctx, state, items, sh);
       if (this._pierLabels && this._pierLabels.length) {
         this._screenXf(ctx);
