@@ -37,6 +37,39 @@
     const V = BG.Vehicles && BG.Vehicles[type];
     return (V && V.name) || ({ car: 'car', van: 'van', bus: 'bus', truck: 'truck', semi: 'semi-trailer', tanker: 'tanker', heavy: 'heavy hauler' }[type] || 'vehicle');
   }
+  // name of a sim vehicle entry (road vehicle or train)
+  function simVehicleName(v) {
+    if (!v) return 'vehicle';
+    if (v.kind === 'train' || v.type === 'train') {
+      const T = BG.Trains && v.preset && BG.Trains[typeof v.preset === 'string' ? v.preset : v.preset.id];
+      const nm = (T && T.name) || (v.preset && v.preset.name) || 'train';
+      return /train|tram|handcar|express|local|freight|commuter/i.test(nm) ? nm : nm + ' train';
+    }
+    return vehicleName(v.type);
+  }
+  function isTrain(v) { return !!v && (v.kind === 'train' || v.type === 'train'); }
+  function campaignOf(lv) { return lv && lv.campaign === 'rail' ? 'rail' : 'road'; }
+  function campaignLevels(campaign) {
+    if (BG.Storage && BG.Storage.campaignLevels) return BG.Storage.campaignLevels(levels(), campaign);
+    return levels().filter(l => campaignOf(l) === campaign).sort((a, b) => a.id - b.id);
+  }
+  function gapOf(lv) { const t = lv && lv.terrain; return t ? (t.rightEdge - t.leftEdge) : 0; }
+  function railMaterial(id) { const m = BG.Materials && BG.Materials[id]; return !!(m ? m.isRail : id === 'rail'); }
+  // which horn a train sounds: steam whistle, diesel horn, high-speed chime, tram bell (or none)
+  function hornFor(v) {
+    const T = BG.Trains && v.preset && BG.Trains[typeof v.preset === 'string' ? v.preset : v.preset.id];
+    const cars = (T && T.cars) || (v.cars || []).map(c => c.type);
+    const has = t => cars.indexOf(t) >= 0;
+    if (has('hs_power')) return 'chime';
+    if (has('loco_steam')) return 'whistle';
+    if (has('loco_diesel')) return 'diesel';
+    if (has('tram')) return 'bell';
+    return null;
+  }
+  function tractionFor(v) {
+    const h = hornFor(v);
+    return h === 'whistle' ? 'steam' : h === 'diesel' ? 'diesel' : h === 'chime' ? 'electric' : h === 'bell' ? 'electric' : 'none';
+  }
   function allNodes(level, design) {
     if (BG.Model && BG.Model.allNodes) { const n = safe(() => BG.Model.allNodes(level, design)); if (n) return n; }
     const out = [];
@@ -284,11 +317,25 @@
       const S = BG.Storage;
       if (!S) return L[0];
       const prog = S.getProgress();
-      // first unlocked, uncompleted level after the last played one; else last played; else first.
-      const firstOpen = L.find(l => this.isUnlocked(levelId(l)) && !S.isCompleted(levelId(l)));
+      // the last played level if unfinished; else the first unlocked, uncompleted level of the campaign
+      // the player was last in (Roads or Iron Road); else of the other campaign; else last played; else first.
       const last = prog.lastLevel != null ? this.findLevel(prog.lastLevel) : null;
       if (last && !S.isCompleted(levelId(last))) return last;
+      const camp = campaignOf(last);
+      const open = list => list.find(l => this.isUnlocked(levelId(l)) && !S.isCompleted(levelId(l)));
+      const firstOpen = open(campaignLevels(camp)) || open(campaignLevels(camp === 'rail' ? 'road' : 'rail'));
       return firstOpen || last || L[0];
+    },
+    campaignOf(lv) { return campaignOf(lv || this.level); },
+    // next level in the same campaign (Roads 1-50, Iron Road 101-120), or null at the end of it
+    nextInCampaign(lv) {
+      lv = lv || this.level;
+      if (!lv) return null;
+      const list = campaignLevels(campaignOf(lv));
+      const i = list.indexOf(lv);
+      if (i >= 0) return list[i + 1] || null;
+      const idx = this.levelIndex(lv);
+      return levels()[idx + 1] || null;
     },
 
     // ---------------------------------------------------------------- state transitions
@@ -307,6 +354,11 @@
       const wasLevel = !!this.level;
       this._setState('levelSelect');
       if (!this._demo) this._startDemo();
+      // open the campaign tab of the level just played (or last played)
+      let lastId = this._lastLevelId;
+      if (lastId == null && BG.Storage) lastId = safe(() => BG.Storage.getProgress().lastLevel, null);
+      const lastLv = lastId != null ? this.findLevel(lastId) : null;
+      if (lastLv) hudCall('setCampaignTab', campaignOf(lastLv), true);
       hudCall('showScreen', 'levelSelect');
       const focus = this._lastLevelId != null ? this._lastLevelId : null;
       if (focus != null && wasLevel !== null) hudCall('scrollToLevel', focus);
@@ -325,7 +377,12 @@
     openLevel(id, opts) {
       const lv = this.findLevel(id);
       if (!lv) { hudCall('toast', 'Level ' + id + ' is not available yet.', 'info'); return false; }
-      if (!(opts && opts.force) && !this.isUnlocked(levelId(lv))) { sfx('error'); hudCall('toast', 'Complete the previous level first.', 'info'); return false; }
+      if (!(opts && opts.force) && !this.isUnlocked(levelId(lv))) {
+        sfx('error');
+        const railShut = campaignOf(lv) === 'rail' && BG.Storage && BG.Storage.isCampaignUnlocked && !BG.Storage.isCampaignUnlocked('rail');
+        hudCall('toast', railShut ? 'Complete level 10 to open the Iron Road.' : 'Complete the previous level first.', 'info');
+        return false;
+      }
       this._leaveLevel();
       this._stopDemo();
       this.level = lv;
@@ -368,6 +425,10 @@
       this.sim = null;
       this.paused = false;
       this.speed = 1;
+      // camera follow: on by default for long gaps, where vehicles are tiny; the player's toggle
+      // sticks for the rest of this level
+      this.followOn = gapOf(lv) > 60;
+      this._applyFollow(false);
       this._setState('edit');
       hudCall('showScreen', 'level');
       hudCall('enterLevel', lv);
@@ -386,6 +447,7 @@
       this.editor = null;
       this.sim = null;
       if (BG.Audio) BG.Audio.stopEngines();
+      this._applyFollow(false);
       hudCall('hideResults');
       this.level = null;
     },
@@ -516,11 +578,40 @@
       if (this.editor) safe(() => this.editor.detach && this.editor.detach());
       this._fx('clear');
       this._setState('sim');
+      this._trainAudio = {};
+      this._applyFollow(!!this.followOn);
       hudCall('setMode', 'sim');
       hudCall('hideResults');
       sfx('start');
       return true;
     },
+
+    // ---------------------------------------------------------------- camera follow
+    // The renderer owns the camera; it may expose follow(on) (preferred), setFollow(on) or a boolean
+    // `follow` property. Everything is guarded so a renderer without follow support is fine.
+    hasFollow() {
+      const r = this.renderer;
+      return !!(r && (typeof r.follow === 'function' || typeof r.setFollow === 'function' || typeof r.follow === 'boolean'));
+    },
+    _applyFollow(on) {
+      const r = this.renderer;
+      if (!r) return;
+      const was = !!this._followApplied;
+      this._followApplied = !!on;
+      if (typeof r.follow === 'function') safe(() => r.follow(!!on));
+      else if (typeof r.setFollow === 'function') safe(() => r.setFollow(!!on));
+      else if (typeof r.follow === 'boolean') r.follow = !!on;
+      // following moved the camera: frame the whole crossing again for editing
+      if (was && !on && this.state === 'edit' && typeof r.fitToLevel === 'function') safe(() => r.fitToLevel());
+    },
+    toggleFollow() {
+      if (!this.level) return;
+      this.followOn = !this.followOn;
+      if (this.state === 'sim' || this.state === 'results') this._applyFollow(this.followOn);
+      sfx('toggle', { on: this.followOn });
+      hudCall('toast', this.followOn ? 'Camera follows the traffic' : 'Camera follow off', 'info', 1400);
+    },
+    setFollow(on) { if (!!on !== !!this.followOn) this.toggleFollow(); },
     stopSim() {
       if (this.state !== 'sim' && this.state !== 'results') return;
       if (!this._guard()) return;
@@ -538,6 +629,7 @@
       if (BG.Audio) BG.Audio.stopEngines();
       this._fx('clear');
       this._setState('edit');
+      this._applyFollow(false);
       if (this.editor) { this.editor.chainFrom = null; safe(() => this.editor.attach && this.editor.attach(this.canvas)); }
       hudCall('hideResults');
       hudCall('setMode', 'edit');
@@ -612,6 +704,12 @@
           break;
         case 'vehicle_finish': if (withAudio) sfx('finish'); break;
         case 'vehicle_fall': shake(0.35); break;
+        case 'derail': {
+          const v = sim.vehicles && sim.vehicles[ev.i];
+          if (withAudio) sfx('derail', { pan, heavy: v ? clamp(this._trainMass(v) / 1.5e6, 0, 1) : 0.5 });
+          shake(0.75);
+          break;
+        }
         case 'creak': {
           if (!withAudio) break;
           const b = sim.beams && sim.beams[ev.beamIndex];
@@ -655,6 +753,94 @@
       for (const [o, n] of cands) if (o && typeof o[n] === 'function') { safe(() => o[n](amount)); return; }
     },
 
+    // ---------------------------------------------------------------- train audio
+    _trainMass(v) {
+      let m = 0;
+      (v.cars || []).forEach(c => {
+        const d = c.def || (BG.RailCars && BG.RailCars[c.type]) || {};
+        if (d.mass) m += d.mass;
+        else (d.bogies || []).forEach(b => { m += +b.mass || 0; });
+      });
+      return m || 50000;
+    },
+    _leadCar(v) {
+      let lead = null;
+      (v.cars || []).forEach(c => { if (c && (lead == null || c.x > lead.x)) lead = c; });
+      return lead || v;
+    },
+    // per-train sound state: speed from the lead car's motion in sim time, braking, horn on approach
+    _trainSound(sim, v, i) {
+      const st = this._trainAudio || (this._trainAudio = {});
+      const lead = this._leadCar(v);
+      const t = +sim.time || 0;
+      let a = st[i];
+      if (!a) a = st[i] = { x: lead.x, t, speed: 0, horned: false, mass: this._trainMass(v), horn: hornFor(v), traction: tractionFor(v) };
+      const dts = t - a.t;
+      let decel = 0;
+      if (dts > 1e-4) {
+        const vx = v.vx != null && isFinite(v.vx) ? Math.abs(v.vx) : Math.abs(lead.x - a.x) / dts;
+        decel = (a.speed - vx) / dts;
+        a.speed += (vx - a.speed) * Math.min(1, dts * 8);
+        a.x = lead.x; a.t = t;
+      }
+      a.braking = decel > 1.0 && a.speed > 2 ? Math.min(1, decel / 3) : (a.braking || 0) * 0.9;
+      if (v.state !== 'driving') return null;
+      const pan = this._panFor(lead.x, lead.y);
+      const lv = this.level;
+      const edge = lv && lv.terrain ? lv.terrain.leftEdge : 0;
+      if (!a.horned && a.horn && lead.x > edge - 22 && BG.Audio) {
+        a.horned = true;
+        safe(() => BG.Audio.play('horn', { kind: a.horn, pan }));
+      }
+      return { key: 'train' + i, traction: a.traction, speed: a.speed * Math.sqrt(this.speed), simSpeed: a.speed, timeScale: this.speed,
+        braking: a.braking, pan, mass: a.mass, gain: this.speed < 1 ? 0.5 : 1 };
+    },
+    // clickety-clack: a tick whenever a wheel rolls over a rail joint (bridge joints of rail beams,
+    // plus regular seams every 15 m on the banks)
+    _railSeams(sim) {
+      if (this._seams && this._seams.sim === sim) return this._seams.xs;
+      const xs = [];
+      const lv = this.level, t = (lv && lv.terrain) || { leftEdge: 0, rightEdge: 0 };
+      (sim.beams || []).forEach(b => {
+        if (!railMaterial(b.m)) return;
+        const A = sim.nodes[b.a], B = sim.nodes[b.b];
+        if (A) xs.push(A.x); if (B) xs.push(B.x);
+      });
+      for (let x = t.leftEdge - 15; x > t.leftEdge - 140; x -= 15) xs.push(x);
+      for (let x = t.rightEdge + 15; x < t.rightEdge + 140; x += 15) xs.push(x);
+      xs.sort((p, q) => p - q);
+      const out = xs.filter((x, k) => k === 0 || x - xs[k - 1] > 0.3);
+      this._seams = { sim, xs: out, wheels: {} };
+      return out;
+    },
+    _clickety(sim) {
+      if (!BG.Audio || !BG.Audio.trainTick) return;
+      const seams = this._railSeams(sim);
+      if (!seams.length) return;
+      const prev = this._seams.wheels;
+      const count = (lo, hi) => { // seams in (lo, hi]
+        let n = 0;
+        for (let k = 0; k < seams.length; k++) { if (seams[k] > hi) break; if (seams[k] > lo) n++; }
+        return n;
+      };
+      (sim.vehicles || []).forEach((v, i) => {
+        if (!isTrain(v) || v.state !== 'driving') return;
+        const a = this._trainAudio && this._trainAudio[i];
+        const speed = a ? a.speed : Math.abs(v.vx || 0);
+        const heavy = a ? clamp(a.mass / 1.5e6, 0, 1) : 0.3;
+        (v.cars || []).forEach((c, ci) => {
+          if (!c || c.state === 'derailed') return;
+          (c.wheels || []).forEach((w, wi) => {
+            const key = i + ':' + ci + ':' + wi;
+            const px = prev[key];
+            prev[key] = w.x;
+            if (px == null || w.x <= px) return;
+            if (count(px, w.x) > 0) safe(() => BG.Audio.trainTick(speed, { pan: this._panFor(w.x, w.y), heavy, timeScale: this.speed }));
+          });
+        });
+      });
+    },
+
     _updateSim(dt) {
       const sim = this.sim;
       if (!sim) return;
@@ -664,16 +850,19 @@
         while (this._acc >= STEP && n < MAX_STEPS_PER_FRAME) { this._stepSim(); this._acc -= STEP; n++; }
         if (n >= MAX_STEPS_PER_FRAME) this._acc = 0;
       }
-      // engines
+      // engines (road vehicles) and trains
       if (BG.Audio) {
         if (this.paused) BG.Audio.stopEngines();
         else {
-          const list = [];
+          const list = [], trains = [];
           (sim.vehicles || []).forEach((v, i) => {
+            if (isTrain(v)) { const t = this._trainSound(sim, v, i); if (t) trains.push(t); return; }
             if (v.state !== 'driving') return;
             list.push({ key: i, mass: (v.def && v.def.mass) || 1500, speed: Math.abs(v.vx || 0) * Math.sqrt(this.speed), pan: this._panFor(v.x, v.y), gain: this.speed < 1 ? 0.5 : 1 });
           });
           BG.Audio.updateEngines(list);
+          if (BG.Audio.updateTrains) safe(() => BG.Audio.updateTrains(trains));
+          if (trains.length) this._clickety(sim);
         }
       }
       // end-of-run detection (keep simulating a little for the drama)
@@ -707,16 +896,25 @@
       let title, text;
       if (passed) {
         title = stars === 3 ? 'Flawless engineering!' : stars === 2 ? 'Solid bridge!' : 'Bridge passed!';
-        text = 'All ' + vt + ' vehicle' + (vt === 1 ? '' : 's') + ' crossed safely. ';
+        const noun = vehicles.length && vehicles.every(isTrain) ? 'train' : 'vehicle';
+        text = (vt === 1 ? 'The ' + noun + ' crossed' : 'All ' + vt + ' ' + noun + 's crossed') + ' safely. ';
         if (stars === 3) text += 'Under 70% of budget — elegant and efficient.';
         else if (stars === 2) text += 'Get the cost under ' + money(budget * 0.7) + ' for the third star.';
         else text += 'Get under ' + money(budget * 0.85) + ' for another star.';
       } else if (simOk) {
         title = 'Over budget';
         text = 'Everything made it across, but the bridge is ' + money(cost - budget) + ' over budget. Trim some material and test again.';
+      } else if (reason === 'derailed') {
+        const lim = Object.assign({ maxGrade: 0.04, maxKinkDeg: 3 }, lv.rail || {});
+        const dt = vehicles.find(v => isTrain(v) && (v.state === 'derailed' || (v.cars || []).some(c => c && c.state === 'derailed')));
+        const what = dt ? simVehicleName(dt) : 'train';
+        title = broken > 0 ? 'Derailed — and the bridge gave way!' : 'Derailed!';
+        text = 'The ' + what.toLowerCase() + ' came off the rails. Trains are far fussier than cars: keep the track grade under ' +
+          Math.round(lim.maxGrade * 1000) / 10 + '% and the bend between rail segments under ' + lim.maxKinkDeg + '°. ' +
+          (broken > 0 ? 'A broken or missing rail under a wheel derails it instantly — check the red members.' : 'Stiffen the deck so it sags less under the load, and avoid sharp kinks at the bridge ends.');
       } else if (reason === 'vehicle_fell') {
-        const fell = vehicles.find(v => v.state === 'fallen');
-        const what = (fell ? vehicleName(fell.type) : 'vehicle').toLowerCase();
+        const fell = vehicles.find(v => v.state === 'fallen' || (isTrain(v) && (v.cars || []).some(c => c && c.state === 'fallen')));
+        const what = (fell ? simVehicleName(fell) : 'vehicle').toLowerCase();
         const where = lv.terrain && lv.terrain.waterY != null ? 'into the water' : 'into the valley';
         title = broken > 0 ? 'Collapse!' : 'Off the edge!';
         text = (/^[aeiou]/.test(what) ? 'An ' : 'A ') + what + ' fell ' + where + '. ' + (broken > 0 ? broken + ' beam' + (broken === 1 ? '' : 's') + ' snapped — check the red members on the stress map.' : 'Make sure the road reaches all the way across, without gaps or steep steps.');
@@ -740,31 +938,35 @@
         const mname = (materialDef(fb.m).name || fb.m).toLowerCase();
         const kN = Math.round(Math.abs(fb.force || 0) / 1000);
         let why;
-        if (fb.mode === 'bending') why = 'The ' + mname + ' deck bent too far at a joint - road needs a supported joint (a strut, hanger or chord below it) about every 5-6 m.';
+        if (fb.mode === 'bending') why = 'The ' + mname + ' deck bent too far at a joint - ' + (railMaterial(fb.m) ? 'track' : 'road') + ' needs a supported joint (a strut, hanger or chord below it) about every 5-6 m.';
         else if (fb.mode === 'compression') why = 'The first beam to fail was ' + mname + ' crushed in compression (' + kN + ' kN). Shorten it, double it up, or use a stronger material.';
         else why = 'The first beam to fail was ' + mname + ' pulled apart in tension (' + kN + ' kN). Share the load with more members or use a stronger material.';
         text += ' ' + why;
       }
 
       let rec = { entry: null, improved: false };
-      if (BG.Storage) rec = safe(() => BG.Storage.recordResult(levelId(lv), { passed, stars, cost }), rec) || rec;
-      const idx = this.levelIndex(lv);
-      const next = levels()[idx + 1];
+      const S = BG.Storage;
+      const railWasOpen = S && S.isCampaignUnlocked ? safe(() => S.isCampaignUnlocked('rail'), true) : true;
+      if (S) rec = safe(() => S.recordResult(levelId(lv), { passed, stars, cost }), rec) || rec;
+      const railNowOpen = S && S.isCampaignUnlocked ? safe(() => S.isCampaignUnlocked('rail'), true) : true;
+      const next = this.nextInCampaign(lv);
+      const campaign = campaignOf(lv);
       const res = {
         passed, stars, cost, budget, title, reasonText: text, simOk, reason,
         time: sum.time != null ? sum.time : sim.time, peakStress: peak, vehiclesFinished: vf, vehiclesTotal: vt,
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
-        finale: passed && !next,
+        finale: passed && !next, campaign,
+        railUnlocked: !railWasOpen && railNowOpen && campaignLevels('rail').length > 0,
       };
       this.lastResult = res;
       this._setState('results');
       hudCall('setMode', 'results');
       hudCall('showResults', res);
       sfx(passed ? 'success' : 'fail');
+      if (res.railUnlocked) setTimeout(() => { if (this.state === 'results') { hudCall('toast', 'The Iron Road is open! Railway bridges await on the level select.', 'good', 5200); sfx('horn', { kind: 'whistle' }); } }, 1500);
     },
     nextLevel() {
-      const idx = this.levelIndex(this.level);
-      const next = levels()[idx + 1];
+      const next = this.nextInCampaign(this.level);
       if (next) this.openLevel(levelId(next));
       else this.goLevelSelect();
     },
@@ -1042,6 +1244,7 @@
       const k = key.length === 1 ? key.toLowerCase() : key;
       if (st === 'sim' || st === 'results') {
         if (k === 'r') { e.preventDefault(); this.restartSim(); }
+        else if (k === 'f') { e.preventDefault(); this.toggleFollow(); }
         else if (st === 'sim' && k === 'p') this.togglePause();
         else if (st === 'sim' && (k === '.' || k === 'n')) this.stepOnce();
         else if (st === 'sim' && (k === '-' || k === '_')) { const S = [0.25, 1, 2, 4, 8]; this.setSpeed(S[Math.max(0, S.indexOf(this.speed) - 1)]); }

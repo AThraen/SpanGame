@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="-54 -54 108 108">
+  <!-- SPAN heritage spoked rail wheel (handcar, tender, coaches, steam pony truck). Centre (0,0).
+       Tread diameter = 100 units; flange to r 54 (renderer draws it 1.08 x tread diameter). -->
+  <defs>
+    <radialGradient id="tyre" cx="-10" cy="-12" r="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#6d7680"/><stop offset="1" stop-color="#363c44"/>
+    </radialGradient>
+    <radialGradient id="boss" cx="-3" cy="-4" r="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="1" stop-color="#15181c"/>
+    </radialGradient>
+  </defs>
+  <circle r="53.5" fill="#1e2228" stroke="#0d0f12" stroke-width="1"/>
+  <circle r="50" fill="url(#tyre)" stroke="#16191e" stroke-width="2"/>
+  <circle r="47.5" fill="none" stroke="#d9e0e7" stroke-width="1.5" opacity="0.7"/>
+  <!-- wheel centre (black paint) -->
+  <circle r="42" fill="#1b1e23"/>
+  <circle r="40" fill="none" stroke="#2c3138" stroke-width="5"/>
+  <!-- 10 spokes -->
+  <g stroke="#3a4049" stroke-width="5.5" stroke-linecap="round">
+    <path d="M0 -12 V-39"/><path d="M0 -12 V-39" transform="rotate(36)"/><path d="M0 -12 V-39" transform="rotate(72)"/>
+    <path d="M0 -12 V-39" transform="rotate(108)"/><path d="M0 -12 V-39" transform="rotate(144)"/><path d="M0 -12 V-39" transform="rotate(180)"/>
+    <path d="M0 -12 V-39" transform="rotate(216)"/><path d="M0 -12 V-39" transform="rotate(252)"/><path d="M0 -12 V-39" transform="rotate(288)"/>
+    <path d="M0 -12 V-39" transform="rotate(324)"/>
+  </g>
+  <g stroke="#6d7680" stroke-width="1.6" stroke-linecap="round" opacity="0.8">
+    <path d="M-1.5 -13 V-38"/><path d="M-1.5 -13 V-38" transform="rotate(72)"/><path d="M-1.5 -13 V-38" transform="rotate(144)"/>
+    <path d="M-1.5 -13 V-38" transform="rotate(216)"/><path d="M-1.5 -13 V-38" transform="rotate(288)"/>
+  </g>
+  <circle r="14" fill="url(#boss)" stroke="#0f1114" stroke-width="2"/>
+  <circle r="6" fill="#8d97a3" stroke="#22262c" stroke-width="1.5"/>
+  <rect x="-1.5" y="-6" width="3" height="5" fill="#f2b51d"/>
+  <path d="M-36 -26 A44 44 0 0 1 -14 -42" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.2" stroke-linecap="round"/>
+</svg>

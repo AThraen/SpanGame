@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="430" viewBox="0 -430 1900 430">
+  <!-- SPAN diesel locomotive (Co-Co, cab at both ends). 1 unit = 1 cm, origin = rear of the car on the
+       rail line, facing right. Bogies drawn separately: centres x = 360 / 1540, axles -180 / 0 / +180,
+       wheel r 50. Exhaust stack top at (1010, 422). Buffers at coupler height 100. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd35a"/><stop offset="0.45" stop-color="#f2b51d"/><stop offset="0.85" stop-color="#d6930f"/><stop offset="1" stop-color="#a86d08"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8d97a3"/><stop offset="0.5" stop-color="#4a515b"/><stop offset="1" stop-color="#2a2f36"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/>
+    </linearGradient>
+    <linearGradient id="black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.25" stop-color="#2a2f36"/><stop offset="1" stop-color="#0f1114"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="tank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.3" stop-color="#3a3f48"/><stop offset="1" stop-color="#15181c"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <path id="shape" d="M30 -150 L30 -352 Q32 -392 70 -398 L200 -404 L1700 -404 L1800 -398 Q1842 -392 1856 -350 L1872 -276 L1872 -150 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <!-- buffers + couplers -->
+  <g stroke="#1c2230">
+    <rect x="12" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="1" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+    <rect x="1864" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="1886" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+  </g>
+  <!-- underframe -->
+  <rect x="24" y="-156" width="1852" height="44" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M30 -150 H1870" stroke="#f2b51d" stroke-width="4" opacity="0.85"/>
+  <rect x="24" y="-150" width="40" height="70" rx="3" fill="url(#band)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1836" y="-150" width="40" height="70" rx="3" fill="url(#band)" stroke="#1c2230" stroke-width="2.5"/>
+  <g fill="#f2b51d"><path d="M28 -140 L60 -112 L60 -100 L28 -128 Z"/><path d="M1872 -140 L1840 -112 L1840 -100 L1872 -128 Z"/></g>
+  <!-- fuel tank -->
+  <rect x="640" y="-114" width="620" height="66" rx="22" fill="url(#tank)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M664 -104 H1236" stroke="#8d97a3" stroke-width="3" opacity="0.6"/>
+  <rect x="930" y="-96" width="40" height="18" rx="4" fill="#d6930f" stroke="#1c2230" stroke-width="2"/>
+  <!-- exhaust stack + roof fans -->
+  <rect x="990" y="-424" width="44" height="26" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="984" y="-428" width="56" height="8" rx="3" fill="#1c2230"/>
+  <!-- body -->
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-410" width="1900" height="40" fill="url(#roof)"/>
+    <rect x="0" y="-372" width="1900" height="4" fill="#1c2230" opacity="0.35"/>
+    <rect x="0" y="-206" width="1900" height="56" fill="url(#band)"/>
+    <rect x="0" y="-210" width="1900" height="6" fill="#d8342b"/>
+    <rect x="0" y="-218" width="1900" height="5" fill="#ffffff" opacity="0.8"/>
+    <!-- engine room grilles -->
+    <g fill="#9a6b0a" opacity="0.55">
+      <rect x="300" y="-352" width="220" height="110" rx="6"/><rect x="560" y="-352" width="220" height="110" rx="6"/>
+      <rect x="1120" y="-352" width="220" height="110" rx="6"/><rect x="1380" y="-352" width="220" height="110" rx="6"/>
+    </g>
+    <g stroke="#6b4a06" stroke-width="3" opacity="0.7">
+      <path d="M310 -340 H510 M310 -326 H510 M310 -312 H510 M310 -298 H510 M310 -284 H510 M310 -270 H510 M310 -256 H510"/>
+      <path d="M570 -340 H770 M570 -326 H770 M570 -312 H770 M570 -298 H770 M570 -284 H770 M570 -270 H770 M570 -256 H770"/>
+      <path d="M1130 -340 H1330 M1130 -326 H1330 M1130 -312 H1330 M1130 -298 H1330 M1130 -284 H1330 M1130 -270 H1330 M1130 -256 H1330"/>
+      <path d="M1390 -340 H1590 M1390 -326 H1590 M1390 -312 H1590 M1390 -298 H1590 M1390 -284 H1590 M1390 -270 H1590 M1390 -256 H1590"/>
+    </g>
+    <!-- door panels -->
+    <g fill="none" stroke="#9a6b0a" stroke-width="3">
+      <rect x="820" y="-362" width="260" height="140" rx="6"/><rect x="250" y="-366" width="0.1" height="150"/><rect x="1650" y="-366" width="0.1" height="150"/>
+    </g>
+    <rect x="0" y="-160" width="1900" height="10" fill="#000" opacity="0.25"/>
+  </g>
+  <!-- SPAN freight logo -->
+  <g transform="translate(870 -330)">
+    <path d="M0 50 Q80 -10 160 50" fill="none" stroke="#1e2228" stroke-width="12" stroke-linecap="round"/>
+    <path d="M-8 56 H168" stroke="#1e2228" stroke-width="10" stroke-linecap="round"/>
+    <path d="M40 56 V24 M80 56 V14 M120 56 V24" stroke="#1e2228" stroke-width="6"/>
+  </g>
+  <g fill="#1e2228"><rect x="1050" y="-296" width="16" height="30" rx="3"/><rect x="1072" y="-296" width="24" height="12" rx="3"/><rect x="1080" y="-284" width="16" height="18" rx="3"/></g>
+  <!-- front cab (right) -->
+  <path d="M1802 -388 Q1838 -384 1848 -346 L1858 -300 L1806 -300 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1814 -382 L1828 -380 L1820 -306 L1810 -306 Z" fill="#fff" opacity="0.3"/>
+  <rect x="1680" y="-376" width="100" height="74" rx="10" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M1692 -370 L1716 -370 L1698 -308 L1686 -308 Z" fill="#fff" opacity="0.26"/>
+  <rect x="1640" y="-382" width="16" height="230" rx="3" fill="none" stroke="#9a6b0a" stroke-width="3"/>
+  <path d="M1640 -300 H1656" stroke="#1c2230" stroke-width="3"/>
+  <!-- rear cab (left) -->
+  <path d="M98 -388 Q62 -384 52 -346 L42 -300 L94 -300 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="120" y="-376" width="100" height="74" rx="10" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M132 -370 L156 -370 L138 -308 L126 -308 Z" fill="#fff" opacity="0.26"/>
+  <rect x="244" y="-382" width="16" height="230" rx="3" fill="none" stroke="#9a6b0a" stroke-width="3"/>
+  <!-- handrails along the body -->
+  <path d="M290 -186 H1610" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <path d="M290 -186 H1610" stroke="url(#chrome)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- lights -->
+  <rect x="1856" y="-266" width="18" height="30" rx="5" fill="url(#head)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1856" y="-196" width="18" height="18" rx="4" fill="url(#head)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="26" y="-266" width="18" height="30" rx="5" fill="url(#tail)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="26" y="-196" width="18" height="18" rx="4" fill="url(#tail)" stroke="#1c2230" stroke-width="2"/>
+  <!-- horn on the cab roof -->
+  <path d="M1720 -404 L1720 -416 L1760 -420 L1760 -404 Z" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="4" stroke-linejoin="round"/>
+</svg>

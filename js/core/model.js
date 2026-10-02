@@ -147,6 +147,9 @@
 
   /** User joints must keep this clearance from the ground: only anchors and piers may bear on rock. */
   const TERRAIN_CLEARANCE = 0.5;
+  /** Rail beams steeper than this (|dy/dx|) are invalid: track is never a diagonal or a post.
+   *  (Trains already derail above level.rail.maxGrade, default 6 %.) */
+  const RAIL_MAX_SLOPE = 0.25;
 
   /** The two main road anchors (left/right bank edge) -> {left:'a<i>', right:'a<j>'} */
   function roadAnchors(level) {
@@ -163,15 +166,27 @@
     return { left: li >= 0 ? 'a' + li : null, right: ri >= 0 ? 'a' + ri : null };
   }
 
-  /** Is there a continuous road (road / reinforced road beams) from the left road anchor to the right one? */
-  function roadConnected(level, design) {
+  /** Which deck kinds the level's traffic needs -> {road, rail}. No traffic counts as road. */
+  function trafficKinds(level) {
+    let road = false, rail = false;
+    for (const g of (level && level.traffic) || []) {
+      if (g && g.type === 'train') rail = true; else road = true;
+    }
+    if (!road && !rail) road = true;
+    return { road, rail };
+  }
+
+  /** Is there a continuous deck of the given kind ('road': road / reinforced road beams,
+   *  'rail': rail beams) from the left road anchor to the right one? */
+  function deckConnected(level, design, kind) {
     const ra = roadAnchors(level);
     if (!ra.left || !ra.right) return false;
     if (ra.left === ra.right) return true;
+    const rail = kind === 'rail';
     const adj = new Map();
     for (const b of (design && design.beams) || []) {
       const mat = mats()[b && b.m];
-      if (!mat || !mat.isRoad || b.a === b.b) continue;
+      if (!mat || !(rail ? mat.isRail : mat.isRoad) || b.a === b.b) continue;
       if (!adj.has(b.a)) adj.set(b.a, []);
       if (!adj.has(b.b)) adj.set(b.b, []);
       adj.get(b.a).push(b.b); adj.get(b.b).push(b.a);
@@ -183,6 +198,24 @@
       for (const o of adj.get(id) || []) if (!seen.has(o)) { seen.add(o); queue.push(o); }
     }
     return false;
+  }
+
+  function railConnected(level, design) { return deckConnected(level, design, 'rail'); }
+
+  /** Every deck the level's traffic needs is continuous bank to bank (road levels: the road;
+   *  rail levels: the rail; double-deck levels: both). */
+  function roadConnected(level, design) {
+    const k = trafficKinds(level);
+    if (k.road && !deckConnected(level, design, 'road')) return false;
+    if (k.rail && !deckConnected(level, design, 'rail')) return false;
+    return true;
+  }
+
+  /** Derailment limits for a level (SPEC §9.1: optional level.rail overrides). */
+  function railRules(level) {
+    const R = BG.RailRules || {};
+    const o = (level && level.rail) || {};
+    return { maxGrade: num(o.maxGrade, num(R.maxGrade, 0.06)), maxKinkDeg: num(o.maxKinkDeg, num(R.maxKinkDeg, 4)) };
   }
 
   function nextNodeId(design) {
@@ -265,8 +298,47 @@
         if (segmentHitsRect(na.x, na.y, nb.x, nb.y, r)) { errors.push({ type: 'in_nobuild', msg: 'Beam crosses a no-build zone', beamIndex: i }); break; }
       }
       if (segmentInTerrain(lv, na.x, na.y, nb.x, nb.y, 0.05)) errors.push({ type: 'in_terrain', msg: 'Beam passes through the ground', beamIndex: i });
+      // track is laid (nearly) level - rail is not a structural web member
+      if (mat.isRail && Math.abs(nb.y - na.y) > RAIL_MAX_SLOPE * Math.abs(nb.x - na.x) + EPS) {
+        errors.push({ type: 'rail_too_steep', msg: 'Rail track must be laid nearly level (max ' + Math.round(RAIL_MAX_SLOPE * 100) + ' % slope)', beamIndex: i });
+      }
     }
-    return { ok: errors.length === 0, errors };
+    return { ok: errors.length === 0, errors, warnings: railWarnings(lv, d, map) };
+  }
+
+  /** Non-blocking hints for rail decks as built: too steep (rail_grade) or kinked at a joint
+   *  (rail_kink) - trains derail there (SPEC §9.3). */
+  function railWarnings(level, design, map) {
+    const out = [];
+    const beams = (design && design.beams) || [];
+    const rr = railRules(level);
+    const kinkMax = rr.maxKinkDeg * Math.PI / 180;
+    const ends = new Map();
+    for (let i = 0; i < beams.length; i++) {
+      const b = beams[i];
+      const mat = b && mats()[b.m];
+      if (!mat || !mat.isRail) continue;
+      const na = map.get(b.a), nb = map.get(b.b);
+      if (!na || !nb || b.a === b.b) continue;
+      let dx = nb.x - na.x, dy = nb.y - na.y;
+      const L = hyp(dx, dy);
+      if (L < 0.05) continue;
+      if (Math.abs(dx) < 1e-9 || Math.abs(dy / dx) > rr.maxGrade + 1e-9) {
+        out.push({ type: 'rail_grade', msg: 'Rail steeper than ' + Math.round(rr.maxGrade * 1000) / 10 + ' % - trains derail', beamIndex: i });
+      }
+      if (dx < 0) { dx = -dx; dy = -dy; }
+      for (const id of [b.a, b.b]) { if (!ends.has(id)) ends.set(id, []); ends.get(id).push({ i, ux: dx / L, uy: dy / L }); }
+    }
+    for (const [id, list] of ends) {
+      for (let p = 0; p < list.length; p++) for (let q = p + 1; q < list.length; q++) {
+        const u = list[p], w = list[q];
+        const ang = Math.abs(Math.atan2(u.ux * w.uy - u.uy * w.ux, u.ux * w.ux + u.uy * w.uy));
+        if (ang > kinkMax + 1e-9 && ang < 0.9) {
+          out.push({ type: 'rail_kink', msg: 'Rail kinks ' + (ang * 180 / Math.PI).toFixed(1) + '° at a joint - trains derail', beamIndex: w.i, nodeId: id });
+        }
+      }
+    }
+    return out;
   }
 
   function clone(design) {
@@ -307,11 +379,20 @@
     const parts = [], items = [];
     let total = 0;
     for (const g of (level && level.traffic) || []) {
-      const def = BG.Vehicles && BG.Vehicles[g.type];
       const c = g.count || 1;
+      if (g.type === 'train') {
+        const tr = BG.Trains && BG.Trains[g.train];
+        const name = tr ? tr.name : String(g.train || 'train');
+        const cars = tr ? tr.carCount : 0;
+        total += c;
+        items.push({ type: 'train', kind: 'train', train: g.train, preset: g.train, count: c, name, cars, mass: tr ? tr.mass : 0 });
+        parts.push(c + ' ' + name.toLowerCase() + ' train' + (c > 1 ? 's' : '') + (cars > 1 ? ' (' + cars + ' cars)' : ''));
+        continue;
+      }
+      const def = BG.Vehicles && BG.Vehicles[g.type];
       total += c;
       const name = def ? def.name.toLowerCase() : g.type;
-      items.push({ type: g.type, count: c, name });
+      items.push({ type: g.type, kind: 'road', count: c, name });
       parts.push(c + ' ' + name + (c > 1 ? (/(s|sh|ch)$/.test(name) ? 'es' : 's') : ''));
     }
     return { total, text: parts.join(', '), items };
@@ -320,7 +401,7 @@
   BG.Model = {
     emptyDesign, allNodes, nodeMap, findNode, cost, validate, clone, serialize, deserialize,
     beamLength, beamCost, pierCost, segmentHitsRect, pointInRect, inTerrain, roadAnchors,
-    segmentInTerrain, terrainDistance, TERRAIN_CLEARANCE,
-    nextNodeId, trafficSummary, roadConnected,
+    segmentInTerrain, terrainDistance, TERRAIN_CLEARANCE, RAIL_MAX_SLOPE,
+    nextNodeId, trafficSummary, roadConnected, railConnected, deckConnected, trafficKinds, railRules,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -15,6 +15,9 @@
     steel: { id: 'steel', maxLength: 10, costPerMeter: 120 },
     rope: { id: 'rope', maxLength: 20, costPerMeter: 20, tensionOnly: true },
     cable: { id: 'cable', maxLength: 40, costPerMeter: 60, tensionOnly: true },
+    rail: { id: 'rail', maxLength: 6, costPerMeter: 220, isRail: true },
+    masonry: { id: 'masonry', maxLength: 5, costPerMeter: 40 },
+    girder: { id: 'girder', maxLength: 12, costPerMeter: 300 },
   };
   const FALLBACK_VEH_MASS = { car: 1200, van: 2500, bus: 12000, truck: 20000, semi: 38000, tanker: 45000, heavy: 60000 };
   const EPS = 1e-6;
@@ -44,19 +47,29 @@
     return FALLBACK_VEH_MASS[type] || 1500;
   }
 
+  function isRailMat(id) { const d = matDef(id); return !!(d && d.isRail); }
+  function isTrainGroup(g) { return !!g && (g.type === 'train' || !!g.train); }
+  // rail levels (campaign 'rail', or trains in the traffic) get a rail deck when the level allows one
+  function isRailLevel(level) {
+    return !!level && (level.campaign === 'rail' || (level.traffic || []).some(isTrainGroup));
+  }
+
   function pickMaterials(level, opts) {
     const allowed = allowedMaterials(level);
     const has = (m) => allowed.indexOf(m) >= 0;
     const first = (list) => { for (const m of list) if (has(m)) return m; return null; };
     let heaviest = 0;
-    (level.traffic || []).forEach((g) => { heaviest = Math.max(heaviest, vehicleMass(g.type)); });
+    (level.traffic || []).forEach((g) => { if (!isTrainGroup(g)) heaviest = Math.max(heaviest, vehicleMass(g.type)); });
+    const railDeck = first(allowed.filter(isRailMat).concat(['rail']));
     let road;
     if (opts.road && has(opts.road)) road = opts.road;
+    else if (railDeck && (isRailLevel(level) || !first(['road', 'reinforced_road']))) road = railDeck;
     else if (heaviest >= 9000 && has('reinforced_road')) road = 'reinforced_road';
     else road = first(['road', 'reinforced_road']);
-    const struct = (opts.struct && has(opts.struct)) ? opts.struct : first(['steel', 'wood', 'reinforced_road', 'road', 'cable', 'rope']);
-    const tension = (opts.tension && has(opts.tension)) ? opts.tension : first(['cable', 'rope', 'steel', 'wood']);
-    return { road: road || struct, struct: struct || road, tension: tension || struct || road };
+    const struct = (opts.struct && has(opts.struct)) ? opts.struct : first(['steel', 'girder', 'wood', 'reinforced_road', 'road', 'cable', 'rope', 'masonry'].concat(railDeck ? [railDeck] : []));
+    const tension = (opts.tension && has(opts.tension)) ? opts.tension : first(['cable', 'rope', 'steel', 'girder', 'wood']);
+    const masonry = first(['masonry']);
+    return { road: road || struct, struct: struct || road, tension: tension || struct || road, masonry };
   }
 
   // ---------------------------------------------------------------------------
@@ -201,8 +214,9 @@
       aL: 'a' + iL, aR: 'a' + iR,
       xL: A.x, yL: A.y, xR: B.x, yR: B.y, L,
       mid: (A.x + B.x) / 2,
-      road: mats.road, struct: mats.struct, tension: mats.tension,
+      road: mats.road, struct: mats.struct, tension: mats.tension, masonry: mats.masonry,
       roadMax: maxLen(mats.road), sMax: maxLen(mats.struct), tMax: maxLen(mats.tension),
+      mMax: mats.masonry ? maxLen(mats.masonry) : 0,
       area, floorY, waterY,
       lowY: Math.max(floorY, waterY == null ? -1e9 : waterY) + 0.6,
       zones: level.pierZones || [],
@@ -777,6 +791,111 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Viaduct: a row of masonry arches carrying the deck on spandrel columns. The arches spring from
+  // piers in the pier zones (their tops a little below the deck), and at the ends from the low cliff
+  // anchors when there are any (else straight from the road anchors). Without piers: one big arch
+  // between the low cliff anchors.
+  // ---------------------------------------------------------------------------
+  function viaductBuild(F, v) {
+    const c = F.ctx, n = v.n;
+    const M = c.masonry || c.struct;
+    const mMax = maxLen(M) * 0.995;
+    if (c.L / n > c.roadMax * 1.0001) return false;
+    if (v.k - 1 > c.maxPiers) return false;
+    const brace = v.brace && c.struct && c.struct !== M ? c.struct : null;
+    const deck = buildDeck(F, n);
+    const D = deck.ids, xs = deck.xs, ys = deck.ys;
+    // columns: masonry when short enough, else the structural material if it reaches
+    const post = (a, b) => {
+      const l = F.len(a, b);
+      if (l > mMax && c.struct && c.struct !== M && l <= c.sMax * 0.995) return F.beam(a, b, c.struct);
+      return F.beam(a, b, M);
+    };
+    const anchorSup = (i) => ({ id: 'a' + i, x: c.anchors[i].x, y: c.anchors[i].y });
+    const sup = [v.lowL >= 0 ? anchorSup(v.lowL) : { id: c.aL, x: c.xL, y: c.yL }];
+    const A = D.slice(); // arch joint under each deck joint (the deck joint itself where they meet)
+    const used = [];
+    for (let j = 1; j < v.k; j++) {
+      const target = c.xL + (c.L * j) / v.k, w = (c.L / v.k) * 0.35;
+      const pick = pickPierX(c, deck, target, target - w, target + w, -v.rise, used);
+      if (!pick) return false;
+      used.push(pick.x);
+      const top = c.deckY(pick.x) - v.rise;
+      const id = F.pier(pick.x, top);
+      if (Math.abs(xs[pick.idx] - pick.x) < 0.05) { post(D[pick.idx], id); A[pick.idx] = id; }
+      sup.push({ id, x: pick.x, y: top });
+    }
+    sup.push(v.lowR >= 0 ? anchorSup(v.lowR) : { id: c.aR, x: c.xR, y: c.yR });
+    const crowns = [];
+    for (let s = 0; s < sup.length - 1; s++) {
+      const s0 = sup[s], s1 = sup[s + 1];
+      if (!(s1.x - s0.x > 1)) return false;
+      const xm = (s0.x + s1.x) / 2;
+      const yc = c.deckY(xm) - v.crown;
+      const hi = Math.max(s0.y, s1.y);
+      let f;
+      if (yc > hi + 0.3) f = parab3(s0.x, s0.y, xm, yc, s1.x, s1.y);
+      else {
+        // one springing is level with the deck (a bank): half arch, horizontal at the high end
+        const top = s0.y >= s1.y ? s0 : s1, bot = top === s0 ? s1 : s0;
+        f = (x) => { const u = (x - top.x) / (bot.x - top.x); return top.y - (top.y - bot.y) * u * u; };
+      }
+      crowns.push({ x0: s0.x, x1: s1.x, xm: yc > hi + 0.3 ? xm : (s0.y >= s1.y ? s0.x : s1.x) });
+      let prev = s0.id;
+      for (let i = 1; i < n; i++) {
+        const x = xs[i];
+        if (x <= s0.x + 0.05 || x >= s1.x - 0.05) continue;
+        const y = Math.min(f(x), ys[i]);
+        const id = ys[i] - y < 0.7 ? D[i] : F.node(x, y);
+        A[i] = id;
+        if (id !== D[i]) post(D[i], id);
+        F.beam(prev, id, M);
+        prev = id;
+      }
+      F.beam(prev, s1.id, M);
+    }
+    // light diagonal bracing in the spandrels, sloping down toward each arch's crown
+    if (brace) {
+      const bMax = c.sMax * 0.995;
+      for (let i = 0; i < n; i++) {
+        const pc = (xs[i] + xs[i + 1]) / 2;
+        const cr = crowns.find((q) => pc >= q.x0 - 0.05 && pc <= q.x1 + 0.05);
+        if (!cr) continue;
+        const d = pc < cr.xm ? [D[i], A[i + 1]] : [D[i + 1], A[i]];
+        if (d[0] === d[1] || D.indexOf(d[1]) >= 0) continue;
+        if (F.len(d[0], d[1]) <= bMax) F.beam(d[0], d[1], brace);
+      }
+    }
+    return {};
+  }
+
+  function viaductVariants(c, opts) {
+    const out = [];
+    const M = c.masonry || c.struct;
+    const mMax = maxLen(M);
+    const lowL = lowerAnchor(c, 'L'), lowR = lowerAnchor(c, 'R');
+    const n0 = Math.max(2, Math.ceil(c.L / (Math.min(c.roadMax, mMax * 0.8) * 0.999)));
+    const braces = c.struct && c.struct !== M ? [true, false] : [false];
+    if (c.maxPiers >= 1 && c.zones.length && opts.towers !== 'bank') {
+      const kMax = Math.min(c.maxPiers + 1, 14);
+      for (const rf of [0.9, 0.7, 1.4]) {
+        const rise = num(opts.depth, mMax * rf);
+        const kIdeal = clamp(Math.round(c.L / (rise * 3.2)), 2, kMax);
+        const ks = [kIdeal, kIdeal + 1, kIdeal - 1, kMax].filter((k, i, a) => k >= 2 && k <= kMax && a.indexOf(k) === i);
+        for (const k of ks) for (const brace of braces) for (let n = n0; n <= n0 + 2; n++) out.push({ n, k, rise, crown: 0, brace, lowL, lowR });
+      }
+    }
+    if (lowL >= 0 && lowR >= 0) {
+      for (const crown of [0, 1]) for (const brace of braces) for (let n = n0; n <= n0 + 6; n++) out.push({ n, k: 1, rise: 0, crown, brace, lowL, lowR });
+    }
+    return out;
+  }
+  // does this crossing offer what a viaduct springs from (piers, or low anchors on both banks)?
+  function viaductSupports(c) {
+    return (c.maxPiers >= 1 && c.zones.length > 0) || (lowerAnchor(c, 'L') >= 0 && lowerAnchor(c, 'R') >= 0);
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
   const LIST = [
@@ -788,6 +907,7 @@
     { id: 'through_arch', name: 'Through Arch', desc: 'A tied arch rising over the road, with the deck hung beneath it.' },
     { id: 'suspension', name: 'Suspension', desc: 'Main cables draped over two towers carry the deck on hangers.' },
     { id: 'cable_stayed', name: 'Cable-Stayed', desc: 'Straight stays fan out from tall towers directly to the deck.' },
+    { id: 'viaduct', name: 'Viaduct', desc: 'A row of masonry arches on piers carries the deck on stone columns. Stone loves compression.' },
   ];
 
   function generate(id, level, opts) {
@@ -818,6 +938,9 @@
       case 'cable_stayed':
         design = search(c, cableStayedVariants(c, opts), cableStayedBuild);
         break;
+      case 'viaduct':
+        design = search(c, viaductVariants(c, opts), viaductBuild);
+        break;
       default:
         return empty;
     }
@@ -835,9 +958,15 @@
   function available(level) {
     const allowed = allowedMaterials(level);
     const hasT = allowed.indexOf('cable') >= 0 || allowed.indexOf('rope') >= 0;
+    const hasM = allowed.indexOf('masonry') >= 0;
+    const ctx = level ? makeContext(level, {}) : null;
     return LIST.map((t) => {
       let ok = true, reason = null;
       if ((t.id === 'suspension' || t.id === 'cable_stayed') && !hasT) { ok = false; reason = 'needs rope or cable'; }
+      if (t.id === 'viaduct') {
+        if (!hasM) { ok = false; reason = 'needs masonry'; }
+        else if (!ctx || !viaductSupports(ctx)) { ok = false; reason = 'needs piers or low cliff anchors'; }
+      }
       if (ok && level) {
         let d = null;
         try { d = generate(t.id, level, {}); } catch (e) { d = null; }

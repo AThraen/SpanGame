@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="-54 -54 108 108">
+  <!-- SPAN steam locomotive driving wheel. Centre (0,0). Tread diameter = 100 units; flange to r 54.
+       Crank boss at (+27, 0) = 0.54 x tread radius: the renderer pins the coupling / connecting rods
+       there. Balance weight (crescent) opposite the crank. -->
+  <defs>
+    <radialGradient id="tyre" cx="-10" cy="-12" r="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#dfe5eb"/><stop offset="0.55" stop-color="#8d97a3"/><stop offset="1" stop-color="#3a414b"/>
+    </radialGradient>
+    <radialGradient id="paint" cx="-12" cy="-14" r="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e2453a"/><stop offset="0.6" stop-color="#b3261e"/><stop offset="1" stop-color="#6a120e"/>
+    </radialGradient>
+    <radialGradient id="boss" cx="-3" cy="-4" r="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f0f3f6"/><stop offset="0.6" stop-color="#9aa4ae"/><stop offset="1" stop-color="#3d454f"/>
+    </radialGradient>
+  </defs>
+  <circle r="53.5" fill="#1e2228" stroke="#0d0f12" stroke-width="1"/>
+  <circle r="50" fill="url(#tyre)" stroke="#16191e" stroke-width="2"/>
+  <circle r="47.5" fill="none" stroke="#f4f7fa" stroke-width="1.5" opacity="0.6"/>
+  <circle r="44" fill="#14171b"/>
+  <circle r="42.5" fill="none" stroke="url(#paint)" stroke-width="5"/>
+  <!-- 16 spokes -->
+  <g stroke="url(#paint)" stroke-width="4.2" stroke-linecap="round">
+    <path d="M0 -10 V-41"/><path d="M0 -10 V-41" transform="rotate(22.5)"/><path d="M0 -10 V-41" transform="rotate(45)"/><path d="M0 -10 V-41" transform="rotate(67.5)"/>
+    <path d="M0 -10 V-41" transform="rotate(90)"/><path d="M0 -10 V-41" transform="rotate(112.5)"/><path d="M0 -10 V-41" transform="rotate(135)"/><path d="M0 -10 V-41" transform="rotate(157.5)"/>
+    <path d="M0 -10 V-41" transform="rotate(180)"/><path d="M0 -10 V-41" transform="rotate(202.5)"/><path d="M0 -10 V-41" transform="rotate(225)"/><path d="M0 -10 V-41" transform="rotate(247.5)"/>
+    <path d="M0 -10 V-41" transform="rotate(270)"/><path d="M0 -10 V-41" transform="rotate(292.5)"/><path d="M0 -10 V-41" transform="rotate(315)"/><path d="M0 -10 V-41" transform="rotate(337.5)"/>
+  </g>
+  <!-- balance weight (crescent, opposite the crank) -->
+  <path d="M-41 -17 A44 44 0 0 0 -41 17 L-26 12 A28 28 0 0 1 -26 -12 Z" fill="url(#paint)" stroke="#4a0c09" stroke-width="1.5"/>
+  <!-- hub -->
+  <circle r="11" fill="url(#boss)" stroke="#20252b" stroke-width="2"/>
+  <circle r="4" fill="#3a414b"/>
+  <!-- crank boss + pin (+x) -->
+  <path d="M8 -8 L27 -12 A12 12 0 0 1 27 12 L8 8 Z" fill="url(#paint)" stroke="#4a0c09" stroke-width="1.5"/>
+  <circle cx="27" cy="0" r="9" fill="url(#boss)" stroke="#20252b" stroke-width="2"/>
+  <circle cx="27" cy="0" r="3.5" fill="#2a2f36"/>
+  <path d="M-36 -26 A44 44 0 0 1 -14 -42" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.22" stroke-linecap="round"/>
+</svg>

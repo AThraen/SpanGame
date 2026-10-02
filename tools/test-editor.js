@@ -5,7 +5,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 global.BG = global.BG || {};
 function load(rel) { const f = path.join(ROOT, rel); if (fs.existsSync(f)) { try { require(f); return true; } catch (e) { console.warn('  (could not load ' + rel + ': ' + e.message + ')'); } } return false; }
-['js/core/materials.js', 'js/core/vehicles.js', 'js/core/model.js', 'js/core/templates.js'].forEach(load);
+['js/core/materials.js', 'js/core/vehicles.js', 'js/core/trains.js', 'js/core/model.js', 'js/core/templates.js'].forEach(load);
 if (!load('js/ui/editor.js')) { console.error('editor.js missing'); process.exit(1); }
 const BG = global.BG;
 

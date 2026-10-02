@@ -24,8 +24,13 @@
     wood:            { fill: '#b98149', edge: '#6a4122', top: '#e2b37c', w: 0.26 },
     steel:           { fill: '#7f90a3', edge: '#3f4b59', top: '#c3cfdb', w: 0.26 },
     rope:            { fill: '#c9a46a', edge: '#7d6038', top: '#e8cf9c', w: 0.08 },
-    cable:           { fill: '#3a3f47', edge: '#1d2026', top: '#a9b1bb', w: 0.09 }
+    cable:           { fill: '#3a3f47', edge: '#1d2026', top: '#a9b1bb', w: 0.09 },
+    rail:            { fill: '#6e6860', edge: '#2a2f36', top: '#c3ccd6', w: 0.5 },
+    masonry:         { fill: '#b19c7e', edge: '#5a4c3c', top: '#dccbaa', w: 0.7 },
+    girder:          { fill: '#4f6178', edge: '#1e2733', top: '#a9b9cc', w: 0.44 }
   };
+  const BALLAST = ['#8d877b', '#6f695f', '#a59f92', '#5f594f'];
+  const STONE = ['#b9a588', '#a8957a', '#c4b296', '#8f7d64'];
 
   // ---- soft round sprite cache (tinted radial gradients) ----
   const softCache = {};
@@ -176,6 +181,76 @@
       alpha: 0.28 * intensity, color: 'rgba(150,152,158,1)' });
   };
 
+  // ---- railway (SPEC §9.4) ----
+  // one exhaust beat from a steam chimney: a dark coal-smoke core plus a white steam billow. The puffs
+  // leave with part of the train's speed and are braked by the air, so the plume streams back.
+  P.steamPuff = function (x, y, vx, power, speed) {
+    power = clamp(power === undefined ? 1 : power, 0.1, 2);
+    const fast = clamp((speed || 0) / 20, 0, 1);
+    const n = power > 0.4 ? 2 : 1;
+    for (let k = 0; k < n; k++) {
+      this._spawn({ kind: 'soft', x: x + rand(-0.12, 0.12), y: y + 0.1 + k * 0.15, vx: (vx || 0) * (0.5 + k * 0.1) + rand(-0.35, 0.35), vy: rand(1.6, 2.8) * Math.sqrt(power) * (1 - fast * 0.4) + 0.4,
+        max: rand(2.6, 3.8) * (0.7 + power * 0.3), size: rand(0.5, 0.65) * (0.75 + power * 0.3), grow: rand(1.0, 1.5) * (0.8 + power * 0.3), drag: 1.1 + fast, g: -0.025,
+        alpha: (0.2 + 0.1 * Math.min(power, 1.4)), color: k ? 'rgba(104,100,100,1)' : 'rgba(66,62,64,1)' });
+    }
+    if (power > 0.4) {
+      this._spawn({ kind: 'soft', x: x + rand(-0.1, 0.1), y: y + 0.2, vx: (vx || 0) * 0.6 + rand(-0.4, 0.4), vy: rand(2.2, 3.4) * Math.sqrt(power) + 0.3,
+        max: rand(1.0, 1.6), size: rand(0.5, 0.7) * (0.8 + power * 0.25), grow: rand(1.5, 2.1), drag: 1.6 + fast, g: -0.04,
+        alpha: 0.5 * Math.min(1, 0.5 + power * 0.5), color: 'rgba(247,247,244,1)' });
+    }
+  };
+  // escaping steam from a wrecked engine
+  P.steamHiss = function (x, y) {
+    this._spawn({ kind: 'soft', x: x + rand(-0.2, 0.2), y, vx: rand(-0.6, 0.6), vy: rand(1.5, 3), max: rand(1.2, 2), size: rand(0.3, 0.45), grow: rand(1.2, 1.8),
+      drag: 1.4, g: -0.04, alpha: 0.45, color: 'rgba(240,242,245,1)' });
+  };
+  // cylinder drain cocks blowing while a steam engine gets going
+  P.cylinderSteam = function (x, y, dir) {
+    for (let k = 0; k < 2; k++) {
+      const s = k ? 1 : -1;
+      this._spawn({ kind: 'soft', x, y, vx: s * rand(1.6, 3.2) * (dir || 1), vy: rand(-0.4, 0.4), max: rand(0.5, 0.9), size: rand(0.1, 0.16), grow: rand(1.2, 1.8),
+        drag: 3.2, g: -0.05, alpha: 0.6, color: 'rgba(245,247,250,1)' });
+    }
+  };
+  P.dieselExhaust = function (x, y, vx, power) {
+    power = clamp(power === undefined ? 1 : power, 0.1, 2);
+    const dark = power > 1.1 && Math.random() < 0.5;
+    this._spawn({ kind: 'soft', x: x + rand(-0.06, 0.06), y: y + 0.08, vx: (vx || 0) * 0.5 + rand(-0.25, 0.25), vy: rand(1.4, 2.4) * (0.6 + power * 0.4),
+      max: rand(1.2, 1.9), size: rand(0.28, 0.36), grow: rand(0.9, 1.3) * (0.7 + power * 0.4), drag: 1.3, g: -0.035,
+      alpha: (dark ? 0.34 : 0.2) * Math.min(1.2, 0.5 + power * 0.5), color: dark ? 'rgba(46,48,54,1)' : 'rgba(96,100,110,1)' });
+  };
+  // blue-white flash where a pantograph touches the contact wire
+  P.arc = function (x, y) {
+    this._spawn({ kind: 'flash', x, y, max: 0.12, size: 0.7, g: 0, drag: 0, add: true, color: 'rgba(170,205,255,1)' });
+    for (let i = 0; i < 4; i++) {
+      const a = rand(0, Math.PI * 2), s = rand(1, 4);
+      this._spawn({ kind: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, max: rand(0.12, 0.3), size: 0.025, drag: 1.5, g: 0.5, add: true,
+        color: Math.random() < 0.5 ? '#cfe4ff' : '#ffffff' });
+    }
+  };
+  // a few sparks thrown back from a braking (or dragging) wheel at rail level
+  P.wheelSparks = function (x, y, vx, power) {
+    power = power || 1;
+    const dir = (vx || 0) >= 0 ? 1 : -1;
+    const n = 2 + ((Math.random() * 3 * power) | 0);
+    if (Math.random() < 0.3) this._spawn({ kind: 'flash', x, y: y + 0.05, max: 0.1, size: 0.3 * power, g: 0, drag: 0, add: true, color: '#ffd9a0' });
+    for (let i = 0; i < n; i++) {
+      this._spawn({ kind: 'spark', x: x + rand(-0.05, 0.05), y: y + rand(0, 0.05), vx: (vx || 0) * 0.35 - dir * rand(1.5, 6) * power, vy: rand(0.2, 2.6) * power,
+        max: rand(0.25, 0.6), size: rand(0.04, 0.07), drag: 1.3, g: 0.9, bounce: 0.3, add: Math.random() < 0.5,
+        color: Math.random() < 0.55 ? '#ffd36b' : '#ff9a3a' });
+    }
+  };
+  // ballast / earth kicked up by a derailed car
+  P.derailDust = function (x, y, n, size) {
+    n = n || 4; size = size || 1;
+    this.dust(x, y, n, 'rgba(150,138,118,1)', size);
+    for (let i = 0; i < Math.ceil(n / 2); i++) {
+      const a = rand(0.3, Math.PI - 0.3), s = rand(1, 4.5) * size;
+      this._spawn({ kind: 'chunk', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, max: rand(1.0, 2.0), size: rand(0.04, 0.09),
+        rot: rand(0, 6.28), vr: rand(-12, 12), drag: 0.4, g: 1, bounce: 0.3, color: BALLAST[(Math.random() * BALLAST.length) | 0] });
+    }
+  };
+
   P.ring = function (x, y, size) {
     this.rings.push({ x, y, r: 0.1, max: (0.9 + Math.random() * 0.5) * size * 2.2, life: 0, dur: 1.1 + size * 0.4 });
   };
@@ -248,8 +323,17 @@
       case 'splash': this.splash(ev.x, ev.y, ev.size); break;
       case 'vehicle_fall': {
         this.shake(0.35);
-        const v = sim && sim.vehicles && sim.vehicles[ev.i];
-        if (v && this.env.waterY === null) this.dust(v.x, v.y, 18, null, 1.6);
+        const p = eventPos(ev, sim);
+        if (p && this.env.waterY === null) this.dust(p.x, p.y, 18, null, 1.6);
+        break;
+      }
+      case 'derail': {
+        const p = eventPos(ev, sim);
+        this.shake(0.5);
+        if (!p) break;
+        this.sparks(p.x, p.y + 0.1, 30, 1.1);
+        this.derailDust(p.x, p.y + 0.1, 22, 1.7);
+        this.chunks(p.x, p.y + 0.2, 10, BALLAST);
         break;
       }
       case 'creak': {
@@ -272,6 +356,18 @@
       default: break;
     }
   };
+  // world position of a vehicle event: the event's own x/y, else the (derailed) car or the vehicle
+  function eventPos(ev, sim) {
+    if (Number.isFinite(ev.x) && Number.isFinite(ev.y)) return { x: ev.x, y: ev.y };
+    const v = sim && sim.vehicles && sim.vehicles[ev.i];
+    if (!v) return null;
+    let o = v;
+    if (Array.isArray(v.cars) && v.cars.length) o = v.cars[typeof ev.car === 'number' && v.cars[ev.car] ? ev.car : 0];
+    if (Number.isFinite(o.x) && Number.isFinite(o.y)) return { x: o.x + ((o.def && o.def.length) || 0) / 2, y: o.y };
+    const w = o.wheels && o.wheels[0];
+    return w && Number.isFinite(w.x) ? { x: w.x, y: w.y } : null;
+  }
+
   P.handleEvents = P.processEvents = P.onEvents = function (events, sim) {
     if (!events) return;
     for (let i = 0; i < events.length; i++) this.handleEvent(events[i], sim);
@@ -309,6 +405,12 @@
         this.chunks(x, y, 14); this.dust(x, y, 10, 'rgba(160,160,160,1)', 1); this.sparks(x, y, 8, 0.6); this.shake(0.19); break;
       case 'reinforced_road':
         this.chunks(x, y, 12); this.sparks(x, y, 24, 1); this.dust(x, y, 8, 'rgba(160,160,160,1)', 1); this.shake(0.21); break;
+      case 'rail':
+        this.chunks(x, y, 16, BALLAST); this.sparks(x, y, 22, 1); this.dust(x, y, 10, 'rgba(150,138,118,1)', 1.1); this.shake(0.22); break;
+      case 'masonry':
+        this.chunks(x, y, 20, STONE); this.dust(x, y, 16, 'rgba(206,192,166,1)', 1.4); this.shake(0.2); break;
+      case 'girder':
+        this.sparks(x, y, 44, 1.25); this.chunks(x, y, 6, ['#5d6f86', '#3a4658']); this.shake(0.26); break;
       default:
         this.sparks(x, y, 34, 1.1); this.chunks(x, y, 5, ['#8b9aab', '#5d6a78']); this.shake(0.17); break;
     }
@@ -543,6 +645,7 @@
   // ---- static facade: BG.Effects.method(...) acts on the shared instance ----
   Effects.shared = function () { return shared || new Effects(); };
   ['setLevel', 'setEnv', 'clear', 'reset', 'sparks', 'splinters', 'chunks', 'dust', 'exhaust', 'ring', 'splash',
+    'steamPuff', 'steamHiss', 'cylinderSteam', 'dieselExhaust', 'arc', 'wheelSparks', 'derailDust',
     'addDebris', 'shake', 'getShake', 'shakeOffset', 'handleEvent', 'onEvent', 'handleEvents', 'processEvents',
     'onEvents', 'update', 'draw', 'drawSurface', 'drawRings', 'count'].forEach(function (k) {
     Effects[k] = function () { const s = Effects.shared(); return s[k].apply(s, arguments); };

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="370" viewBox="0 -370 1200 370">
+  <!-- SPAN tank wagon. 1 unit = 1 cm, origin = rear of the car on the rail line, facing right.
+       Bogies drawn separately: centres x = 200 / 1000, axles +-90, wheel r 45. Buffers at height 100. -->
+  <defs>
+    <linearGradient id="tank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6d737c"/><stop offset="0.22" stop-color="#3d4148"/><stop offset="0.6" stop-color="#2d2f33"/><stop offset="1" stop-color="#121316"/>
+    </linearGradient>
+    <linearGradient id="black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.25" stop-color="#2a2f36"/><stop offset="1" stop-color="#0f1114"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#e0761a"/></linearGradient>
+    <clipPath id="clip"><rect x="46" y="-342" width="1108" height="196" rx="98"/></clipPath>
+  </defs>
+  <g stroke="#1c2230">
+    <rect x="12" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="1" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+    <rect x="1164" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="1186" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+  </g>
+  <!-- underframe + walkway -->
+  <rect x="24" y="-142" width="1152" height="30" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="24" y="-150" width="1152" height="8" rx="2" fill="#5a616b" stroke="#1c2230" stroke-width="2"/>
+  <path d="M480 -112 L540 -100 L660 -100 L720 -112" fill="none" stroke="#1c2230" stroke-width="5"/>
+  <!-- saddles -->
+  <g fill="url(#black)" stroke="#1c2230" stroke-width="2.5">
+    <path d="M150 -150 L170 -186 L250 -186 L270 -150 Z"/><path d="M930 -150 L950 -186 L1030 -186 L1050 -150 Z"/>
+  </g>
+  <!-- tank -->
+  <rect x="46" y="-342" width="1108" height="196" rx="98" fill="url(#tank)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-262" width="1200" height="36" fill="url(#band)"/>
+    <rect x="0" y="-262" width="1200" height="4" fill="#fff" opacity="0.35"/>
+    <path d="M0 -330 H1200" stroke="#ffffff" stroke-width="6" opacity="0.18"/>
+    <path d="M330 -342 V-146 M600 -342 V-146 M870 -342 V-146" stroke="#1c2230" stroke-width="3" opacity="0.5"/>
+  </g>
+  <!-- tie-down bands -->
+  <g fill="none" stroke="#1c2230" stroke-width="5" opacity="0.8"><path d="M210 -342 V-186 M990 -342 V-186"/></g>
+  <!-- hazard placard -->
+  <g transform="translate(450 -200)">
+    <path d="M0 -26 L26 0 L0 26 L-26 0 Z" fill="#ffffff" stroke="#1c2230" stroke-width="2.5"/>
+    <path d="M0 -18 L18 0 L0 18 L-18 0 Z" fill="#d8342b"/>
+    <path d="M-8 6 Q0 -16 8 6 Z" fill="#ffffff"/>
+  </g>
+  <rect x="680" y="-214" width="100" height="26" rx="3" fill="#f4ead0" stroke="#1c2230" stroke-width="2"/>
+  <g fill="#1c2230"><rect x="690" y="-207" width="16" height="12" rx="2"/><rect x="712" y="-207" width="40" height="12" rx="2"/></g>
+  <!-- dome + valves + platform -->
+  <rect x="560" y="-366" width="80" height="30" rx="10" fill="url(#tank)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="552" y="-370" width="96" height="10" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <path d="M500 -350 V-368 H700 V-350" fill="none" stroke="#1c2230" stroke-width="4"/>
+  <path d="M520 -368 V-342 M680 -368 V-342" stroke="#1c2230" stroke-width="3"/>
+  <!-- ladder -->
+  <path d="M520 -340 V-150 M540 -340 V-150" stroke="#1c2230" stroke-width="3"/>
+  <path d="M520 -310 H540 M520 -280 H540 M520 -250 H540 M520 -220 H540 M520 -190 H540 M520 -160 H540" stroke="#1c2230" stroke-width="3"/>
+  <rect x="46" y="-342" width="1108" height="196" rx="98" fill="none" stroke="#1c2230" stroke-width="4"/>
+</svg>

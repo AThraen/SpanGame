@@ -1,0 +1,18 @@
+{
+  "id": 108,
+  "campaign": "rail",
+  "name": "Stone Steps",
+  "hint": "Steam needs stone. Masonry is cheap and nearly unbreakable in compression, but it cracks the moment it is pulled. Spring an arch from each pier, stand masonry posts on it to carry the rail, and brace the spandrels so every stone stays squeezed.",
+  "theme": "autumn",
+  "terrain": { "leftEdge": 0, "leftY": 0, "rightEdge": 40, "rightY": 0, "floorY": -16, "waterY": -13 },
+  "anchors": [ { "x": 0, "y": 0 }, { "x": 40, "y": 0 }, { "x": 0, "y": -4 }, { "x": 40, "y": -4 } ],
+  "pierZones": [ { "x0": 8, "x1": 12 }, { "x0": 18, "x1": 22 }, { "x0": 28, "x1": 32 } ],
+  "maxPiers": 3,
+  "noBuild": [],
+  "buildArea": { "x0": 0, "x1": 40, "y0": -15, "y1": 3 },
+  "materials": [ "rail", "masonry", "wood", "steel" ],
+  "budget": 33500,
+  "traffic": [ { "type": "train", "train": "steam_local", "count": 2, "interval": 4 } ],
+  "timeLimit": 45,
+  "templates": true
+}

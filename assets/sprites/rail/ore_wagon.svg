@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 -300 1000 300">
+  <!-- SPAN ore hopper wagon, loaded with iron ore. 1 unit = 1 cm, origin = rear of the car on the rail line,
+       facing right. Bogies drawn separately: centres x = 190 / 810, axles +-90, wheel r 45.
+       Buffers at height 100. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a0745a"/><stop offset="0.45" stop-color="#6b4a32"/><stop offset="1" stop-color="#3a2618"/>
+    </linearGradient>
+    <linearGradient id="rib" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3a2618"/><stop offset="0.5" stop-color="#b08468"/><stop offset="1" stop-color="#3a2618"/>
+    </linearGradient>
+    <linearGradient id="black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.25" stop-color="#2a2f36"/><stop offset="1" stop-color="#0f1114"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <radialGradient id="ore" cx="0.45" cy="0.1" r="0.9">
+      <stop offset="0" stop-color="#b0573a"/><stop offset="0.45" stop-color="#7a3420"/><stop offset="1" stop-color="#3e1a10"/>
+    </radialGradient>
+    <clipPath id="clip"><path d="M34 -268 L966 -268 L966 -148 L640 -148 L600 -96 L400 -96 L360 -148 L34 -148 Z"/></clipPath>
+  </defs>
+  <g stroke="#1c2230">
+    <rect x="12" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="1" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+    <rect x="964" y="-111" width="24" height="22" rx="3" fill="url(#black)" stroke-width="2"/>
+    <rect x="986" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke-width="2.5"/>
+  </g>
+  <!-- underframe ends -->
+  <rect x="24" y="-146" width="330" height="32" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="646" y="-146" width="330" height="32" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <!-- ore load (heaped above the hopper) -->
+  <path d="M40 -266 Q70 -282 104 -278 Q130 -296 168 -286 Q200 -298 236 -288 Q270 -300 306 -290 Q344 -300 380 -288 Q418 -298 456 -290 Q492 -300 530 -290 Q566 -298 604 -288 Q640 -298 676 -286 Q712 -296 748 -284 Q784 -292 820 -280 Q858 -290 892 -276 Q930 -280 960 -266 Z" fill="url(#ore)" stroke="#2a1008" stroke-width="2"/>
+  <g fill="#c8704c" opacity="0.6"><circle cx="120" cy="-280" r="5"/><circle cx="214" cy="-288" r="4"/><circle cx="330" cy="-292" r="5"/><circle cx="440" cy="-290" r="4"/><circle cx="560" cy="-292" r="5"/><circle cx="690" cy="-288" r="4"/><circle cx="800" cy="-282" r="5"/><circle cx="900" cy="-276" r="4"/></g>
+  <g fill="#2a1008" opacity="0.5"><circle cx="160" cy="-276" r="4"/><circle cx="380" cy="-282" r="5"/><circle cx="610" cy="-282" r="4"/><circle cx="740" cy="-278" r="5"/></g>
+  <!-- hopper body -->
+  <path d="M34 -268 L966 -268 L966 -148 L640 -148 L600 -96 L400 -96 L360 -148 L34 -148 Z" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <g fill="url(#rib)" opacity="0.9">
+      <rect x="110" y="-268" width="10" height="170"/><rect x="230" y="-268" width="10" height="170"/><rect x="350" y="-268" width="10" height="170"/>
+      <rect x="640" y="-268" width="10" height="170"/><rect x="760" y="-268" width="10" height="170"/><rect x="880" y="-268" width="10" height="170"/>
+    </g>
+    <rect x="0" y="-268" width="1000" height="14" fill="#c9a08a" opacity="0.5"/>
+    <rect x="0" y="-168" width="1000" height="20" fill="#000" opacity="0.18"/>
+    <path d="M370 -236 L630 -236 M370 -206 L630 -206" stroke="#3a2618" stroke-width="3" opacity="0.6"/>
+  </g>
+  <path d="M34 -268 L966 -268 L966 -148 L640 -148 L600 -96 L400 -96 L360 -148 L34 -148 Z" fill="none" stroke="#1c2230" stroke-width="4" stroke-linejoin="round"/>
+  <!-- discharge doors + lever -->
+  <rect x="404" y="-100" width="192" height="14" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <path d="M420 -86 L380 -60 M580 -86 L620 -60" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <!-- number panel -->
+  <rect x="440" y="-246" width="120" height="30" rx="3" fill="#f4ead0" stroke="#1c2230" stroke-width="2"/>
+  <g fill="#1c2230"><rect x="452" y="-238" width="20" height="14" rx="2"/><rect x="478" y="-238" width="70" height="14" rx="2"/></g>
+</svg>

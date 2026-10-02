@@ -5,7 +5,8 @@
 // Both must also be valid, buildable in the editor (joints on the 0.25 m grid, no two joints closer than
 // the 0.6 m joint magnet) and free of floppy parts (no joint drifting > 1 m while nothing has broken).
 // Exit code 1 on any failure.
-// Usage: node tools/verify-levels.js [--only 1,2,3] [--ref-only] [--verbose]
+// Works for both campaigns (rail levels: ids 101-120, files level-101.json ...).
+// Usage: node tools/verify-levels.js [--only 1,2,3 | --only 1..50 | --only 101-120] [--campaign road|rail] [--ref-only] [--verbose]
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -15,7 +16,19 @@ const PEAK_MAX = 0.92, BEST_PEAK_MAX = 0.99, BEST_RATIO = 0.70;
 const GRID = 0.25, MIN_SPACING = 0.6, WANDER_MAX = 1.0;
 const args = process.argv.slice(2);
 const onlyArg = args.indexOf('--only') >= 0 ? args[args.indexOf('--only') + 1] : null;
-const only = onlyArg ? new Set(onlyArg.split(',').map(Number)) : null;
+// --only accepts ids and ranges: "3", "1,2,3", "1..50", "101-120", "1..10,101"
+function parseOnly(s) {
+  const out = new Set();
+  for (const part of String(s).split(',')) {
+    const m = /^\s*(\d+)\s*(?:\.\.|-)\s*(\d+)\s*$/.exec(part);
+    if (m) { const a = +m[1], b = +m[2]; for (let i = Math.min(a, b); i <= Math.max(a, b); i++) out.add(i); }
+    else if (part.trim()) out.add(Number(part));
+  }
+  return out;
+}
+const only = onlyArg ? parseOnly(onlyArg) : null;
+// --campaign road|rail (levels without a campaign field are road levels)
+const campArg = args.indexOf('--campaign') >= 0 ? args[args.indexOf('--campaign') + 1] : null;
 const verbose = args.includes('--verbose');
 const refOnly = args.includes('--ref-only');
 
@@ -36,7 +49,7 @@ function buildability(level, design) {
   return out;
 }
 
-const levels = (BG.Levels || []).filter(l => !only || only.has(l.id));
+const levels = (BG.Levels || []).filter(l => (!only || only.has(l.id)) && (!campArg || (l.campaign || 'road') === campArg));
 if (!levels.length) { console.error('No levels found (BG.Levels empty?)'); process.exit(1); }
 
 const cols = [['id', 8], ['name', 24], ['result', 7], ['time', 7], ['peak', 7], ['cost', 8], ['budget', 8], ['ratio', 6], ['veh', 6], ['brk', 4], ['wall', 7], ['problems', 0]];

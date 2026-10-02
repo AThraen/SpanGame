@@ -263,7 +263,186 @@
       tone({ type: 'triangle', freq: 587.33, t, a: 0.005, d: 0.1, gain: 0.1 });
       tone({ type: 'triangle', freq: 392, t: t + 0.08, a: 0.005, d: 0.2, gain: 0.1 });
     },
+
+    // ---- Iron Road ----
+    // horn({kind: 'whistle' | 'diesel' | 'chime' | 'bell', pan})
+    horn(o) {
+      if (!throttle('horn', 700)) return;
+      const t = now(), pan = o.pan;
+      const kind = o.kind || 'diesel';
+      if (kind === 'whistle') {
+        // steam whistle: a breathy chord (three pipes) with a pitch scoop and a long tail
+        const chord = [523.25, 659.25, 783.99];
+        chord.forEach((f, i) => {
+          const osc = ctx.createOscillator(); osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f * 0.94, t);
+          osc.frequency.exponentialRampToValueAtTime(f, t + 0.12);
+          osc.frequency.setValueAtTime(f, t + 1.0);
+          osc.frequency.exponentialRampToValueAtTime(f * 0.97, t + 1.35);
+          const vib = ctx.createOscillator(); vib.frequency.value = 5.5 + i * 0.4;
+          const vg = ctx.createGain(); vg.gain.value = f * 0.004;
+          vib.connect(vg); vg.connect(osc.frequency);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.05, t + 0.09);
+          g.gain.setValueAtTime(0.05, t + 1.0);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+          osc.connect(g); connectOut(g, sfxBus, pan);
+          osc.start(t); vib.start(t); osc.stop(t + 1.45); vib.stop(t + 1.45);
+        });
+        noise({ t, filter: 'bandpass', ff: 2600, q: 1.2, a: 0.06, d: 1.3, gain: 0.07, pan });
+      } else if (kind === 'chime') {
+        // high-speed two-tone chime: clean, bright, slightly detuned pairs
+        [[880, 0], [698.46, 0.32]].forEach(([f, dt]) => {
+          tone({ type: 'sine', freq: f, t: t + dt, a: 0.01, d: 0.55, gain: 0.08, pan });
+          tone({ type: 'sine', freq: f * 2.005, t: t + dt, a: 0.01, d: 0.4, gain: 0.03, pan });
+          tone({ type: 'triangle', freq: f * 0.5, t: t + dt, a: 0.01, d: 0.5, gain: 0.03, pan });
+        });
+      } else if (kind === 'bell') {
+        // tram bell: two dings of an inharmonic bell
+        [0, 0.24].forEach(dt => [1, 2.76, 5.4].forEach((m, i) => tone({ type: 'sine', freq: 1180 * m, t: t + dt, a: 0.002, d: 0.6 - i * 0.15, gain: 0.07 / (i + 1), pan })));
+      } else {
+        // diesel air horn: a dissonant reed chord, sawtooth through a resonant low-pass
+        [311.13, 369.99, 466.16].forEach((f, i) => {
+          const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(f * 0.97, t);
+          osc.frequency.linearRampToValueAtTime(f, t + 0.06);
+          osc.detune.value = (i - 1) * 6;
+          const flt = ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 1600; flt.Q.value = 2.5;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.035, t + 0.05);
+          g.gain.setValueAtTime(0.035, t + 0.95);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.15);
+          osc.connect(flt); flt.connect(g); connectOut(g, sfxBus, pan);
+          osc.start(t); osc.stop(t + 1.2);
+        });
+      }
+    },
+    // one wheel over a rail joint: the "clack". Use BG.Audio.trainTick(speed, opts) rather than play().
+    tick(o) {
+      const sp = Math.max(0, o.speed || 0);
+      if (sp < 0.6) return;
+      if (!throttle('tick', sp > 25 ? 22 : 38)) return;
+      const t = now(), pan = o.pan, heavy = Math.min(1, Math.max(0, o.heavy || 0));
+      const lvl = Math.min(1, 0.25 + sp / 30) * (o.timeScale > 2 ? 0.6 : 1);
+      noise({ t, filter: 'bandpass', ff: 1700 - heavy * 700 + rnd() * 300, q: 2.2, a: 0.001, d: 0.035, gain: 0.07 * lvl, pan });
+      tone({ type: 'triangle', freq: 150 - heavy * 50 + rnd() * 20, freqEnd: 70, t, a: 0.001, d: 0.06, gain: 0.1 * lvl * (0.6 + heavy * 0.6), pan });
+    },
+    derail(o) {
+      if (!throttle('derail', 400)) return;
+      const t = now(), pan = o.pan, heavy = Math.min(1, Math.max(0, o.heavy != null ? o.heavy : 0.5));
+      // impact
+      noise({ t, filter: 'lowpass', ff: 2600, ffEnd: 200, a: 0.002, d: 0.9 + heavy * 0.6, gain: 0.55, pan });
+      tone({ type: 'sine', freq: 70, freqEnd: 28, t, a: 0.003, d: 0.9, gain: 0.6, pan });
+      // metal: crumpling partials and a long screech of steel on stone
+      [430, 1170, 2310, 3530].forEach((f, i) => tone({ type: 'sine', freq: f * (0.95 + rnd() * 0.1), t: t + 0.02 * i, a: 0.002, d: 1.1 - i * 0.2, gain: 0.07 / (i + 1), pan }));
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1900, t + 0.1);
+      for (let i = 1; i <= 10; i++) osc.frequency.linearRampToValueAtTime(900 + rnd() * 1400, t + 0.1 + i * 0.12);
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 5;
+      const g = ctx.createGain(); env(g, t + 0.08, 0.05, 0.05, 1.3);
+      osc.connect(f); f.connect(g); connectOut(g, sfxBus, pan);
+      osc.start(t + 0.08); osc.stop(t + 1.6);
+      // tumbling crashes
+      for (let i = 0; i < 6; i++) noise({ t: t + 0.25 + i * 0.16 + rnd() * 0.1, filter: 'bandpass', ff: 300 + rnd() * 900, q: 1.2, a: 0.002, d: 0.18, gain: 0.25 * (1 - i / 8), brown: true, pan });
+    },
   };
+
+  // ---- trains (continuous: rolling, traction, brake squeal, steam chuffs) ----
+  // list: [{key, traction:'steam'|'diesel'|'electric'|'none', speed (m/s, already time-scale weighted),
+  //         simSpeed, timeScale, braking (0..1), pan, mass (kg), gain?}] for every driving train
+  const trains = new Map();
+  function makeTrain(v) {
+    const out = ctx.createGain(); out.gain.value = 1;
+    const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if (pan) { out.connect(pan); pan.connect(engBus); } else out.connect(engBus);
+    // rolling rumble
+    const roll = ctx.createBufferSource(); roll.buffer = brownBuf; roll.loop = true;
+    const rollF = ctx.createBiquadFilter(); rollF.type = 'lowpass'; rollF.frequency.value = 220;
+    const rollG = ctx.createGain(); rollG.gain.value = 0.0001;
+    roll.connect(rollF); rollF.connect(rollG); rollG.connect(out);
+    // brake squeal: a thin, wavering whine
+    const sq = ctx.createOscillator(); sq.type = 'sawtooth'; sq.frequency.value = 2900;
+    const sqV = ctx.createOscillator(); sqV.frequency.value = 7;
+    const sqVG = ctx.createGain(); sqVG.gain.value = 60;
+    sqV.connect(sqVG); sqVG.connect(sq.frequency);
+    const sqF = ctx.createBiquadFilter(); sqF.type = 'bandpass'; sqF.frequency.value = 3100; sqF.Q.value = 9;
+    const sqG = ctx.createGain(); sqG.gain.value = 0.0001;
+    sq.connect(sqF); sqF.connect(sqG); sqG.connect(out);
+    const all = [roll, sq, sqV];
+    const e = { out, pan, rollF, rollG, sqG, all, phase: 0, lastT: now(), traction: v.traction };
+    if (v.traction === 'diesel') {
+      const o1 = ctx.createOscillator(); o1.type = 'sawtooth';
+      const o2 = ctx.createOscillator(); o2.type = 'square';
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; f.Q.value = 2;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(out);
+      all.push(o1, o2);
+      Object.assign(e, { d1: o1, d2: o2, dG: g });
+    } else if (v.traction === 'electric') {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      const o2 = ctx.createOscillator(); o2.type = 'triangle';
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      o.connect(g); o2.connect(g); g.connect(out);
+      all.push(o, o2);
+      Object.assign(e, { w1: o, w2: o2, wG: g });
+    }
+    all.forEach(n => n.start());
+    return e;
+  }
+  function chuff(e, t, strength, pan) {
+    // one exhaust beat: a short, gritty burst of filtered noise with a low thump
+    noise({ t, filter: 'bandpass', ff: 700 + rnd() * 200, q: 0.9, a: 0.004, d: 0.13, gain: 0.12 * strength, dest: e.out });
+    noise({ t, filter: 'lowpass', ff: 260, a: 0.003, d: 0.12, gain: 0.16 * strength, brown: true, dest: e.out });
+  }
+  function updateTrains(list) {
+    if (!ctx || ctx.state !== 'running') return;
+    const t = now();
+    const seen = new Set();
+    (list || []).slice(0, 6).forEach(v => {
+      seen.add(v.key);
+      let e = trains.get(v.key);
+      if (!e) { e = makeTrain(v); trains.set(v.key, e); }
+      const sp = Math.max(0, v.speed || 0);
+      const heavy = Math.min(1, Math.max(0, (v.mass || 1e5) / 1.5e6));
+      const g0 = v.gain != null ? v.gain : 1;
+      if (e.pan && v.pan != null) e.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v.pan)), t, 0.15);
+      e.rollF.frequency.setTargetAtTime(120 + sp * 9 + heavy * 40, t, 0.2);
+      e.rollG.gain.setTargetAtTime((0.01 + Math.min(1, sp / 30) * (0.05 + heavy * 0.05)) * g0, t, 0.25);
+      e.sqG.gain.setTargetAtTime(v.braking > 0.15 && sp > 2 ? 0.02 * Math.min(1, v.braking) * g0 : 0.0001, t, 0.12);
+      if (e.dG) {
+        const f = 38 + sp * 1.4 + heavy * 6;
+        e.d1.frequency.setTargetAtTime(f, t, 0.3); e.d2.frequency.setTargetAtTime(f * 0.5, t, 0.3);
+        e.dG.gain.setTargetAtTime((0.022 + heavy * 0.02) * g0, t, 0.3);
+      }
+      if (e.wG) {
+        const f = 180 + sp * 14;
+        e.w1.frequency.setTargetAtTime(f, t, 0.3); e.w2.frequency.setTargetAtTime(f * 1.5, t, 0.3);
+        e.wG.gain.setTargetAtTime((0.004 + Math.min(1, sp / 60) * 0.012) * g0, t, 0.3);
+      }
+      if (e.traction === 'steam') {
+        // four exhaust beats per turn of a ~1.6 m driving wheel; capped so fast-forward stays musical
+        const dt = Math.min(0.25, Math.max(0, t - e.lastT));
+        const rate = Math.min(11, (4 * (v.simSpeed != null ? v.simSpeed : sp) * Math.min(2, v.timeScale || 1)) / (Math.PI * 1.6));
+        e.phase += dt * Math.max(rate, sp > 0.3 ? 0.9 : 0);
+        let n = 0;
+        while (e.phase >= 1 && n < 3) {
+          e.phase -= 1; n++;
+          const accent = (e.beat = ((e.beat | 0) + 1) % 4) === 0 ? 1.25 : 1;
+          chuff(e, t + n * 0.01, accent * g0 * (rate > 6 ? 0.7 : 1));
+        }
+        if (e.phase > 1) e.phase = 0;
+      }
+      e.lastT = t;
+    });
+    trains.forEach((e, key) => {
+      if (seen.has(key)) return;
+      e.out.gain.setTargetAtTime(0.0001, t, 0.2);
+      trains.delete(key);
+      setTimeout(() => { e.all.forEach(n => { try { n.stop(); } catch (x) { /* */ } }); try { e.out.disconnect(); } catch (x) { /* */ } }, 1200);
+    });
+  }
 
   // ---- ambient wind loop ----
   function buildAmbient() {
@@ -365,7 +544,11 @@
     startAmbient() { ambientOn = true; if (ctx && ctx.state === 'running') buildAmbient(); },
     stopAmbient() { stopAmbient(); },
     updateEngines(list) { try { updateEngines(list); } catch (e) { /* */ } },
-    stopEngines() { try { updateEngines([]); } catch (e) { /* */ } },
+    stopEngines() { try { updateEngines([]); } catch (e) { /* */ } try { updateTrains([]); } catch (e) { /* */ } },
+    // trains: see updateTrains above; missing keys fade out
+    updateTrains(list) { if (!ready()) { try { updateTrains([]); } catch (e) { /* */ } return; } try { updateTrains(list); } catch (e) { if (!warned.trains) { warned.trains = 1; console.warn('[audio] trains:', e && e.message); } } },
+    // clickety-clack: call once per wheel passing a rail joint. speed in m/s (sim), opts {pan, heavy 0..1, timeScale}
+    trainTick(speed, opts) { Audio.play('tick', Object.assign({ speed }, opts || {})); },
     sounds: Object.keys(S),
   };
 

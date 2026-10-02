@@ -1,0 +1,18 @@
+{
+  "id": 101,
+  "campaign": "rail",
+  "name": "Pump Trolley",
+  "hint": "Trains only run on Rail Track - lay it from bank to bank. Track bends at its joints, and a train derails on a kink or a slope that is too steep (over 4 degrees, or a 6 % grade). A light handcar can cross a short plain span; prop the middle joint with wood for a smoother ride.",
+  "theme": "meadow",
+  "terrain": { "leftEdge": 0, "leftY": 0, "rightEdge": 10, "rightY": 0, "floorY": -8, "waterY": -5.5 },
+  "anchors": [ { "x": 0, "y": 0 }, { "x": 10, "y": 0 }, { "x": 0, "y": -2.5 }, { "x": 10, "y": -2.5 } ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": { "x0": 0, "x1": 10, "y0": -2.5, "y1": 1 },
+  "materials": [ "rail", "wood" ],
+  "budget": 2300,
+  "traffic": [ { "type": "train", "train": "handcar", "count": 2, "interval": 4 } ],
+  "timeLimit": 40,
+  "templates": false
+}

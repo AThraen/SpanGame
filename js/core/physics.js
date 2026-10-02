@@ -39,6 +39,28 @@
  *   The sim keeps running after success/failure so collapses can be watched.
  * Fully deterministic: no Math.random (seeded PRNG only), fixed iteration order,
  * vehicle rotations are unit complex numbers (no sin/cos in the state update).
+ *
+ * Railway (SPEC §9.3, definitions + designer notes in trains.js):
+ *   - traffic entries {type:'train', train:'<preset>', count, interval} become sim.vehicles
+ *     entries {kind:'train', type:'train', preset, def (BG.Trains preset), state, index, x, y,
+ *     angle, vx, wheels (lead car's), cars:[{type, def, index, state, x, y, angle, vx,
+ *     wheels:[{x, y, r, rot, seg}]}]}; road vehicles carry kind:'road'.
+ *     car.state: 'waiting' | 'running' | 'derailed' | 'fallen' | 'finished';
+ *     train state: 'waiting' | 'driving' | 'finished' | 'derailed'; wheel.seg = rail beam index
+ *     under the wheel (-1 bank / none). Cars are listed front (locomotive) first; a train's
+ *     x/y/angle/vx are its lead car's.
+ *   - each car is a rigid body; its wheels are held ON the rail (bilateral, compliant
+ *     suspension constraint against the rail segment under the wheel - flanges: a wheel can
+ *     neither sink into nor bounce off the track). Loads go into the rail beam's end joints by
+ *     barycentric weight, exactly like road tyres. Only 'rail' beams (and the bank tops) carry
+ *     trains. Couplers: XPBD distance constraints with free slack between consecutive cars.
+ *     Locomotives pull / brake toward the target speed (adhesion limited; every car brakes).
+ *   - derailment (BG.RailRules, level.rail overrides): grade under a wheel > maxGrade for
+ *     > 0.3 s; kink under a bogie > maxKinkDeg (scaled by 15/v above 15 m/s) for > 0.05 s;
+ *     no rail under a wheel; a wheel lifted off (held down with more than its static load) for
+ *     > 0.12 s. Event {type:'derail', i, car, x, y, reason}; failReason 'derailed'. A derailed car
+ *     becomes a free rigid body (hull + wheels collide with deck beams and ground), stays
+ *     coupled, and the rest of the train emergency-brakes.
  */
 (function (root) {
   'use strict';
@@ -65,6 +87,18 @@
   const AIR_MAX = 0.35;           // s: a vehicle airborne longer than this over the gap has left the road
   const STALL_SPEED = 0.3;        // m/s: every driving vehicle slower than this ...
   const STALL_TIME = 5;           // s: ... for this long -> the run ends early ('stalled')
+  // railway
+  const RAIL_FREQ = 3.0;          // Hz, wheel/track suspension natural frequency
+  const RAIL_ZETA = 0.6;          // suspension damping ratio
+  const RAIL_CATCH = 0.5;         // m: a wheel this far above the rail still holds it (flange)
+  const MU_RAIL = 0.3;            // wheel/rail adhesion (traction and braking)
+  const TRAIN_TAU = 0.6;          // s, speed controller time constant
+  const TRAIN_DECEL = 1.2;        // m/s^2 service brake
+  const TRAIN_EBRAKE = 2.5;       // m/s^2 emergency brake (after a derailment)
+  const COUPLER_K = 4.0e7;        // N/m coupler stiffness outside the slack
+  const LIFT_RATIO = 1.0;         // wheel held down with more than this x its static load ...
+  const SCRAPE_MU = 0.45;         // friction of a derailed car scraping along
+  const TRAIN_SPAWN_T = 2.0;      // s: fast trains start far enough back to reach the gap after this
 
   function mulberry32(a) {
     a = (a >>> 0) || 1;
@@ -127,7 +161,16 @@
 
       this._buildStructure();
       // vehicles that reach the far bank without a continuous road under them must have jumped
+      // (kind-aware: rail levels need the rail, double-deck levels both decks)
       this.roadConnected = BG.Model && BG.Model.roadConnected ? BG.Model.roadConnected(this.level, this.design) : true;
+      this.railConnected = BG.Model && BG.Model.railConnected ? BG.Model.railConnected(this.level, this.design) : true;
+      const RR = BG.RailRules || {};
+      const rr = BG.Model && BG.Model.railRules ? BG.Model.railRules(this.level) : { maxGrade: 0.06, maxKinkDeg: 4 };
+      this.railRules = {
+        maxGrade: rr.maxGrade, maxKinkDeg: rr.maxKinkDeg, kinkMax: rr.maxKinkDeg * PI / 180,
+        gradeTime: num(RR.gradeTime, 0.3), kinkTime: num(RR.kinkTime, 0.05), kinkRefSpeed: num(RR.kinkRefSpeed, 15),
+        liftTime: num(RR.liftTime, 0.12), gap: num(RR.couplerGap, 0.8), slack: num(RR.couplerSlack, 0.12),
+      };
       this._buildGround();
       this._buildVehicles();
       this._splashBudget = 0;
@@ -165,7 +208,7 @@
       this.ba = new Int32Array(capB); this.bb = new Int32Array(capB);
       this.rest = new Float64Array(capB); this.compl = new Float64Array(capB);
       this.tlim = new Float64Array(capB); this.clim = new Float64Array(capB);
-      this.tonly = new Uint8Array(capB); this.road = new Uint8Array(capB);
+      this.tonly = new Uint8Array(capB); this.road = new Uint8Array(capB); this.rail = new Uint8Array(capB);
       this.active = new Uint8Array(capB); this.frag = new Uint8Array(capB);
       this.fRaw = new Float64Array(capB); this.fFilt = new Float64Array(capB);
       this.peakArr = new Float64Array(capB); this.creakT = new Float64Array(capB);
@@ -194,6 +237,7 @@
           this.clim[j] = Math.max(1, mat.compressionLimit);
           this.tonly[j] = mat.tensionOnly ? 1 : 0;
           this.road[j] = mat.isRoad ? 1 : 0;
+          this.rail[j] = mat.isRail ? 1 : 0;
           const bm = mat.massPerMeter * L;
           this.mass[ia] += bm / 2; this.mass[ib] += bm / 2;
         }
@@ -207,7 +251,7 @@
       this._buildBendLinks();
     }
 
-    /* Road decks are continuous: consecutive road segments meeting at a joint get an
+    /* Road decks (and rail tracks) are continuous: consecutive deck segments meeting at a joint get an
      * XPBD angle constraint (bending spring). Moment / momentLimit adds to the beams'
      * axial stress ratio (linear interaction), so an unsupported flat deck bends and
      * snaps while the same road works fine as a truss chord. */
@@ -215,7 +259,7 @@
       const Mats = BG.Materials || {};
       const adj = new Map();
       for (let j = 0; j < this.nBeams; j++) {
-        if (!this.active[j] || !this.road[j]) continue;
+        if (!this.active[j] || !(this.road[j] || this.rail[j])) continue;
         const mat = this.beams[j].material;
         if (!(mat.bendStiffness > 0) || !(mat.momentLimit > 0)) continue;
         for (const e of [this.ba[j], this.bb[j]]) { if (!adj.has(e)) adj.set(e, []); adj.get(e).push(j); }
@@ -226,6 +270,7 @@
         if (list.length < 2) continue;
         for (let p = 0; p < list.length; p++) for (let q = p + 1; q < list.length; q++) {
           const b1 = list[p], b2 = list[q];
+          if (this.rail[b1] !== this.rail[b2]) continue; // a road deck and a track do not bend as one
           const a = this.ba[b1] === jn ? this.bb[b1] : this.ba[b1];
           const b = this.ba[b2] === jn ? this.bb[b2] : this.ba[b2];
           if (a === b) continue;
@@ -306,13 +351,21 @@
       const t = this.terrain;
       this.vehicles = [];
       let k = 0;
+      this._cars = [];
+      this._trains = [];
+      this.firstDerail = null;
       for (const g of this.level.traffic || []) {
+        if (g && g.type === 'train') {
+          const count = Math.max(0, num(g.count, 1) | 0);
+          for (let c = 0; c < count; c++) { if (this._makeTrain(g, k)) k++; }
+          continue;
+        }
         const def = defs[g.type];
         if (!def) continue;
         const count = Math.max(0, num(g.count, 1) | 0);
         for (let c = 0; c < count; c++) {
           const v = {
-            type: def.type, def, state: 'waiting', index: k,
+            kind: 'road', type: def.type, def, state: 'waiting', index: k,
             x: t.leftEdge - SPAWN_GAP - def.length, y: t.leftY, angle: 0, vx: 0,
             wheels: def.wheels.map(w => ({ x: t.leftEdge - SPAWN_GAP - def.length + w.x, y: t.leftY + def.wheelRadius, r: def.wheelRadius, rot: 0 })),
             _interval: Math.max(0.2, num(g.interval, 2.5)),
@@ -373,12 +426,19 @@
       }
       let fin = 0;
       for (const v of this.vehicles) if (v.state === 'finished') fin++;
-      return {
+      const out = {
         status: this.status, time: Math.round(this.time * 1000) / 1000,
         peakStress: Math.round(peak * 10000) / 10000,
         vehiclesFinished: fin, vehiclesTotal: this.vehicles.length, brokenBeams: broken,
         failReason: this.failReason, firstBreak: this.firstBreak,
       };
+      if (this._cars.length) {
+        let der = 0;
+        for (const c of this._cars) if (c.state === 'derailed' || c.state === 'fallen') der++;
+        out.derailedCars = der;
+        out.firstDerail = this.firstDerail;
+      }
+      return out;
     }
 
     step() {
@@ -387,6 +447,7 @@
       this._spawnVehicles();
       this._vehicleControl();
       this._broadphase();
+      if (this._cars.length) { this._trainControl(); this._trainBroadphase(); }
       const ramp = this.rampTime > 0 ? clamp(this.time / this.rampTime, 0, 1) : 1;
       const gs = ramp * ramp * (3 - 2 * ramp);
       const extraDamp = (1 - ramp) * RAMP_DAMP;
@@ -421,9 +482,9 @@
         if (this.time + 1e-9 < tReady) break;
         if (prev && prev.state === 'driving') {
           const spawnFront = this.terrain.leftEdge - SPAWN_GAP;
-          if (this._rearX(prev) < spawnFront + 3) break;
+          if ((prev.kind === 'train' ? this._rearX(prev.cars[prev.cars.length - 1]) : this._rearX(prev)) < spawnFront + 3) break;
         }
-        this._placeVehicle(v);
+        if (v.kind === 'train') this._placeTrain(v); else this._placeVehicle(v);
         this._spawnTime = this.time;
         this._nextSpawn++;
       }
@@ -517,6 +578,21 @@
         this._rotate(v, v._w * h);
         v._nc = 0;
       }
+      const cars = this._cars, ncars = cars.length;
+      for (let k = 0; k < ncars; k++) {
+        const v = cars[k];
+        if (!v._sim) continue;
+        let gy = G;
+        if (v.state === 'fallen' && waterY !== null && v._py < waterY + 0.5) {
+          const d = 1 - 2.0 * h;
+          v._vx *= d; v._vy *= d; v._w *= d; gy = G * 0.35;
+        }
+        v._vy -= gy * h;
+        v._ppx = v._px; v._ppy = v._py; v._pqc = v._qc; v._pqs = v._qs;
+        v._px += v._vx * h; v._py += v._vy * h;
+        this._rotate(v, v._w * h);
+        v._nc = 0;
+      }
 
       // 3. beams (alternate sweep direction to avoid directional bias)
       const nb = this.nBeams;
@@ -572,6 +648,26 @@
         const v = vs[k];
         if (v._sim) { this._solveVehicleContacts(v, h); if (v._nc) v._touch = true; }
       }
+      if (ncars) {
+        for (let k = 0; k < ncars; k++) {
+          const c = cars[k];
+          if (!c._sim) continue;
+          if (c._onRail) this._solveRailContacts(c, h);
+          else this._solveVehicleContacts(c, h);
+        }
+        const trs = this._trains;
+        for (let q = 0; q < trs.length; q++) {
+          const T = trs[q];
+          if (!T._live) continue;
+          const cs = T.cars;
+          const nc1 = cs.length - 1;
+          // two sweeps (forward + backward): long consists converge, slack stays slack
+          for (let pass = 0; pass < 2; pass++) for (let q2 = 0; q2 < nc1; q2++) {
+            const k = (pass === 0) === fwd ? q2 : nc1 - 1 - q2;
+            if (cs[k]._sim && cs[k + 1]._sim) this._solveCoupler(cs[k], cs[k + 1], h);
+          }
+        }
+      }
 
       // 5. joints vs terrain
       const t = this.terrain;
@@ -603,6 +699,15 @@
       }
       for (let k = 0; k < vs.length; k++) {
         const v = vs[k];
+        if (!v._sim) continue;
+        let ux = (v._px - v._ppx) * invH, uy = (v._py - v._ppy) * invH;
+        const sp2 = ux * ux + uy * uy;
+        if (sp2 > MAX_SPEED * MAX_SPEED) { const f = MAX_SPEED / Math.sqrt(sp2); ux *= f; uy *= f; }
+        v._vx = ux; v._vy = uy;
+        v._w = clamp((v._pqc * v._qs - v._pqs * v._qc) * invH, -8, 8);
+      }
+      for (let k = 0; k < ncars; k++) {
+        const v = cars[k];
         if (!v._sim) continue;
         let ux = (v._px - v._ppx) * invH, uy = (v._py - v._ppy) * invH;
         const sp2 = ux * ux + uy * uy;
@@ -651,6 +756,15 @@
       for (let k = 0; k < vs.length; k++) {
         const v = vs[k];
         if (v._sim && v._nc) this._tyreVelocity(v, h);
+      }
+      if (ncars) {
+        for (let k = 0; k < ncars; k++) {
+          const c = cars[k];
+          if (!c._sim || !c._nc) continue;
+          if (c._onRail) this._railVelocity(c, h); else this._scrapeVelocity(c, h);
+        }
+        const trs = this._trains;
+        for (let q = 0; q < trs.length; q++) if (trs[q]._live) this._trainTraction(trs[q], h);
       }
 
       // 7b. final velocity clamp (impulses above may have added speed)
@@ -877,6 +991,425 @@
       }
     }
 
+    // ------------------------------------------------------------------ trains (SPEC §9.3)
+    _makeTrain(g, k) {
+      const P = BG.Trains && BG.Trains[g.train];
+      const RC = BG.RailCars || {};
+      if (!P || !Array.isArray(P.cars) || !P.cars.length) return null;
+      for (const ct of P.cars) if (!RC[ct]) return null;
+      if (!this._railGround) this._railGround = [this.ground[0], this.ground[this.ground.length - 1]];
+      const t = this.terrain;
+      const T = {
+        kind: 'train', type: 'train', preset: P.id, def: P, state: 'waiting', index: k,
+        x: t.leftEdge - SPAWN_GAP - P.length, y: t.leftY, angle: 0, vx: 0, wheels: [], cars: [],
+        _interval: Math.max(0.2, num(g.interval, 2.5)), _sim: false, _live: false, _cand: [],
+        _target: P.speed, _derailT: 0, _fallen: false, jumped: false, _airMax: 0,
+      };
+      let M = 0;
+      for (let i = 0; i < P.cars.length; i++) {
+        const c = this._makeCar(RC[P.cars[i]], k, i);
+        T.cars.push(c);
+        M += c._M;
+      }
+      T._M = M;
+      T.wheels = T.cars[0].wheels;
+      this.vehicles.push(T);
+      this._trains.push(T);
+      for (const c of T.cars) this._cars.push(c);
+      return T;
+    }
+
+    _makeCar(def, ti, ci) {
+      const nw = def.wheels.length;
+      let M = 0, xc = 0;
+      for (const w of def.wheels) { M += w.mass; xc += w.mass * w.x; }
+      M = M || 1000; xc = xc / M;
+      const r0 = def.wheelRadius || 0.45;
+      const yc = r0 + 0.35 * Math.max(0.5, def.height - r0);
+      const I = M * (def.length * def.length * 0.7 + def.height * def.height) / 12;
+      const om = 2 * PI * RAIL_FREQ;
+      const hr = Math.min(0.2, r0 * 0.45);
+      const hullY0 = r0 + 0.15, hullY1 = Math.max(hullY0 + 0.3, def.height - hr);
+      const hull = [[hr * 1.5, hullY0], [def.length - hr * 1.5, hullY0], [hr * 1.5, hullY1], [def.length - hr * 1.5, hullY1]];
+      const c = {
+        type: def.type, def, index: ci, train: ti, state: 'waiting', x: 0, y: 0, angle: 0, vx: 0,
+        wheels: def.wheels.map(w => ({ x: 0, y: 0, r: w.r, rot: 0, seg: -1 })),
+      };
+      c._M = M; c._invM = 1 / M; c._invI = 1 / I; c._xc = xc; c._yc = yc; c._nw = nw;
+      c._lx = def.wheels.map(w => w.x - xc).concat(hull.map(p => p[0] - xc));
+      c._ly = def.wheels.map(w => w.r - yc).concat(hull.map(p => p[1] - yc));
+      c._rad = def.wheels.map(w => w.r).concat(hull.map(() => hr));
+      const hullK = (M / 4) * (2 * PI * 5) * (2 * PI * 5);
+      c._compl = def.wheels.map(w => 1 / (Math.max(50, w.mass) * om * om)).concat(hull.map(() => 1 / hullK));
+      c._sink = G / (om * om);
+      // lift-off is judged per bogie (net force of its axles): a rigid multi-axle bogie over a kink
+      // legitimately pulls on one axle while the next one pushes harder
+      c._wb = def.wheels.map(w => w.bogie | 0);
+      c._nb = def.bogies.length;
+      c._bStatic = def.bogies.map(bg => Math.max(50, bg.mass) * G);
+      c._bF = new Float64Array(def.bogies.length);
+      c._damp = 2 * RAIL_ZETA * om;
+      c._power = !!def.power;
+      const ch = num(def.couplerHeight, 1) - yc;
+      c._cxR = -xc; c._cxF = def.length - xc; c._chY = ch;
+      // kink check pairs: first/last axle of every multi-axle bogie, else first/last wheel of the car
+      const byB = new Map();
+      def.wheels.forEach((w, k) => { const e = byB.get(w.bogie); if (!e) byB.set(w.bogie, [k, k]); else { if (k < e[0]) e[0] = k; if (k > e[1]) e[1] = k; } });
+      const kp = [];
+      for (const e of byB.values()) if (e[1] > e[0]) kp.push(e[0], e[1]);
+      if (!kp.length && nw > 1) kp.push(0, nw - 1);
+      c._kp = kp;
+      c._sux = new Float64Array(nw); c._suy = new Float64Array(nw);
+      c._seg = new Int32Array(nw).fill(-1); c._segOk = new Uint8Array(nw);
+      c._px = 0; c._py = 0; c._vx = 0; c._vy = 0; c._qc = 1; c._qs = 0; c._w = 0;
+      c._ppx = 0; c._ppy = 0; c._pqc = 1; c._pqs = 0;
+      c._cand = []; c._contacts = []; c._nc = 0;
+      c._sim = false; c._onRail = false; c._grade = 0;
+      c._missNow = false; c._missN = 0; c._gradeT = 0; c._kinkT = 0; c._kink = 0; c._liftT = 0; c._liftMax = 0; c._fallT = 0;
+      return c;
+    }
+
+    _placeTrain(T) {
+      const t = this.terrain, P = T.def, gap = this.railRules.gap;
+      // the whole consist starts on the left bank; fast trains start further back so they
+      // reach the gap after the structure has settled (gravity ramp)
+      let front = t.leftEdge - Math.max(SPAWN_GAP, P.speed * TRAIN_SPAWN_T);
+      for (const c of T.cars) {
+        const rear = front - c.def.length;
+        c._px = rear + c._xc;
+        c._py = t.leftY + c._yc - c._sink;
+        c._qc = 1; c._qs = 0; c._vx = P.speed; c._vy = 0; c._w = 0;
+        c._ppx = c._px; c._ppy = c._py; c._pqc = 1; c._pqs = 0;
+        c._sim = true; c._onRail = true; c.state = 'running';
+        front = rear - gap;
+      }
+      T.state = 'driving'; T._live = true; T._target = P.speed;
+    }
+
+    _trainControl() {
+      let prev = null;
+      for (const T of this._trains) {
+        if (!T._live) continue;
+        let target = T.def.speed;
+        if (T.state === 'derailed') target = 0;
+        else if (T.state === 'driving' && prev && prev.state !== 'finished') {
+          // only trains share the track: keep a braking gap to the train ahead
+          const gap = this._rearX(prev.cars[prev.cars.length - 1]) - this._frontX(T.cars[0]);
+          const want = 10 + 1.5 * T.def.speed;
+          target = Math.min(target, T.def.speed * clamp((gap - 8) / want, 0, 1));
+        }
+        T._target = target;
+        prev = T;
+      }
+    }
+
+    _trainBroadphase() {
+      const nb = this.nBeams, px = this.px, py = this.py, active = this.active, rail = this.rail, road = this.road, frag = this.frag;
+      for (const c of this._cars) {
+        c._cand.length = 0;
+        if (!c._sim || c.state === 'fallen') continue;
+        const onRail = c._onRail;
+        const np = onRail ? c._nw : c._lx.length;
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (let k = 0; k < np; k++) {
+          const wx = c._px + c._qc * c._lx[k] - c._qs * c._ly[k];
+          const wy = c._py + c._qs * c._lx[k] + c._qc * c._ly[k];
+          if (wx < x0) x0 = wx; if (wx > x1) x1 = wx;
+          if (wy < y0) y0 = wy; if (wy > y1) y1 = wy;
+        }
+        const pad = 1.5 + Math.abs(c._vx) * DT * 2 + (onRail ? RAIL_CATCH + 0.8 : 0.8);
+        x0 -= pad; x1 += pad; y0 -= pad; y1 += pad;
+        for (let j = 0; j < nb; j++) {
+          if (!active[j]) continue;
+          if (onRail) { if (!rail[j] || frag[j]) continue; }
+          else if (!rail[j] && !road[j]) continue;
+          const a = this.ba[j], b = this.bb[j];
+          const ax = px[a], bx = px[b], ay = py[a], by = py[b];
+          if ((ax < x0 && bx < x0) || (ax > x1 && bx > x1)) continue;
+          if ((ay < y0 && by < y0) || (ay > y1 && by > y1)) continue;
+          c._cand.push(j);
+        }
+      }
+    }
+
+    /* Flanged wheels: every wheel is held on the rail segment under it by a bilateral compliant
+     * (suspension) constraint. Its correction moves the car and - barycentrically - the rail
+     * beam's two end joints, so the axle load enters the structure like a road tyre's. */
+    _solveRailContacts(c, h) {
+      const px = this.px, py = this.py, w = this.w, active = this.active, ba = this.ba, bb = this.bb;
+      const invH2 = 1 / (h * h);
+      const cand = c._cand, RG = this._railGround;
+      c._missNow = false;
+      c._bF.fill(0);
+      let gradeMax = 0;
+      for (let k = 0; k < c._nw; k++) {
+        const r = c._rad[k];
+        const cx = c._px + c._qc * c._lx[k] - c._qs * c._ly[k];
+        const cy = c._py + c._qs * c._lx[k] + c._qc * c._ly[k];
+        let best = Infinity, bj = -1, bt = 0, bd = 0, bnx = 0, bny = 1, bia = -1, bib = -1, bux = 1, buy = 0;
+        for (let q = -2; q < cand.length; q++) {
+          let ax, ay, bx, by, ia = -1, ib = -1, j = -1;
+          if (q < 0) { const g = RG[q + 2]; ax = g.ax; ay = g.ay; bx = g.bx; by = g.by; }
+          else {
+            j = cand[q];
+            if (!active[j]) continue;
+            ia = ba[j]; ib = bb[j];
+            ax = px[ia]; ay = py[ia]; bx = px[ib]; by = py[ib];
+          }
+          const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+          if (l2 < 1e-8) continue;
+          const L = Math.sqrt(l2);
+          let nx = -ey / L, ny = ex / L;
+          if (ny < 0) { nx = -nx; ny = -ny; }
+          if (ny < 0.6) continue; // steeper than ~53 degrees is not a track
+          const tt = ((cx - ax) * ex + (cy - ay) * ey) / l2;
+          const tol = 0.05 / L;
+          if (tt < -tol || tt > 1 + tol) continue;
+          const d = (cx - ax) * nx + (cy - ay) * ny;
+          if (d < -0.8 * r || d > r + RAIL_CATCH) continue;
+          const sc = d > r ? d - r : r - d;
+          if (sc < best) { best = sc; bj = j; bt = tt; bd = d; bnx = nx; bny = ny; bia = ia; bib = ib; bux = ex / L; buy = ey / L; }
+        }
+        if (best === Infinity) { c._missNow = true; c._segOk[k] = 0; c._seg[k] = -1; continue; }
+        if (bux < 0) { bux = -bux; buy = -buy; }
+        c._sux[k] = bux; c._suy[k] = buy; c._seg[k] = bj; c._segOk[k] = 1;
+        const gr = (buy < 0 ? -buy : buy) / bux;
+        if (gr > gradeMax) gradeMax = gr;
+        const t = bt < 0 ? 0 : bt > 1 ? 1 : bt;
+        const C = bd - r;
+        const rax = cx - bnx * r - c._px, ray = cy - bny * r - c._py;
+        const cr = rax * bny - ray * bnx;
+        let wa = 0, wb = 0;
+        if (bia >= 0) { wa = w[bia]; wb = w[bib]; }
+        const wt = c._invM + c._invI * cr * cr + (1 - t) * (1 - t) * wa + t * t * wb;
+        let dl = -C / (wt + c._compl[k] * invH2);
+        const Cn = C + wt * dl;
+        if (Cn < -0.35 * r) dl += Math.min(-0.35 * r - Cn, HARD_PUSH * h) / wt;
+        c._px += c._invM * dl * bnx; c._py += c._invM * dl * bny;
+        this._rotate(c, c._invI * cr * dl);
+        if (bia >= 0) {
+          const fa = (1 - t) * wa * dl, fb = t * wb * dl;
+          if (fa !== 0) { px[bia] -= fa * bnx; py[bia] -= fa * bny; }
+          if (fb !== 0) { px[bib] -= fb * bnx; py[bib] -= fb * bny; }
+        }
+        c._bF[c._wb[k]] += dl * invH2;
+        const pool = c._contacts;
+        let o = pool[c._nc];
+        if (!o) o = pool[c._nc] = {};
+        c._nc++;
+        o.k = k; o.wheel = true; o.nx = bnx; o.ny = bny; o.t = t; o.ia = bia; o.ib = bib;
+        o.wa = wa; o.wb = wb; o.dl = dl; o.rax = rax; o.ray = ray;
+      }
+      c._grade = gradeMax;
+      for (let q = 0; q < c._nb; q++) {
+        const lift = -c._bF[q] / c._bStatic[q];
+        if (lift > c._liftMax) c._liftMax = lift;
+      }
+    }
+
+    /** couplers: distance constraint between car A's rear and car B's front with free slack */
+    _solveCoupler(A, B, h) {
+      const ax = A._px + A._qc * A._cxR - A._qs * A._chY, ay = A._py + A._qs * A._cxR + A._qc * A._chY;
+      const bx = B._px + B._qc * B._cxF - B._qs * B._chY, by = B._py + B._qs * B._cxF + B._qc * B._chY;
+      const dx = ax - bx, dy = ay - by;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 1e-6) return;
+      const gap = this.railRules.gap, slack = this.railRules.slack;
+      let C;
+      if (d > gap + slack) C = d - gap - slack;
+      else if (d < gap - slack) C = d - gap + slack;
+      else return;
+      const nx = dx / d, ny = dy / d;
+      const rax = ax - A._px, ray = ay - A._py, rbx = bx - B._px, rby = by - B._py;
+      const crA = rax * ny - ray * nx, crB = rbx * ny - rby * nx;
+      const W = A._invM + A._invI * crA * crA + B._invM + B._invI * crB * crB;
+      const dl = -C / (W + 1 / (COUPLER_K * h * h));
+      A._px += A._invM * dl * nx; A._py += A._invM * dl * ny; this._rotate(A, A._invI * crA * dl);
+      B._px -= B._invM * dl * nx; B._py -= B._invM * dl * ny; this._rotate(B, -B._invI * crB * dl);
+    }
+
+    /** velocity level for wheels on the rail: suspension damping (bilateral) */
+    _railVelocity(c, h) {
+      const vx = this.vx, vy = this.vy;
+      const kd = Math.min(1, c._damp * h);
+      for (let q = 0; q < c._nc; q++) {
+        const o = c._contacts[q];
+        const pvx = c._vx - c._w * o.ray, pvy = c._vy + c._w * o.rax;
+        let svx = 0, svy = 0;
+        if (o.ia >= 0) {
+          svx = (1 - o.t) * vx[o.ia] + o.t * vx[o.ib];
+          svy = (1 - o.t) * vy[o.ia] + o.t * vy[o.ib];
+        }
+        const vn = (pvx - svx) * o.nx + (pvy - svy) * o.ny;
+        const crn = o.rax * o.ny - o.ray * o.nx;
+        const wn = c._invM + c._invI * crn * crn + (1 - o.t) * (1 - o.t) * o.wa + o.t * o.t * o.wb;
+        this._impulse(c, o, o.nx, o.ny, -kd * vn / wn);
+      }
+    }
+
+    /** velocity level for a derailed car: unilateral damping + Coulomb scraping, no drive */
+    _scrapeVelocity(c, h) {
+      const vx = this.vx, vy = this.vy;
+      for (let q = 0; q < c._nc; q++) {
+        const o = c._contacts[q];
+        const tx = o.ny, ty = -o.nx;
+        const pvx = c._vx - c._w * o.ray, pvy = c._vy + c._w * o.rax;
+        let svx = 0, svy = 0;
+        if (o.ia >= 0) {
+          svx = (1 - o.t) * vx[o.ia] + o.t * vx[o.ib];
+          svy = (1 - o.t) * vy[o.ia] + o.t * vy[o.ib];
+        }
+        const rvx = pvx - svx, rvy = pvy - svy;
+        const vn = rvx * o.nx + rvy * o.ny, vt = rvx * tx + rvy * ty;
+        const crn = o.rax * o.ny - o.ray * o.nx;
+        const wn = c._invM + c._invI * crn * crn + (1 - o.t) * (1 - o.t) * o.wa + o.t * o.t * o.wb;
+        let Jn = -Math.min(1, c._damp * h) * vn / wn;
+        const push = o.dl / h;
+        if (Jn < -push) Jn = -push;
+        if (vn + Jn * wn > SEP_MAX) Jn = (SEP_MAX - vn) / wn;
+        this._impulse(c, o, o.nx, o.ny, Jn);
+        const crt = o.rax * ty - o.ray * tx;
+        const wtt = c._invM + c._invI * crt * crt + (1 - o.t) * (1 - o.t) * o.wa + o.t * o.t * o.wb;
+        const lim = SCRAPE_MU * o.dl / h;
+        this._impulse(c, o, tx, ty, clamp(-vt / wtt, -lim, lim));
+      }
+    }
+
+    /** locomotives pull the train toward its target speed; every car on the rail brakes */
+    _trainTraction(T, h) {
+      const cars = T.cars, lead = cars[0];
+      if (T.state === 'derailed') {
+        // emergency brake: every car still on the rail brakes itself to a stop
+        for (const c of cars) {
+          if (!c._onRail || !c._sim || !c._nc) continue;
+          const vc = c._vx * c._qc + c._vy * c._qs;
+          this._driveCar(c, c._M * clamp(-vc / TRAIN_TAU, -TRAIN_EBRAKE, TRAIN_EBRAKE) * h, h);
+        }
+        return;
+      }
+      if (!lead._sim || !lead._onRail) return;
+      const v = lead._vx * lead._qc + lead._vy * lead._qs;
+      const derailed = T.state === 'derailed';
+      const a = clamp((T._target - v) / TRAIN_TAU, -(derailed ? TRAIN_EBRAKE : TRAIN_DECEL), T.def.accel + G * 0.06);
+      if (a > 0 && !derailed) {
+        let nl = 0;
+        for (const c of cars) if (c._power && c._onRail && c._sim && c._nc) nl++;
+        if (!nl) return;
+        const J = T._M * a * h / nl;
+        for (const c of cars) if (c._power && c._onRail && c._sim && c._nc) this._driveCar(c, J, h);
+      } else if (a < 0) {
+        for (const c of cars) if (c._onRail && c._sim && c._nc) this._driveCar(c, c._M * a * h, h);
+      }
+    }
+
+    _driveCar(c, J, h) {
+      let sumL = 0;
+      for (let q = 0; q < c._nc; q++) { const o = c._contacts[q]; if (o.dl > 0) sumL += o.dl; }
+      if (sumL <= 0) return;
+      const Jmax = MU_RAIL * sumL / h;
+      J = clamp(J, -Jmax, Jmax);
+      for (let q = 0; q < c._nc; q++) {
+        const o = c._contacts[q];
+        if (o.dl > 0) this._impulse(c, o, o.ny, -o.nx, J * o.dl / sumL);
+      }
+    }
+
+    _derail(T, c, why) {
+      if (!c._onRail) return;
+      c._onRail = false;
+      c.state = 'derailed';
+      if (T.state === 'driving') { T.state = 'derailed'; T._derailT = this.time; }
+      this.events.push({ type: 'derail', i: T.index, car: c.index, x: c._px, y: c._py, reason: why });
+      if (!this.firstDerail) {
+        this.firstDerail = { i: T.index, car: c.index, type: c.type, reason: why, time: Math.round(this.time * 1000) / 1000, x: c._px, y: c._py };
+      }
+      if (this.status === 'running') { this.status = 'failed'; this.failReason = 'derailed'; }
+    }
+
+    _trainPost(T) {
+      if (!T._live) return;
+      const t = this.terrain, RR = this.railRules;
+      for (const c of T.cars) {
+        if (!c._sim) continue;
+        if (!(isFinite(c._px) && isFinite(c._py) && isFinite(c._qc))) {
+          c._px = c._ppx; c._py = c._ppy; c._qc = 1; c._qs = 0; c._vx = c._vy = c._w = 0;
+          if (!isFinite(c._px)) { c._sim = false; continue; }
+        }
+        if (c._onRail && T.state !== 'finished') {
+          let why = null;
+          if (c._missNow) { if (++c._missN > 2) why = 'missing'; } else c._missN = 0;
+          if (c._grade > RR.maxGrade + 1e-9) c._gradeT += DT; else c._gradeT = 0;
+          if (!why && c._gradeT > RR.gradeTime) why = 'grade';
+          let kink = 0;
+          const kp = c._kp;
+          for (let p = 0; p < kp.length; p += 2) {
+            const k0 = kp[p], k1 = kp[p + 1];
+            if (!c._segOk[k0] || !c._segOk[k1] || c._seg[k0] === c._seg[k1]) continue;
+            const ux = c._sux[k0], uy = c._suy[k0], wx = c._sux[k1], wy = c._suy[k1];
+            let a = atan2Det(ux * wy - uy * wx, ux * wx + uy * wy);
+            if (a < 0) a = -a;
+            if (a > kink) kink = a;
+          }
+          c._kink = kink;
+          const sp = c._vx < 0 ? -c._vx : c._vx;
+          const lim = sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax;
+          if (kink > lim) c._kinkT += DT; else c._kinkT = 0;
+          if (!why && c._kinkT > RR.kinkTime) why = 'kink';
+          if (c._liftMax > LIFT_RATIO) c._liftT += DT; else c._liftT = 0;
+          if (!why && c._liftT > RR.liftTime) why = 'lift';
+          if (why) this._derail(T, c, why);
+        }
+        c._liftMax = 0;
+        if (c.state !== 'fallen') {
+          let low = Infinity;
+          for (let k = 0; k < c._lx.length; k++) {
+            const wy = c._py + c._qs * c._lx[k] + c._qc * c._ly[k] - c._rad[k];
+            if (wy < low) low = wy;
+          }
+          const out = c._px > t.rightEdge + 3000 || c._px < t.leftEdge - 3000;
+          if (low < this.deathY + 0.05 || c._py < this.deathY + 0.3 || out) {
+            this._derail(T, c, 'fell');
+            c.state = 'fallen';
+            c._fallT = this.time;
+            if (t.waterY !== null) this.events.push({ type: 'splash', x: c._px, y: t.waterY, size: clamp(c._M / 8000, 1, 6) });
+            if (!T._fallen) { T._fallen = true; this.events.push({ type: 'vehicle_fall', i: T.index, car: c.index }); }
+          }
+        }
+        if (c.state === 'fallen' && this.time - c._fallT > 12) c._sim = false;
+      }
+      const last = T.cars[T.cars.length - 1];
+      if (T.state === 'driving' && this._rearX(last) > t.rightEdge + FINISH_GAP && last._qc > 0.5) {
+        T.state = 'finished';
+        for (const c of T.cars) if (c.state === 'running') c.state = 'finished';
+        this.events.push({ type: 'vehicle_finish', i: T.index });
+      }
+      if ((T.state === 'finished' && this._rearX(last) > t.rightEdge + 120) || (T.state === 'derailed' && this.time - T._derailT > 25)) {
+        for (const c of T.cars) c._sim = false;
+        T._live = false;
+      }
+    }
+
+    _syncTrain(T) {
+      for (const c of T.cars) {
+        if (c.state === 'waiting') continue;
+        const qc = c._qc, qs = c._qs;
+        c.x = c._px - qc * c._xc + qs * c._yc;
+        c.y = c._py - qs * c._xc - qc * c._yc;
+        c.angle = Math.atan2(qs, qc);
+        c.vx = c._vx;
+        const fwd = c._vx * qc + c._vy * qs;
+        for (let k = 0; k < c.wheels.length; k++) {
+          const wh = c.wheels[k];
+          wh.x = c._px + qc * c._lx[k] - qs * c._ly[k];
+          wh.y = c._py + qs * c._lx[k] + qc * c._ly[k];
+          if (c._sim) wh.rot += fwd * DT / wh.r;
+          wh.seg = c._onRail && c._segOk[k] ? c._seg[k] : -1;
+        }
+      }
+      const L = T.cars[0];
+      T.x = L.x; T.y = L.y; T.angle = L.angle; T.vx = L.vx;
+    }
+
     // ------------------------------------------------------------------ breaking
     _breakBeam(j) {
       if (!this.active[j]) return;
@@ -929,7 +1462,7 @@
         this.rest[k] = L;
         this.compl[k] = L / Math.max(1, mat.stiffness);
         this.tlim[k] = this.tlim[j]; this.clim[k] = this.clim[j];
-        this.tonly[k] = this.tonly[j]; this.road[k] = this.road[j];
+        this.tonly[k] = this.tonly[j]; this.road[k] = this.road[j]; this.rail[k] = this.rail[j];
         this.active[k] = 1; this.frag[k] = 1;
         this.beams.push({ a: e1, b: e2, m: beam.m, material: mat, restLength: L, force: 0, stress: 0, peak: 0, broken: false, fragment: true, parent: j });
       }
@@ -971,6 +1504,8 @@
           this.events.push({ type: 'creak', beamIndex: j, stress: st });
         }
       }
+      // trains (derailment, falls, finish) - before the generic bookkeeping below reads their state
+      for (let q = 0; q < this._trains.length; q++) this._trainPost(this._trains[q]);
       // vehicles
       let allDone = vs.length > 0;
       for (let i = 0; i < vs.length; i++) {
@@ -1018,6 +1553,13 @@
       // stalled: every driving vehicle (nearly) stopped for STALL_TIME -> end early instead of waiting for the clock
       let driving = 0, moving = 0;
       for (const v of vs) {
+        if (v.kind === 'train') {
+          if (!v._live || v.state !== 'driving') continue;
+          driving++;
+          const lc = v.cars[0];
+          if (lc._vx * lc._vx + lc._vy * lc._vy > STALL_SPEED * STALL_SPEED) moving++;
+          continue;
+        }
         if (!v._sim || v.state !== 'driving') continue;
         driving++;
         if (v._vx * v._vx + v._vy * v._vy > STALL_SPEED * STALL_SPEED) moving++;
@@ -1048,6 +1590,7 @@
         b.broken = !this.active[j];
       }
       for (const v of this.vehicles) {
+        if (v.kind === 'train') { if (v._live) this._syncTrain(v); continue; }
         if (v.state === 'waiting') continue;
         const c = v._qc, s = v._qs;
         v.x = v._px - c * v._xc + s * v._yc;

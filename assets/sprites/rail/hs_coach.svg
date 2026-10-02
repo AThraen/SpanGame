@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="390" viewBox="0 -390 2000 390">
+  <!-- SPAN high-speed coach. 1 unit = 1 cm, origin = rear of the car on the rail line, facing right.
+       Bogies drawn separately: centres x = 300 / 1700, axles +-130, wheel r 46; the skirts hide the
+       wheel tops. Gangway bellows between cars are drawn by the renderer. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eef1f5"/><stop offset="0.85" stop-color="#cdd4dc"/><stop offset="1" stop-color="#9aa4ae"/>
+    </linearGradient>
+    <linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6d7680"/><stop offset="1" stop-color="#2a2f36"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a4a"/><stop offset="1" stop-color="#b3121a"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.4" stop-color="#4f7fa6"/><stop offset="1" stop-color="#14263a"/>
+    </linearGradient>
+    <clipPath id="clip"><rect x="16" y="-378" width="1968" height="318" rx="30"/></clipPath>
+  </defs>
+  <rect x="0" y="-330" width="20" height="250" rx="3" fill="#2a2f36" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1980" y="-330" width="20" height="250" rx="3" fill="#2a2f36" stroke="#1c2230" stroke-width="2"/>
+  <rect x="16" y="-378" width="1968" height="318" rx="30" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-122" width="2000" height="70" fill="url(#skirt)"/>
+    <rect x="0" y="-126" width="2000" height="6" fill="#ffffff" opacity="0.7"/>
+    <rect x="0" y="-196" width="2000" height="32" fill="url(#red)"/>
+    <rect x="0" y="-150" width="2000" height="10" fill="#1e2a48"/>
+    <rect x="0" y="-378" width="2000" height="10" fill="#ffffff" opacity="0.7"/>
+    <!-- window band -->
+    <rect x="0" y="-320" width="2000" height="96" fill="#1e2430"/>
+  </g>
+  <!-- windows -->
+  <g fill="url(#glass)">
+    <rect x="200" y="-314" width="140" height="80" rx="10"/><rect x="360" y="-314" width="140" height="80" rx="10"/><rect x="520" y="-314" width="140" height="80" rx="10"/>
+    <rect x="680" y="-314" width="140" height="80" rx="10"/><rect x="840" y="-314" width="140" height="80" rx="10"/><rect x="1000" y="-314" width="140" height="80" rx="10"/>
+    <rect x="1160" y="-314" width="140" height="80" rx="10"/><rect x="1320" y="-314" width="140" height="80" rx="10"/><rect x="1480" y="-314" width="140" height="80" rx="10"/>
+    <rect x="1640" y="-314" width="140" height="80" rx="10"/>
+  </g>
+  <g fill="#ffffff" opacity="0.22">
+    <path d="M220 -310 L262 -310 L236 -238 L206 -238 Z"/><path d="M380 -310 L422 -310 L396 -238 L366 -238 Z"/><path d="M540 -310 L582 -310 L556 -238 L526 -238 Z"/>
+    <path d="M700 -310 L742 -310 L716 -238 L686 -238 Z"/><path d="M860 -310 L902 -310 L876 -238 L846 -238 Z"/><path d="M1020 -310 L1062 -310 L1036 -238 L1006 -238 Z"/>
+    <path d="M1180 -310 L1222 -310 L1196 -238 L1166 -238 Z"/><path d="M1340 -310 L1382 -310 L1356 -238 L1326 -238 Z"/><path d="M1500 -310 L1542 -310 L1516 -238 L1486 -238 Z"/>
+    <path d="M1660 -310 L1702 -310 L1676 -238 L1646 -238 Z"/>
+  </g>
+  <!-- passengers -->
+  <g fill="#0d1622" opacity="0.5">
+    <circle cx="250" cy="-262" r="12"/><rect x="235" y="-251" width="30" height="18" rx="9"/>
+    <circle cx="560" cy="-264" r="12"/><rect x="545" y="-253" width="30" height="20" rx="9"/>
+    <circle cx="742" cy="-262" r="11"/><rect x="728" y="-252" width="28" height="18" rx="9"/>
+    <circle cx="1060" cy="-264" r="12"/><rect x="1045" y="-253" width="30" height="20" rx="9"/>
+    <circle cx="1380" cy="-262" r="12"/><rect x="1365" y="-251" width="30" height="18" rx="9"/>
+    <circle cx="1700" cy="-264" r="11"/><rect x="1686" y="-253" width="28" height="19" rx="9"/>
+  </g>
+  <!-- doors -->
+  <g fill="none" stroke="#9aa4ae" stroke-width="3">
+    <rect x="60" y="-352" width="90" height="226" rx="10"/><rect x="1850" y="-352" width="90" height="226" rx="10"/>
+  </g>
+  <g fill="url(#glass)"><rect x="80" y="-330" width="50" height="90" rx="8"/><rect x="1870" y="-330" width="50" height="90" rx="8"/></g>
+  <g fill="#ffffff"><rect x="190" y="-190" width="18" height="20" rx="3"/><rect x="1060" y="-358" width="80" height="14" rx="4" fill="#1e2a48"/></g>
+  <rect x="16" y="-378" width="1968" height="318" rx="30" fill="none" stroke="#1c2230" stroke-width="4"/>
+</svg>

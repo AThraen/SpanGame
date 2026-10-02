@@ -12,7 +12,7 @@ function load(rel) {
   if (!fs.existsSync(f)) return false;
   try { require(f); return true; } catch (e) { console.warn('  (could not load ' + rel + ': ' + e.message + ')'); return false; }
 }
-['js/core/materials.js', 'js/core/vehicles.js', 'js/core/model.js', 'js/core/levels.js'].forEach(load);
+['js/core/materials.js', 'js/core/vehicles.js', 'js/core/trains.js', 'js/core/model.js', 'js/core/levels.js'].forEach(load);
 if (!load('js/core/templates.js')) { console.error('templates.js missing'); process.exit(1); }
 const BG = global.BG;
 const verbose = process.argv.includes('--verbose');
@@ -55,6 +55,26 @@ const levels = [
   lvl({ name: 'offset anchors, shuffled order', terrain: { leftEdge: 10, rightEdge: 34, leftY: 2, rightY: 2, floorY: -10 }, materials: ['road', 'wood', 'steel', 'rope'],
     anchors: [{ x: 10, y: -2 }, { x: 34, y: -2 }, { x: 34, y: 2 }, { x: 10, y: 2 }] }),
 ];
+// Iron Road (rail) synthetic levels: rail deck, masonry viaducts
+const RAIL_OK = !!(BG.Materials && BG.Materials.rail && BG.Materials.masonry);
+const railLevels = [
+  lvl({ id: 901, name: 'rail 24m creek', campaign: 'rail', terrain: { rightEdge: 24, floorY: -10 }, materials: ['rail', 'wood', 'steel'],
+    anchors: [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 0, y: -4 }, { x: 24, y: -4 }], traffic: [{ type: 'train', train: 'steam_local', count: 1, interval: 5 }] }),
+  lvl({ id: 902, name: 'rail 60m valley viaduct', campaign: 'rail', terrain: { rightEdge: 60, floorY: -18 }, materials: ['rail', 'masonry', 'steel'],
+    anchors: [{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 0, y: -6 }, { x: 60, y: -6 }], pierZones: [{ x0: 10, x1: 22 }, { x0: 24, x1: 36 }, { x0: 38, x1: 50 }], maxPiers: 4,
+    traffic: [{ type: 'train', train: 'steam_express', count: 1, interval: 5 }] }),
+  lvl({ id: 903, name: 'rail 30m cliff arch', campaign: 'rail', terrain: { rightEdge: 30, floorY: -20 }, materials: ['rail', 'masonry'],
+    anchors: [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 0, y: -8 }, { x: 30, y: -8 }], traffic: [{ type: 'train', train: 'tram', count: 1, interval: 5 }] }),
+  lvl({ id: 904, name: 'rail 80m piers, no low anchors', campaign: 'rail', terrain: { rightEdge: 80, floorY: -22, waterY: -18 }, materials: ['rail', 'masonry', 'steel', 'cable'],
+    anchors: [{ x: 0, y: 0 }, { x: 80, y: 0 }], pierZones: [{ x0: 8, x1: 72 }], maxPiers: 6, traffic: [{ type: 'train', train: 'freight_short', count: 1, interval: 5 }] }),
+  lvl({ id: 905, name: 'double-deck rail + road traffic', campaign: 'rail', terrain: { rightEdge: 40, floorY: -14 }, materials: ['rail', 'road', 'steel', 'masonry'],
+    anchors: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 0, y: -5 }, { x: 40, y: -5 }], pierZones: [{ x0: 15, x1: 25 }], maxPiers: 1,
+    traffic: [{ type: 'car', count: 2, interval: 2 }, { type: 'train', train: 'commuter', count: 1, interval: 5 }] }),
+];
+railLevels.forEach((l) => levels.push(l));
+if (!RAIL_OK) console.log('  (BG.Materials has no rail/masonry yet: rail levels checked with template geometry only)');
+const deckMat = (m) => /road/.test(m) || m === 'rail' || !!(BG.Materials && BG.Materials[m] && BG.Materials[m].isRail);
+const isRailLvl = (l) => l.campaign === 'rail';
 if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => levels.push(l));
 
 function geomOf(level, design) {
@@ -75,7 +95,7 @@ function cost(level, d) {
 
 console.log('BG.Model ' + (BG.Model && BG.Model.validate ? 'present: validating with BG.Model.validate too' : 'not present: own geometry checks only'));
 const ids = BG.Templates.list.map((t) => t.id);
-ok(JSON.stringify(ids) === JSON.stringify(['beam', 'warren', 'pratt', 'howe', 'deck_arch', 'through_arch', 'suspension', 'cable_stayed']), 'template ids match spec');
+ok(JSON.stringify(ids) === JSON.stringify(['beam', 'warren', 'pratt', 'howe', 'deck_arch', 'through_arch', 'suspension', 'cable_stayed', 'viaduct']), 'template ids match spec');
 BG.Templates.list.forEach((t) => ok(t.name && t.desc, 'template ' + t.id + ' has name/desc'));
 
 const svgParts = [];
@@ -88,22 +108,26 @@ for (const level of levels) {
     if (av && !av.ok) {
       // flagged as unusable here (the HUD hides it): it must not be offered as a valid design
       const d0 = BG.Templates.generate(id, level, {});
-      const e0 = BG.Templates.checkGeometry(level, d0).length + (BG.Model ? BG.Model.validate(level, d0).errors.length : 0);
-      ok(e0 > 0 || !d0.beams.length || /rope or cable/.test(av.reason || ''), `[${level.name}] ${id}: flagged unavailable only when it really does not fit`);
+      const useModel = BG.Model && (!isRailLvl(level) || RAIL_OK);
+      const e0 = BG.Templates.checkGeometry(level, d0).length + (useModel ? BG.Model.validate(level, d0).errors.length : 0);
+      ok(e0 > 0 || !d0.beams.length || /rope or cable|masonry|piers or low/.test(av.reason || ''), `[${level.name}] ${id}: flagged unavailable only when it really does not fit`);
       skipped++;
       continue;
     }
     const d = BG.Templates.generate(id, level, {});
     const errs = BG.Templates.checkGeometry(level, d);
     ok(errs.length === 0, `[${level.name}] ${id}: geometry errors ${JSON.stringify(errs.slice(0, 3))}`);
-    if (BG.Model && BG.Model.validate) {
+    if (BG.Model && BG.Model.validate && (!isRailLvl(level) || RAIL_OK)) {
       let r;
       try { r = BG.Model.validate(level, d); } catch (e) { r = { ok: false, errors: [{ type: 'throw', msg: e.message }] }; }
       ok(r && r.ok, `[${level.name}] ${id}: BG.Model.validate errors ${JSON.stringify(r && r.errors && r.errors.slice(0, 3))}`);
     }
     ok(d.beams.length > 0, `[${level.name}] ${id}: has beams`);
     // deck connects both road anchors through road members
-    const roadMats = d.beams.filter((b) => /road/.test(b.m));
+    const roadMats = d.beams.filter((b) => deckMat(b.m));
+    // rail levels get a rail deck; road levels never do
+    if (isRailLvl(level)) ok(d.beams.some((b) => b.m === 'rail') && !d.beams.some((b) => /road/.test(b.m)), `[${level.name}] ${id}: rail deck on a rail level`);
+    else ok(!d.beams.some((b) => b.m === 'rail'), `[${level.name}] ${id}: no rail on a road level`);
     const ra = BG.Templates.roadAnchors(level);
     ok(roadMats.some((b) => b.a === ra.left || b.b === ra.left) && roadMats.some((b) => b.a === ra.right || b.b === ra.right), `[${level.name}] ${id}: road reaches both anchors`);
     // node ids unique & referenced
@@ -150,9 +174,28 @@ ok(s.nodes.every((n) => +n.id.slice(1) >= 50), 'startId respected');
   ok(cs.piers.length >= 1 && cs.piers.length <= 4, 'cable-stayed uses piers on 150 m level');
 }
 
+// viaduct: masonry arches on piers / from the cliff anchors; hidden where it cannot work
+{
+  const av = (l) => BG.Templates.available(l).find((a) => a.id === 'viaduct');
+  ok(!av(levels[2]).ok && /masonry/.test(av(levels[2]).reason), 'viaduct hidden without masonry');
+  const L2 = railLevels[1];
+  const v = BG.Templates.generate('viaduct', L2);
+  ok(av(L2).ok, 'viaduct offered on the rail valley level (' + av(L2).reason + ')');
+  ok(v.piers.length >= 2 && v.piers.length <= L2.maxPiers, 'viaduct stands on 2..maxPiers piers (got ' + v.piers.length + ')');
+  ok(v.beams.filter((b) => b.m === 'masonry').length >= 10, 'viaduct is built of masonry');
+  ok(v.piers.every((p) => p.topY < 0), 'viaduct piers stop below the deck (arches spring from them)');
+  const c = BG.Templates.generate('viaduct', railLevels[2]);
+  ok(c.piers.length === 0 && c.beams.some((b) => b.a === 'a2' || b.b === 'a2') && c.beams.some((b) => b.a === 'a3' || b.b === 'a3'), 'viaduct without piers springs from the cliff anchors');
+  ok(c.beams.every((b) => b.m === 'rail' || b.m === 'masonry'), 'rail+masonry level: viaduct uses only rail and masonry');
+  const nv = av(lvl({ name: 'no supports', campaign: 'rail', materials: ['rail', 'masonry'], terrain: { rightEdge: 20 } }));
+  ok(!nv.ok && /piers or low/.test(nv.reason), 'viaduct hidden without piers or low anchors');
+  const dd = BG.Templates.generate('warren', railLevels[4]);
+  ok(dd.beams.some((b) => b.m === 'rail') && !dd.beams.some((b) => b.m === 'road'), 'double-deck level: templates build the rail deck');
+}
+
 if (svgOut) {
   const html = ['<!doctype html><meta charset=utf-8><body style="margin:0;background:#1c2330;font:12px system-ui;color:#ccd">'];
-  const col = { road: '#444', reinforced_road: '#222', wood: '#c08040', steel: '#9fb4c8', rope: '#d8c890', cable: '#f0f0f0' };
+  const col = { road: '#444', reinforced_road: '#222', wood: '#c08040', steel: '#9fb4c8', rope: '#d8c890', cable: '#f0f0f0', rail: '#7a5a3a', masonry: '#d8c8a8', girder: '#5f7fa0' };
   for (const { level, row } of svgParts) {
     const t = level.terrain;
     const x0 = level.buildArea.x0 - 2, x1 = level.buildArea.x1 + 2, y0 = t.floorY - 1, y1 = level.buildArea.y1 + 1;
@@ -166,7 +209,7 @@ if (svgOut) {
       (level.noBuild || []).forEach((z) => { g += `<rect x=${X(z.x0)} y=${Y(z.y1)} width=${((z.x1 - z.x0) * sc).toFixed(1)} height=${((z.y1 - z.y0) * sc).toFixed(1)} fill="#f55" opacity=.25 />`; });
       (level.pierZones || []).forEach((z) => { g += `<rect x=${X(z.x0)} y=${Y(t.floorY + 0.4)} width=${((z.x1 - z.x0) * sc).toFixed(1)} height=3 fill="#fd5" />`; });
       r.d.piers.forEach((p) => { g += `<rect x=${(X(p.x) - 2)} y=${Y(p.topY)} width=4 height=${((p.topY - t.floorY) * sc).toFixed(1)} fill="#aaa" />`; });
-      r.d.beams.forEach((b) => { const A = pos[b.a], B = pos[b.b]; g += `<line x1=${X(A.x)} y1=${Y(A.y)} x2=${X(B.x)} y2=${Y(B.y)} stroke="${col[b.m] || '#f0f'}" stroke-width=${/road/.test(b.m) ? 3 : 1.4} />`; });
+      r.d.beams.forEach((b) => { const A = pos[b.a], B = pos[b.b]; g += `<line x1=${X(A.x)} y1=${Y(A.y)} x2=${X(B.x)} y2=${Y(B.y)} stroke="${col[b.m] || '#f0f'}" stroke-width=${deckMat(b.m) ? 3 : 1.4} />`; });
       Object.values(pos).forEach((p) => { g += `<circle cx=${X(p.x)} cy=${Y(p.y)} r=1.6 fill="#fff" />`; });
       g += `<text x=4 y=12 fill="#fff">${level.name} · ${r.id} · $${r.cost}</text></svg>`;
       html.push(g);

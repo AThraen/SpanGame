@@ -261,9 +261,49 @@
 
   const HEAVY_WHEEL_TYPES = { bus: 1, truck: 1, semi: 1, tanker: 1, heavy: 1 };
 
+  // ---- railway rolling stock (assets/sprites/rail/*.svg), SPEC §9.4 ----
+  // Same coordinate rules as road sprites: viewBox in cm, origin bottom-left = rear of the car on the
+  // rail-top line, facing right; the renderer scales by def.length / (w / 100). Wheels and bogie frames
+  // are separate sprites. All anchor points below are sprite cm (x from rear, y up from the rail top).
+  //   wheel / driver: wheel sprite names; head / tail: lamp points; chimney / exhaust / panto: emitters;
+  //   skirt: body hides the wheel tops; bellows: [y0, y1] gangway between coupled cars of this kind;
+  //   nose: directional car (a trailing one is drawn mirrored); underframe: [x0, x1, y0, y1] dark frame
+  //   plate drawn behind the wheels (steam); steam: crosshead guide height / slide-bar end (cm);
+  //   lever: handcar pump pivot; noFrame: bogie indices drawn without a bogie side frame.
+  const RAIL_META = {
+    handcar: { w: 260, h: 160, wheel: 'rail_wheel_spoked', head: [254, 109], tail: [4, 46], lever: [130, 148], noFrame: { 0: 1, 1: 1 } },
+    tram: { w: 1400, h: 400, wheel: 'rail_wheel', head: [1386, 139], tail: [14, 139], skirt: true, panto: [690, 392], bidir: true },
+    loco_steam: { w: 1250, h: 430, wheel: 'rail_wheel_spoked', driver: 'rail_driver', head: [1218, 187], tail: [6, 100], chimney: [1136, 428],
+      cocks: [835, 40], underframe: [176, 1196, 36, 156], steam: { guideY: 88, slideEnd: 768 }, noFrame: { 0: 1 } },
+    tender: { w: 750, h: 340, wheel: 'rail_wheel_spoked', tail: [6, 140] },
+    coach: { w: 1700, h: 370, wheel: 'rail_wheel_spoked', bellows: [136, 326], tail: [8, 150] },
+    loco_diesel: { w: 1900, h: 430, wheel: 'rail_wheel', head: [1872, 251], tail: [28, 251], exhaust: [1012, 426], bidir: true },
+    boxcar: { w: 1400, h: 400, wheel: 'rail_wheel', tail: [8, 150] },
+    tank_wagon: { w: 1200, h: 370, wheel: 'rail_wheel', tail: [8, 150] },
+    ore_wagon: { w: 1000, h: 300, wheel: 'rail_wheel', tail: [8, 150] },
+    hs_power: { w: 2000, h: 470, wheel: 'rail_wheel', head: [1952, 150], tail: [1952, 150], skirt: true, nose: true, bellows: [80, 330], panto: [471, 464] },
+    hs_coach: { w: 2000, h: 390, wheel: 'rail_wheel', skirt: true, bellows: [80, 330], tail: [10, 150] }
+  };
+  const RAIL_SPRITES = ['handcar', 'tram', 'loco_steam', 'tender', 'coach', 'loco_diesel', 'boxcar', 'tank_wagon', 'ore_wagon', 'hs_power', 'hs_coach',
+    'rail_wheel', 'rail_wheel_spoked', 'rail_driver', 'bogie', 'bogie3', 'handcar_lever'];
+  (function () {
+    for (const t in RAIL_META) SPRITE_META['rail/' + t] = { w: RAIL_META[t].w, h: RAIL_META[t].h };
+    SPRITE_META['rail/rail_wheel'] = SPRITE_META['rail/rail_wheel_spoked'] = SPRITE_META['rail/rail_driver'] = { w: 108, h: 108 };
+    SPRITE_META['rail/bogie'] = { w: 300, h: 80 };
+    SPRITE_META['rail/bogie3'] = { w: 460, h: 80 };
+    SPRITE_META['rail/handcar_lever'] = { w: 250, h: 40 };
+  })();
+  // nominal geometry of the bogie sprites: axle spacing (cm), origin offset inside the image, wheel radius
+  const BOGIE_ART = {
+    bogie: { span: 200, w: 300, h: 80, ox: 150, oy: 50, r: 42 },
+    bogie3: { span: 340, w: 460, h: 80, ox: 230, oy: 50, r: 50 }
+  };
+  const WHEEL_ART_SCALE = 1.08; // rail wheel sprites include the flange: image = 1.08 x tread diameter
+  const DRIVER_CRANK = 0.54;    // crank pin radius / tread radius on rail_driver.svg
+
   const Sprites = {
     base: null,
-    names: ['car', 'van', 'bus', 'truck', 'semi', 'tanker', 'heavy', 'wheel', 'wheel_heavy', 'anchor', 'joint'],
+    names: ['car', 'van', 'bus', 'truck', 'semi', 'tanker', 'heavy', 'wheel', 'wheel_heavy', 'anchor', 'joint'].concat(RAIL_SPRITES.map(function (n) { return 'rail/' + n; })),
     images: {}, ok: {}, failed: {}, meta: SPRITE_META, fx: VEHICLE_FX,
     _raster: {}, _rasterCount: 0, version: 0,
     path: function () { return (this.base !== null ? this.base : ((BG.assetBase || '') + 'assets/sprites/')); },
@@ -284,6 +324,7 @@
       if (!img) return null;
       const meta = SPRITE_META[name] || { w: img.naturalWidth || 100, h: img.naturalHeight || 100 };
       let bw = Math.max(16, Math.ceil(pxW / 16) * 16);
+      if (bw > 160) bw = Math.ceil(160 * Math.pow(1.12, Math.ceil(Math.log(pxW / 160) / Math.log(1.12))) / 16) * 16;
       if (bw > 4096) bw = 4096;
       const key = name + '|' + bw;
       let c = this._raster[key];
@@ -330,15 +371,23 @@
     wood: { kind: 'wood', w: 0.26, base: '#c38c50', dark: '#5f3b1e', light: '#ecc186', grain: '#8f5d31' },
     steel: { kind: 'steel', w: 0.3, base: '#8899ad', dark: '#36414f', light: '#d6e0ea', rivet: '#4e5a68' },
     rope: { kind: 'rope', w: 0.08, base: '#d2ac70', dark: '#6f5430', light: '#f1dcab' },
-    cable: { kind: 'cable', w: 0.1, base: '#3a3f47', dark: '#15181c', light: '#c2cad4' }
+    cable: { kind: 'cable', w: 0.1, base: '#3a3f47', dark: '#15181c', light: '#c2cad4' },
+    // railway (SPEC §9.2): ballasted track deck hanging below the rail-top line, stone voussoirs, box girder
+    rail: { kind: 'rail', w: 0.72, rail: '#c3ccd6', railDark: '#56616e', sleeper: '#5e4330', sleeperLo: '#3a2819',
+      ballast: '#8d877b', ballastLo: '#5f594f', deck: '#7f8486', deckLo: '#55595b', under: '#3b3f42' },
+    masonry: { kind: 'masonry', w: 0.95, mortar: '#cfc6b1', dark: '#4c4237', stones: ['#b9a588', '#a8957a', '#c4b296', '#9c8a70', '#b19c7e'], light: '#efe3c8' },
+    girder: { kind: 'girder', w: 0.62, base: '#4f6178', dark: '#1e2733', light: '#a9b9cc', rivet: '#2b3644' }
   };
-  const KIND_ORDER = ['cable', 'rope', 'steel', 'wood', 'road'];
+  const KIND_ORDER = ['cable', 'rope', 'steel', 'girder', 'masonry', 'wood', 'road', 'rail'];
+  function isDeck(st) { return st.kind === 'road' || st.kind === 'rail'; }
   function matStyle(m) {
     let st = MSTYLE[m];
     const def = BG.Materials && BG.Materials[m];
     if (!st) {
       const base = (def && def.color) || '#8899ad';
-      st = MSTYLE[m] = def && def.isRoad
+      st = MSTYLE[m] = def && def.isRail
+        ? Object.assign({}, MSTYLE.rail)
+        : def && def.isRoad
         ? { kind: 'road', w: 0.45, deck: base, deckLo: mix(base, '#000000', 0.3), kerb: '#e0e0e0', mark: '#f3f1e4', under: '#24272c' }
         : def && def.tensionOnly
           ? { kind: 'cable', w: 0.1, base: base, dark: mix(base, '#000000', 0.5), light: mix(base, '#ffffff', 0.5) }
@@ -500,12 +549,121 @@
     return { x: c.x + (px - this.W / 2) / c.zoom, y: c.y - (py - this.H / 2) / c.zoom };
   };
   R.zoomAt = function (px, py, factor) {
+    if (this._followActive && this._follow) { // while following, the wheel scales the follow zoom
+      this._follow.zoomMul = clamp(this._follow.zoomMul * factor, 0.3, 4);
+      return;
+    }
     const before = this.screenToWorld(px, py);
     this.camera.zoom = clamp(this.camera.zoom * factor, 2, 160);
     const after = this.screenToWorld(px, py);
     this.camera.x += before.x - after.x; this.camera.y += before.y - after.y;
   };
-  R.pan = function (dxPx, dyPx) { this.camera.x -= dxPx / this.camera.zoom; this.camera.y += dyPx / this.camera.zoom; };
+  R.pan = function (dxPx, dyPx) {
+    if (this._followActive && this._follow) { // a drag while following peeks around; it eases back
+      this._follow.offX -= dxPx / this.camera.zoom; this._follow.offY += dyPx / this.camera.zoom;
+    }
+    this.camera.x -= dxPx / this.camera.zoom; this.camera.y += dyPx / this.camera.zoom;
+  };
+
+  // ------------------------------------------------------------------- camera follow (SPEC §9.4)
+  // r.follow(target) - target: true / 'lead' (default: the lead vehicle or train of the running sim),
+  // a sim vehicle / train object, any {x, y} object, or a function(state) -> {x, y, len?}.
+  // r.follow(null | false) stops. Only active in sim / results renders (edit keeps a free camera).
+  // While following, zoomAt() scales the comfortable follow zoom and pan() offsets the view.
+  R.follow = function (target, opts) {
+    if (target === undefined) target = true;
+    if (!target) { this._follow = null; this._followActive = false; this.following = false; return this; }
+    const prev = this._follow;
+    this._follow = { target, opts: opts || {}, zoomMul: prev ? prev.zoomMul : 1, offX: 0, offY: 0, vx: 0, vy: 0, last: null };
+    this.following = true;
+    return this;
+  };
+  R.setFollow = function (on) { return this.follow(on ? true : null); };
+  R.isFollowing = function () { return !!this._follow; };
+
+  // focus of one vehicle: {x, y (rail / road level), front, len, wreck}
+  R._vehicleFocus = function (v) {
+    if (!v) return null;
+    if (isTrainVehicle(v)) {
+      const cars = v.cars || [];
+      let lead = null, last = null, wreck = null;
+      for (let i = 0; i < cars.length; i++) {
+        const P = this._railPose(cars[i], railDef(cars[i]), i, cars.length);
+        if (!P) continue;
+        if (!lead) lead = P;
+        last = P;
+        if (!wreck && (cars[i].state === 'derailed' || cars[i].derailed)) wreck = P;
+      }
+      if (!lead) return null;
+      if (wreck || v.state === 'derailed') {
+        const P = wreck || lead;
+        return { x: P.ox + P.c * P.Lm / 2, y: P.oy, front: P.ox + P.c * P.Lm, rear: last.ox, len: P.Lm, wreck: true };
+      }
+      return { x: lead.ox + lead.c * lead.Lm / 2, y: lead.oy, front: lead.ox + lead.c * lead.Lm, rear: Math.min(last.ox, last.ox + last.c * last.Lm), len: lead.Lm };
+    }
+    if (v.wheels || v.def) {
+      const def = this._vehDef(v), P = this._vehPose(v, def);
+      if (!isFinite(P.ox)) return null;
+      return { x: P.ox + Math.cos(P.ang) * P.Lm / 2, y: P.oy, front: P.ox + Math.cos(P.ang) * P.Lm, rear: P.ox, len: P.Lm, wreck: v.state === 'fallen' };
+    }
+    if (Number.isFinite(v.x) && Number.isFinite(v.y)) return { x: v.x, y: v.y, front: v.x, len: v.len || 6 };
+    return null;
+  };
+  R._followFocus = function (state) {
+    const F = this._follow, t = F.target, sim = state.sim;
+    if (typeof t === 'function') { try { const f = t(state); return f ? Object.assign({ front: f.x, len: 6 }, f) : null; } catch (e) { return null; } }
+    if (t && typeof t === 'object') return this._vehicleFocus(t);
+    if (!sim || !sim.vehicles) return null;
+    // the first vehicle still (partly) before the far bank leads; a wreck always wins
+    let best = null, any = null;
+    const re = this.level.terrain.rightEdge;
+    for (const v of sim.vehicles) {
+      if (!v || v.state === 'waiting' || v.state === 'finished') continue;
+      const f = this._vehicleFocus(v);
+      if (!f) continue;
+      if (f.wreck) return f;
+      if (!any) any = f;
+      if (!best && !(f.rear > re + 1)) best = f;
+    }
+    return best || any;
+  };
+  R._updateFollow = function (state, dt) {
+    const F = this._follow, cam = this.camera, L = this.level;
+    this._followActive = true;
+    let f = this._followFocus(state);
+    if (!f) { if (!F.last) return; f = F.last; }
+    if (F.last && dt > 0) {
+      const k = clamp(dt * 4, 0, 1);
+      const fvx = f === F.last ? 0 : (f.front - F.last.front) / dt;
+      F.vx = isFinite(fvx) && Math.abs(fvx) < 400 ? lerp(F.vx, fvx, k) : F.vx;
+      if (Math.abs(f.front - F.last.front) > 30) F.vx = 0; // switched to another vehicle
+    }
+    F.last = f;
+    const W = this.W || 1280, H = this.H || 720, ins = this.insets;
+    const aw = Math.max(100, W - ins.left - ins.right), ah = Math.max(100, H - ins.top - ins.bottom);
+    const b = this.levelBounds();
+    const fitZ = clamp(Math.min(aw / (b.x1 - b.x0), ah / (b.y1 - b.y0)), 2, 120);
+    const speed = Math.abs(F.vx);
+    const vw = clamp(34 + 1.6 * Math.min(f.len || 6, 25) + speed * 1.2, 40, 110);
+    const zt = clamp(clamp(aw / vw, fitZ, 60) * F.zoomMul, Math.min(fitZ, 2), 160);
+    const kz = 1 - Math.exp(-dt * 2.2);
+    cam.zoom += (zt - cam.zoom) * kz;
+    if (Math.abs(zt - cam.zoom) < zt * 0.002) cam.zoom = zt;
+    const z = cam.zoom, vwz = aw / z, vhz = ah / z;
+    // keep the lead vehicle at ~70 % of the view; stop at the far bank so the crossing stays in frame
+    let ax = f.wreck ? f.x : f.front - vwz * 0.2;
+    let clamped = false;
+    const t = L.terrain;
+    if (!f.wreck && ax > t.rightEdge + vwz * 0.22) { ax = t.rightEdge + vwz * 0.22; clamped = true; }
+    const ay = f.y - vhz * 0.06;
+    F.offX *= Math.exp(-dt * 0.5); F.offY *= Math.exp(-dt * 0.5);
+    const sxm = ins.left + aw / 2, sym = ins.top + ah / 2;
+    const tx = ax - (sxm - W / 2) / z + F.offX, ty = ay - (H / 2 - sym) / z + F.offY;
+    const kp = 1 - Math.exp(-dt * 3.2);
+    if (!clamped && !f.wreck) cam.x += F.vx * dt;
+    cam.x += (tx - cam.x) * kp;
+    cam.y += (ty - cam.y) * kp;
+  };
   R.levelBounds = function () {
     const L = this.level;
     if (!L) return { x0: -10, x1: 10, y0: -10, y1: 10 };
@@ -543,6 +701,7 @@
     const self = this;
     this._bgRec = loadBg(this.themeId, function () { self._bgVersion++; self._backKey = self._midKey = ''; });
     this._buildTerrain();
+    this._initRail(level);
     this._clouds = null;
     this._initAmbient();
     if (this.effects && this.effects.setLevel) {
@@ -599,6 +758,28 @@
     p.lineTo(re + far, ry); p.lineTo(re + far, bottom); p.closePath();
     this.terrainPath = p;
   };
+  // railway look for this level: track on the banks, scenery, catenary (SPEC §9.4)
+  R._initRail = function (level) {
+    const traffic = level.traffic || [];
+    const trains = traffic.filter(function (t) { return t && t.type === 'train'; });
+    const roads = traffic.filter(function (t) { return t && t.type !== 'train'; });
+    const rail = level.campaign === 'rail' || trains.length > 0;
+    this._railBank = rail ? (roads.length ? 'street' : 'track') : null;
+    this._signals = [];
+    this._trainPv = null;
+    if (!rail) { this._railDecor = null; return; }
+    const presets = trains.map(function (t) { return String(t.train || ''); });
+    const decor = level.decor || {};
+    const hs = presets.some(function (p) { return p.indexOf('highspeed') === 0; });
+    const tram = presets.some(function (p) { return p === 'tram'; });
+    let cat = decor.catenary !== undefined ? !!decor.catenary : (hs || tram);
+    this._railDecor = {
+      heritage: decor.heritage !== undefined ? !!decor.heritage : presets.some(function (p) { return /^(handcar|steam)/.test(p); }) || (!hs && !presets.length),
+      catenary: cat, wire: hs || !tram ? 4.65 : 3.95,
+      station: String(decor.station || level.name || 'SPAN').toUpperCase()
+    };
+  };
+
   function profileX(pts, y) { // x of a cliff profile at height y
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
@@ -742,6 +923,7 @@
     g.setTransform(z, 0, 0, -z, (this.W / 2 + M - c.x * c.zoom) * d, (this.H / 2 + M + c.y * c.zoom) * d);
     this._drawValleyBack(g);
     this._drawProps(g);
+    if (this._railDecor) this._drawRailDecor(g);
     this._drawTerrain(g);
     this.stats.midMs = now() - t0;
   };
@@ -1257,6 +1439,10 @@
     g.fillRect(side < 0 ? ab1 - 0.12 : ab0, abBot, 0.12, T.ABUT - ROAD);
     g.fillStyle = 'rgba(0,0,0,0.2)';
     g.fillRect(ab0 - 0.15, abBot - 0.25, ab1 - ab0 + 0.3, 0.3); // footing
+    const railMode = this._railBank; // 'track' (ballasted line) | 'street' (rails set in the road) | null
+    if (railMode === 'track') {
+      this._drawBankTrack(g, vx0, vx1, y, ROAD, z, side, edge);
+    } else {
     // road layer
     const rg = g.createLinearGradient(0, y, 0, y - ROAD);
     rg.addColorStop(0, '#4a4e56'); rg.addColorStop(0.2, '#3d4148'); rg.addColorStop(1, '#2a2d33');
@@ -1264,8 +1450,13 @@
     g.fillRect(vx0, y - ROAD, vx1 - vx0, ROAD);
     g.fillStyle = '#d6d9de';
     g.fillRect(vx0, y - 0.07, vx1 - vx0, 0.07);
+    if (railMode === 'street') { // grooved tram rails flush with the asphalt
+      g.fillStyle = '#9aa4ae'; g.fillRect(vx0, y - 0.06, vx1 - vx0, 0.05);
+      g.fillStyle = '#1e2228'; g.fillRect(vx0, y - 0.035, vx1 - vx0, 0.012);
+    }
+    }
     // lane dashes
-    if (z > 4) {
+    if (z > 4 && railMode !== 'track') {
       g.fillStyle = 'rgba(243,241,228,0.85)';
       const dl = 1.6, gap = 1.4;
       const s0 = Math.floor(vx0 / (dl + gap)) * (dl + gap);
@@ -1274,9 +1465,9 @@
         if (b > a) g.fillRect(a, y - ROAD * 0.5, b - a, 0.06);
       }
     }
-    // kerb at edge
-    g.fillStyle = '#e7e9ec';
-    g.fillRect(side < 0 ? edge - 0.25 : edge, y - ROAD - 0.05, 0.25, ROAD + 0.05);
+    // kerb at edge (a ballast retaining wall on railway banks)
+    g.fillStyle = railMode === 'track' ? '#b9b3a6' : '#e7e9ec';
+    g.fillRect(side < 0 ? edge - 0.25 : edge, y - ROAD - 0.05, 0.25, ROAD - (railMode === 'track' ? 0.08 : -0.05));
     // verge decoration (blades / snow lumps / sand) poking up in front of the road bottom
     const lo = y - ROAD;
     if (top === 'grass' && z > 5) {
@@ -1340,6 +1531,246 @@
     }
     g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1 * px;
     g.beginPath(); g.moveTo(vx0, y - ROAD); g.lineTo(vx1, y - ROAD); g.stroke();
+  };
+
+  // ballasted railway line on a bank top: rail top at y, ballast down to y - depth
+  R._drawBankTrack = function (g, vx0, vx1, y, depth, z, side, edge) {
+    const st = MSTYLE.rail, px = 1 / z;
+    const bg = g.createLinearGradient(0, y - 0.08, 0, y - depth);
+    bg.addColorStop(0, mix(st.ballast, '#ffffff', 0.12)); bg.addColorStop(0.6, st.ballast); bg.addColorStop(1, st.ballastLo);
+    g.fillStyle = bg;
+    g.fillRect(vx0, y - depth, vx1 - vx0, depth - 0.09);
+    if (z > 7) { // gravel speckle
+      const sp = 0.16;
+      for (let x = Math.floor(vx0 / sp) * sp; x < vx1; x += sp) {
+        const r = hash(Math.round(x * 97) + 5), r2 = hash(Math.round(x * 53) + 11);
+        g.fillStyle = r < 0.5 ? 'rgba(255,250,236,0.35)' : 'rgba(40,36,30,0.3)';
+        g.fillRect(x + r2 * 0.1, y - 0.14 - r * (depth - 0.2), Math.max(0.04, 1.5 * px), Math.max(0.03, 1.2 * px));
+      }
+    }
+    // sleepers
+    if (z > 3) {
+      const pitch = 0.65;
+      g.fillStyle = st.sleeper;
+      for (let x = Math.floor(vx0 / pitch) * pitch; x < vx1; x += pitch) g.fillRect(x, y - 0.24, 0.26, 0.14);
+      g.fillStyle = rgba(mix(st.sleeper, '#ffffff', 0.35), 0.9);
+      for (let x = Math.floor(vx0 / pitch) * pitch; x < vx1; x += pitch) g.fillRect(x, y - 0.13, 0.26, 0.03);
+      if (z > 9) {
+        g.fillStyle = '#2a2f36';
+        for (let x = Math.floor(vx0 / pitch) * pitch; x < vx1; x += pitch) g.fillRect(x + 0.09, y - 0.135, 0.08, 0.03);
+      }
+    }
+    // far rail (darker, a hair higher) + near rail head / web
+    g.fillStyle = st.railDark; g.fillRect(vx0, y, vx1 - vx0, 0.035);
+    g.fillRect(vx0, y - 0.12, vx1 - vx0, 0.065);
+    g.fillStyle = st.rail; g.fillRect(vx0, y - 0.055, vx1 - vx0, 0.055);
+    g.fillStyle = 'rgba(255,255,255,0.75)'; g.fillRect(vx0, y - Math.max(0.012, 0.7 * px), vx1 - vx0, Math.max(0.012, 0.7 * px));
+    // rail joints every 18 m (fishplates)
+    if (z > 6) {
+      g.fillStyle = '#3a414b';
+      for (let x = Math.floor(vx0 / 18) * 18 + (side < 0 ? 6 : 3); x < vx1; x += 18) g.fillRect(x - 0.25, y - 0.11, 0.5, 0.06);
+    }
+  };
+
+  // railway scenery standing on the banks (cached with the mid layer): telegraph poles, signals,
+  // a signal box, a station on the far bank, catenary masts + wires on high-speed lines
+  R._drawRailDecor = function (g) {
+    const D = this._railDecor, T = this.terrain;
+    if (!D || !T) return;
+    const v = this._visibleWorld(M + 60);
+    const z = this.camera.zoom, px = 1 / z;
+    const night = this.theme.night >= 1;
+    const dk = function (c, k) { return night ? mix(c, '#0a1022', 0.55) : (k ? mix(c, '#000000', k) : c); };
+    const le = T.le, re = T.re, ly = T.ly, ry = T.ry;
+    this._signals = [];
+    const inView = function (x0, x1) { return x1 > v.x0 && x0 < v.x1; };
+    // ---- telegraph poles + wires (heritage lines)
+    if (D.heritage) {
+      const pole = function (x, y) {
+        g.fillStyle = dk('#5a4030'); g.fillRect(x - 0.09, y - 0.2, 0.18, 6.6);
+        g.fillStyle = dk('#3a2a1e'); g.fillRect(x - 0.7, y + 5.9, 1.4, 0.14); g.fillRect(x - 0.5, y + 5.3, 1.0, 0.12);
+        g.fillStyle = dk('#d8e4ea');
+        for (const q of [[-0.6, 6.04], [-0.2, 6.04], [0.2, 6.04], [0.6, 6.04], [-0.4, 5.42], [0.4, 5.42]]) g.fillRect(x + q[0] - 0.04, y + q[1], 0.08, 0.14);
+      };
+      const run = function (x0, x1, y, dir) {
+        const pts = [];
+        for (let x = x0; dir > 0 ? x < x1 : x > x1; x += dir * 32) pts.push(x);
+        for (const x of pts) if (inView(x - 2, x + 2)) pole(x, y);
+        g.strokeStyle = night ? 'rgba(20,24,40,0.6)' : 'rgba(40,40,46,0.55)'; g.lineWidth = Math.max(0.025, 0.9 * px);
+        g.beginPath();
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const a = pts[i], b = pts[i + 1];
+          if (!inView(Math.min(a, b), Math.max(a, b))) continue;
+          for (const h of [6.18, 5.56]) { g.moveTo(a, y + h); g.quadraticCurveTo((a + b) / 2, y + h - 0.7, b, y + h); }
+        }
+        g.stroke();
+      };
+      run(le - 10, le - 420, ly, -1);
+      run(re + 12, re + 420, ry, 1);
+    }
+    // ---- signal box (left bank, behind the line)
+    {
+      const x = le - 26, y = ly;
+      if (inView(x - 4, x + 4)) {
+        if (D.heritage) {
+          g.fillStyle = dk('#8a4a32'); g.fillRect(x - 2.6, y, 5.2, 2.8);                     // brick base
+          g.fillStyle = dk('#6e3a26');
+          for (let k = 0; k < 6; k++) g.fillRect(x - 2.6, y + 0.45 * k + 0.2, 5.2, 0.05);
+          g.fillStyle = dk('#e9e1cf'); g.fillRect(x - 2.8, y + 2.8, 5.6, 2.2);               // timber cabin
+          g.fillStyle = night ? 'rgba(255,214,140,0.9)' : dk('#6ea3cc');
+          for (let k = 0; k < 4; k++) g.fillRect(x - 2.5 + k * 1.3, y + 3.15, 1.05, 1.4);
+          g.fillStyle = dk('#3a3f48');
+          g.beginPath(); g.moveTo(x - 3.2, y + 5); g.lineTo(x, y + 6.4); g.lineTo(x + 3.2, y + 5); g.closePath(); g.fill();
+          g.fillStyle = dk('#2a2f36'); g.fillRect(x - 2.2, y + 1.0, 0.9, 1.2);
+        } else {
+          g.fillStyle = dk('#b9bfc6'); g.fillRect(x - 1.8, y, 3.6, 2.6);
+          g.fillStyle = dk('#8d97a3'); g.fillRect(x - 1.9, y + 2.6, 3.8, 0.2);
+          g.fillStyle = dk('#f2b51d'); g.fillRect(x - 1.8, y + 1.9, 3.6, 0.12);
+          g.fillStyle = dk('#4a515b'); g.fillRect(x - 1.2, y + 0.2, 0.9, 1.5); g.fillRect(x + 0.4, y + 0.9, 0.9, 0.6);
+        }
+      }
+    }
+    // ---- signals guarding the bridge on both approaches
+    const signal = (x, y, dir) => {
+      if (!inView(x - 2, x + 2)) return;
+      if (D.heritage) { // semaphore: lattice post, arm, spectacle, lamp
+        g.fillStyle = dk('#e9ecef'); g.fillRect(x - 0.1, y, 0.2, 6.2);
+        g.fillStyle = dk('#2a2f36'); g.fillRect(x - 0.18, y + 6.1, 0.36, 0.3); g.fillRect(x - 0.35, y, 0.7, 0.3);
+        g.save(); g.translate(x, y + 5.6); g.rotate(dir * 0.75);
+        g.fillStyle = dk('#d8342b'); g.fillRect(0, -0.16, dir * 1.5, 0.32);
+        g.fillStyle = dk('#ffffff'); g.fillRect(dir * 1.05, -0.16, dir * 0.16, 0.32);
+        g.restore();
+        g.fillStyle = dk('#1c2230'); g.beginPath(); g.arc(x - dir * 0.05, y + 5.6, 0.18, 0, TAU); g.fill();
+        g.fillStyle = dk('#3a3f48'); g.fillRect(x - 0.2, y + 4.8, 0.4, 0.4);
+        g.strokeStyle = dk('#3a3f48'); g.lineWidth = Math.max(0.03, px);
+        g.beginPath(); g.moveTo(x - 0.3, y + 0.6); g.lineTo(x - 0.3, y + 4.4); g.moveTo(x - 0.6, y + 1.0); g.lineTo(x - 0.3, y + 1.0); g.stroke();
+        this._signals.push({ x: x, y: y + 5.0, kind: 'semaphore' });
+      } else { // colour light: post, black head with hood and three lamps
+        g.fillStyle = dk('#5a616b'); g.fillRect(x - 0.08, y, 0.16, 4.2);
+        g.fillStyle = dk('#3a3f48'); g.fillRect(x - 0.3, y, 0.6, 0.25);
+        g.fillStyle = dk('#15181c'); roundRect(g, x - 0.26, y + 3.6, 0.52, 1.5, 0.12); g.fill();
+        g.fillStyle = dk('#f4f7fa'); g.fillRect(x - 0.36, y + 3.5, 0.72, 0.06); g.fillRect(x - 0.36, y + 5.14, 0.72, 0.06);
+        g.fillStyle = '#20252c';
+        for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(x, y + 4.75 - k * 0.42, 0.13, 0, TAU); g.fill(); }
+        this._signals.push({ x: x, y: y + 4.75, kind: 'light', dy: 0.42 });
+      }
+    };
+    signal(le - 16, ly, 1);
+    signal(re + 14, ry, -1);
+    // ---- station on the far bank: platform, building, canopy, name board
+    {
+      const x0 = re + 24, x1 = re + 74, y = ry;
+      if (inView(x0 - 2, x1 + 2)) {
+        // platform (behind the track; the train covers its lower edge)
+        g.fillStyle = dk('#a7a299'); g.fillRect(x0, y, x1 - x0, 0.95);
+        g.fillStyle = dk('#e8e2d2'); g.fillRect(x0, y + 0.95, x1 - x0, 0.14);
+        g.fillStyle = dk('#f2c21d'); g.fillRect(x0, y + 0.88, x1 - x0, 0.05);
+        g.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let x = x0; x < x1; x += 1.2) g.fillRect(x, y, 0.04, 0.95);
+        const bx = x0 + 14, bw = 22;
+        if (D.heritage) {
+          g.fillStyle = dk('#a85a3a'); g.fillRect(bx, y + 1.09, bw, 5.2);
+          g.fillStyle = dk('#8a4a30');
+          for (let k = 0; k < 11; k++) g.fillRect(bx, y + 1.3 + k * 0.45, bw, 0.05);
+          g.fillStyle = dk('#e9e1cf'); g.fillRect(bx - 0.3, y + 6.2, bw + 0.6, 0.35);
+          g.fillStyle = dk('#3a3f48');
+          g.beginPath(); g.moveTo(bx - 0.8, y + 6.55); g.lineTo(bx + bw / 2, y + 8.6); g.lineTo(bx + bw + 0.8, y + 6.55); g.closePath(); g.fill();
+          g.fillStyle = dk('#5a3020'); g.fillRect(bx + 4, y + 7.2, 0.8, 1.6); g.fillRect(bx + bw - 5, y + 7.2, 0.8, 1.6);
+          g.fillStyle = night ? 'rgba(255,214,140,0.9)' : dk('#5f8fb8');
+          for (let k = 0; k < 6; k++) { roundRect(g, bx + 1.4 + k * 3.4, y + 2.6, 1.6, 2.4, 0.6); g.fill(); }
+          g.fillStyle = dk('#2e4a34'); g.fillRect(bx + bw / 2 - 0.9, y + 1.09, 1.8, 2.8);
+        } else {
+          g.fillStyle = dk('#c9cfd6'); g.fillRect(bx, y + 1.09, bw, 4.6);
+          g.fillStyle = night ? 'rgba(255,226,160,0.85)' : dk('#7fb2d6');
+          g.fillRect(bx + 0.6, y + 1.6, bw - 1.2, 3.2);
+          g.fillStyle = dk('#8d97a3');
+          for (let k = 1; k < 8; k++) g.fillRect(bx + k * bw / 8, y + 1.6, 0.12, 3.2);
+          g.fillStyle = dk('#4a515b'); g.fillRect(bx - 0.4, y + 5.7, bw + 0.8, 0.4);
+        }
+        // canopy on columns
+        g.fillStyle = dk('#2e3a44');
+        for (let x = x0 + 2; x < x1 - 1; x += 6) g.fillRect(x - 0.08, y + 1.09, 0.16, 3.4);
+        g.fillStyle = dk(D.heritage ? '#5e6e5a' : '#9aa4ae');
+        g.beginPath(); g.moveTo(x0 + 0.5, y + 4.4); g.lineTo(x1 - 0.5, y + 4.4); g.lineTo(x1 - 1.5, y + 4.9); g.lineTo(x0 + 1.5, y + 4.9); g.closePath(); g.fill();
+        if (D.heritage) { g.fillStyle = dk('#e9e1cf'); for (let x = x0 + 0.8; x < x1 - 0.8; x += 0.5) { g.beginPath(); g.moveTo(x, y + 4.4); g.lineTo(x + 0.25, y + 4.15); g.lineTo(x + 0.5, y + 4.4); g.fill(); } }
+        // name board on the facade (above the trains) + clock in the gable
+        const nbY = y + (D.heritage ? 5.62 : 5.05), nbX = bx + bw / 2;
+        g.fillStyle = dk('#1e2a48'); roundRect(g, nbX - 4.2, nbY - 0.45, 8.4, 0.9, 0.15); g.fill();
+        g.strokeStyle = dk('#f4ead0'); g.lineWidth = 0.06; roundRect(g, nbX - 4.1, nbY - 0.36, 8.2, 0.72, 0.1); g.stroke();
+        g.fillStyle = dk('#f4ead0');
+        g.save(); g.translate(nbX, nbY); g.scale(0.025, -0.025);
+        g.font = 'bold 22px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(D.station, 0, 1, 310);
+        g.restore();
+        if (D.heritage) {
+          const cx = nbX, cy = y + 7.35;
+          g.fillStyle = dk('#f4f7fa'); g.beginPath(); g.arc(cx, cy, 0.42, 0, TAU); g.fill();
+          g.strokeStyle = dk('#1c2230'); g.lineWidth = 0.07;
+          g.beginPath(); g.arc(cx, cy, 0.42, 0, TAU); g.moveTo(cx, cy); g.lineTo(cx, cy + 0.3); g.moveTo(cx, cy); g.lineTo(cx + 0.2, cy - 0.05); g.stroke();
+        }
+        // benches + passengers silhouettes
+        g.fillStyle = dk('#3a3f48', 0.1);
+        for (const bxx of [x0 + 3, x0 + 40, x0 + 46]) { g.fillRect(bxx, y + 1.09, 1.6, 0.12); g.fillRect(bxx, y + 1.5, 1.6, 0.1); g.fillRect(bxx + 0.1, y + 1.09, 0.08, 0.5); g.fillRect(bxx + 1.4, y + 1.09, 0.08, 0.5); }
+        g.fillStyle = night ? 'rgba(10,14,28,0.8)' : 'rgba(40,46,60,0.55)';
+        for (const p of [[x0 + 10, 1.75], [x0 + 11.2, 1.6], [x0 + 38, 1.7], [x0 + 49, 1.8]]) {
+          g.beginPath(); g.arc(p[0], y + 1.09 + p[1], 0.17, 0, TAU); g.fill();
+          roundRect(g, p[0] - 0.22, y + 1.09, 0.44, p[1] - 0.2, 0.15); g.fill();
+        }
+      }
+    }
+    // ---- overhead line equipment (high-speed lines)
+    if (D.catenary) {
+      const CW = D.wire || 4.65, MW = CW + 1.3, HT = CW + 2.35, SP = 45;
+      const masts = [];
+      for (let x = le - 4; x > le - 600; x -= SP) masts.push({ x, y: ly });
+      masts.reverse();
+      const nL = masts.length;
+      for (let x = re + 4; x < re + 600; x += SP) masts.push({ x, y: ry });
+      const mast = function (m) {
+        if (!inView(m.x - 2, m.x + 2)) return;
+        g.fillStyle = dk('#6d7680'); g.fillRect(m.x - 0.13, m.y - 0.2, 0.26, HT);
+        g.fillStyle = dk('#9aa4ae'); g.fillRect(m.x - 0.13, m.y - 0.2, 0.07, HT);
+        g.fillStyle = dk('#4a515b'); g.fillRect(m.x - 0.3, m.y - 0.25, 0.6, 0.3);
+        // cantilever + registration arm seen end-on
+        g.strokeStyle = dk('#8d97a3'); g.lineWidth = 0.08;
+        g.beginPath(); g.moveTo(m.x, m.y + MW + 0.2); g.lineTo(m.x + 0.9, m.y + MW + 0.15); g.moveTo(m.x, m.y + CW + 0.5); g.lineTo(m.x + 0.9, m.y + MW + 0.15); g.stroke();
+        g.fillStyle = dk('#c9d1da'); g.fillRect(m.x + 0.82, m.y + CW, 0.06, MW - CW + 0.15);
+        g.fillStyle = dk('#3a3f48'); g.fillRect(m.x - 0.05, m.y + MW + 0.1, 0.24, 0.26); g.fillRect(m.x - 0.05, m.y + CW + 0.4, 0.24, 0.26);
+      };
+      const span = function (a, b) {
+        if (!inView(Math.min(a.x, b.x), Math.max(a.x, b.x))) return;
+        const ax = a.x + 0.85, bx = b.x + 0.85;
+        g.strokeStyle = night ? 'rgba(20,24,40,0.85)' : 'rgba(34,38,46,0.85)';
+        g.lineWidth = Math.max(0.03, 1.1 * px);
+        g.beginPath(); g.moveTo(ax, a.y + CW); g.lineTo(bx, b.y + CW); g.stroke();
+        g.lineWidth = Math.max(0.025, 0.9 * px);
+        const sag = Math.min(0.9, Math.abs(bx - ax) * 0.02);
+        g.beginPath(); g.moveTo(ax, a.y + MW); g.quadraticCurveTo((ax + bx) / 2, (a.y + b.y) / 2 + MW - sag * 2, bx, b.y + MW); g.stroke();
+        g.lineWidth = Math.max(0.018, 0.6 * px);
+        g.beginPath();
+        const n = Math.max(1, Math.round(Math.abs(bx - ax) / 9));
+        for (let k = 1; k < n; k++) {
+          const t = k / n, x = lerp(ax, bx, t);
+          const yc = lerp(a.y, b.y, t) + CW, ym = lerp(a.y, b.y, t) + MW - sag * 4 * t * (1 - t);
+          g.moveTo(x, yc); g.lineTo(x, ym);
+        }
+        g.stroke();
+      };
+      for (let i = 0; i + 1 < masts.length; i++) {
+        if (i === nL - 1) {
+          if (re - le <= 75) span(masts[i], masts[i + 1]);
+          else for (const m of [masts[i], masts[i + 1]]) { // terminate the wire runs: anchor + balance weights
+            const dir = m.x < (le + re) / 2 ? 1 : -1;
+            g.strokeStyle = night ? 'rgba(20,24,40,0.85)' : 'rgba(34,38,46,0.85)'; g.lineWidth = Math.max(0.03, px);
+            g.beginPath(); g.moveTo(m.x + 0.85 - dir * 6, m.y + CW); g.lineTo(m.x, m.y + MW - 0.4); g.stroke();
+            g.fillStyle = dk('#4a515b'); g.fillRect(m.x - 0.55, m.y + 2.2, 0.36, 1.6);
+          }
+          continue;
+        }
+        span(masts[i], masts[i + 1]);
+      }
+      for (const m of masts) mast(m);
+    }
   };
 
   // =====================================================================================
@@ -1708,6 +2139,27 @@
           if (detail && bw * z > 2.5) strokeSet(ctx, list, 0, bw * 0.9, rgba(st.dark, 0.5), false, [0.07, 0.09]);
           break;
         }
+        case 'rail': this._drawRailBeams(ctx, list, st, tinted, broken, detail, z, ow, bw); break;
+        case 'masonry': this._drawMasonryBeams(ctx, list, st, tinted, broken, detail, z, ow, bw); break;
+        case 'girder': {
+          strokeSet(ctx, list, 0, ow, st.dark);
+          strokeSet(ctx, list, 0, bw, st.base);
+          this._tint(ctx, tinted, 0, bw * 0.72, false, 0.8);
+          if (broken.length) strokeSet(ctx, broken, 0, bw, 'rgba(20,20,20,0.35)');
+          if (detail && w * z > 3) {
+            strokeSet(ctx, list, 0.39, w * 0.16, rgba(st.light, 0.85));   // top flange
+            strokeSet(ctx, list, -0.4, w * 0.15, 'rgba(0,0,0,0.38)');     // bottom flange
+            if (w * z > 6) {
+              strokeSet(ctx, list, 0, w * 0.6, 'rgba(14,20,30,0.42)', false, [0.07, 0.93]);   // web stiffeners
+              strokeSet(ctx, list, 0.035, w * 0.6, 'rgba(255,255,255,0.12)', false, [0.03, 0.97]);
+            }
+            if (w * z > 9) {
+              strokeSet(ctx, list, 0.39, w * 0.08, rgba(st.rivet, 0.9), false, [0.001, 0.32], 'round');
+              strokeSet(ctx, list, -0.39, w * 0.08, rgba(st.rivet, 0.9), false, [0.001, 0.32], 'round');
+            }
+          }
+          break;
+        }
         default: { // cable
           strokeSet(ctx, list, 0, ow, st.dark, false, null, 'round');
           strokeSet(ctx, list, 0, bw, st.base, false, null, 'round');
@@ -1717,7 +2169,7 @@
       }
       // jagged snapped ends on broken stubs
       if (broken.length) {
-        ctx.fillStyle = st.kind === 'wood' ? '#f0cf9a' : st.kind === 'road' ? '#8a8d92' : '#e8eef4';
+        ctx.fillStyle = st.kind === 'wood' ? '#f0cf9a' : (st.kind === 'road' || st.kind === 'rail') ? '#8a8d92' : st.kind === 'masonry' ? '#d8ccb4' : '#e8eef4';
         for (const it of broken) {
           // the far end of each stub (the one not on a joint) is the snapped one; mark the free end
           const ex = it._freeX !== undefined ? it._freeX : it.bx, ey = it._freeY !== undefined ? it._freeY : it.by;
@@ -1731,6 +2183,118 @@
       }
     }
   };
+  // rail track deck: the beam line is the rail top; rails, sleepers, ballast and the deck slab hang below it
+  R._drawRailBeams = function (ctx, list, st, tinted, broken, detail, z, ow, bw) {
+    const w = st.w, px = 1 / z;
+    // band from a to b metres below the rail top
+    const band = function (items, a, b, color, dash, cap) { strokeSet(ctx, items, (a + b) / 2 / w, Math.max(b - a, 0.6 * px), color, true, dash, cap); };
+    const W = Math.max(w, 1.6 * px);
+    strokeSet(ctx, list, 0.5, ow, 'rgba(12,14,18,0.85)', true);
+    const showDetail = detail && w * z > 3;
+    if (!showDetail) {
+      strokeSet(ctx, list, 0.5, W, st.ballastLo, true);
+      band(list, w * 0.62, w, st.deck);
+      this._tint(ctx, tinted, 0.8, bw * 0.42, true, 0.9);
+      band(list, 0, Math.max(0.1, 1.4 * px), st.rail);
+      if (broken.length) strokeSet(ctx, broken, 0.5, W, 'rgba(30,30,30,0.35)', true);
+      return;
+    }
+    const sTop = 0.11, slab = w * 0.6; // ballast from sTop to slab, deck slab from slab to w
+    // deck slab (concrete trough) with a lit top edge and a shadowed soffit
+    band(list, slab, w, st.deck);
+    band(list, w - Math.min(0.06, w * 0.12), w, st.under);
+    this._tint(ctx, tinted, (slab + w) / 2 / w, (w - slab) * 0.9, true, 0.92);
+    band(list, slab, slab + Math.max(0.025, 0.8 * px), 'rgba(255,255,255,0.28)');
+    // ballast bed
+    band(list, sTop, slab, st.ballast);
+    band(list, slab - (slab - sTop) * 0.35, slab, st.ballastLo);
+    if (w * z > 9) {
+      // gravel speckle: hashed stones, two tones, batched
+      const lite = [], dark = [];
+      const sz = Math.max(0.03, 1.3 * px), dep = slab - sTop - sz;
+      for (const it of list) {
+        const L = it._len || 1, ux = (it.bx - it.ax) / L, uy = (it.by - it.ay) / L, nx = -it._nx, ny = -it._ny;
+        for (let s = 0.04, j = 0; s < L; s += 0.075, j++) {
+          const h = hash2(it.i + 3, j, 17), d0 = sTop + 0.01 + hash2(it.i + 3, j, 23) * dep;
+          (h < 0.5 ? lite : dark).push(it.ax + ux * s + nx * d0, it.ay + uy * s + ny * d0);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,250,236,0.34)';
+      ctx.beginPath(); for (let i = 0; i < lite.length; i += 2) ctx.rect(lite[i], lite[i + 1], sz, sz * 0.8); ctx.fill();
+      ctx.fillStyle = 'rgba(40,36,30,0.3)';
+      ctx.beginPath(); for (let i = 0; i < dark.length; i += 2) ctx.rect(dark[i], dark[i + 1], sz, sz * 0.8); ctx.fill();
+    }
+    // sleepers poking out of the ballast
+    if (w * z > 5) {
+      band(list, 0.1, 0.24, st.sleeper, [0.26, 0.39]);
+      band(list, 0.1, 0.13, rgba(mix(st.sleeper, '#ffffff', 0.35), 0.9), [0.26, 0.39]);
+      band(list, 0.21, 0.24, st.sleeperLo, [0.26, 0.39]);
+    } else band(list, 0.1, 0.2, st.sleeper);
+    // far rail (just above the line, darker) + near rail head / web / foot
+    band(list, -0.035, 0.0, st.railDark);
+    band(list, 0.055, 0.12, st.railDark);
+    band(list, 0.0, 0.055, st.rail);
+    band(list, 0.0, Math.max(0.012, 0.7 * px), 'rgba(255,255,255,0.75)');
+    if (w * z > 9) band(list, 0.1, 0.135, '#2a2f36', [0.08, 0.57], 'butt'); // rail clips at each sleeper
+    if (broken.length) strokeSet(ctx, broken, 0.5, W, 'rgba(30,30,30,0.35)', true);
+  };
+
+  // masonry: stone voussoir blocks with mortar joints, one hashed tone per block
+  R._drawMasonryBeams = function (ctx, list, st, tinted, broken, detail, z, ow, bw) {
+    const w = st.w, px = 1 / z;
+    strokeSet(ctx, list, 0, ow, st.dark);
+    if (!(detail && w * z > 3.5)) {
+      strokeSet(ctx, list, 0, bw, st.stones[0]);
+      this._tint(ctx, tinted, 0, bw, false, 0.6);
+      if (broken.length) strokeSet(ctx, broken, 0, bw, 'rgba(40,30,20,0.35)');
+      return;
+    }
+    strokeSet(ctx, list, 0, bw, st.mortar);
+    const tones = st.stones, nT = tones.length;
+    const paths = [];
+    for (let k = 0; k < nT; k++) paths.push([]);
+    const gap = Math.max(0.045, 1.2 * px);
+    const hw = Math.max(w / 2 - gap * 0.6, w * 0.3);
+    for (const it of list) {
+      const L = it._len || 1, ux = (it.bx - it.ax) / L, uy = (it.by - it.ay) / L, nx = it._nx, ny = it._ny;
+      const n = Math.max(1, Math.round(L / 0.72)), bl = L / n;
+      for (let j = 0; j < n; j++) {
+        const s0 = j * bl + gap / 2, s1 = (j + 1) * bl - gap / 2;
+        if (s1 <= s0) continue;
+        const k = Math.floor(hash2(it.i + 7, j, 31) * nT) % nT;
+        paths[k].push(it.ax + ux * s0, it.ay + uy * s0, it.ax + ux * s1, it.ay + uy * s1, nx, ny, hw);
+      }
+    }
+    for (let k = 0; k < nT; k++) {
+      const P = paths[k];
+      if (!P.length) continue;
+      ctx.beginPath();
+      for (let i = 0; i < P.length; i += 7) {
+        const x0 = P[i], y0 = P[i + 1], x1 = P[i + 2], y1 = P[i + 3], nx = P[i + 4] * P[i + 6], ny = P[i + 5] * P[i + 6];
+        ctx.moveTo(x0 + nx, y0 + ny); ctx.lineTo(x1 + nx, y1 + ny); ctx.lineTo(x1 - nx, y1 - ny); ctx.lineTo(x0 - nx, y0 - ny); ctx.closePath();
+      }
+      ctx.fillStyle = tones[k];
+      ctx.fill();
+    }
+    this._tint(ctx, tinted, 0, bw * 0.9, false, 0.38);
+    // dressed-stone shading: lit top face, shadowed bottom, a chisel line through each block
+    strokeSet(ctx, list, 0.36, w * 0.1, rgba(st.light, 0.38));
+    strokeSet(ctx, list, -0.37, w * 0.12, 'rgba(30,22,14,0.28)');
+    // re-cut the mortar joints so blocks still read through the stress tint
+    ctx.beginPath();
+    for (const it of list) {
+      const L = it._len || 1, ux = (it.bx - it.ax) / L, uy = (it.by - it.ay) / L;
+      const n = Math.max(1, Math.round(L / 0.72)), bl = L / n;
+      const nx = it._nx * w * 0.5, ny = it._ny * w * 0.5;
+      for (let j = 1; j < n; j++) {
+        const x = it.ax + ux * j * bl, y = it.ay + uy * j * bl;
+        ctx.moveTo(x + nx, y + ny); ctx.lineTo(x - nx, y - ny);
+      }
+    }
+    ctx.strokeStyle = rgba(st.mortar, 0.9); ctx.lineWidth = gap; ctx.lineCap = 'butt'; ctx.stroke();
+    if (broken.length) strokeSet(ctx, broken, 0, bw, 'rgba(40,30,20,0.35)');
+  };
+
   R._tint = function (ctx, list, off, width, roadDown, alpha) {
     if (!list.length) return;
     const bins = {};
@@ -1753,7 +2317,7 @@
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 9);
     for (const it of hot) {
       const k = clamp((it.s - 0.85) / 0.15, 0, 1);
-      const roadDown = it.st.kind === 'road';
+      const roadDown = isDeck(it.st);
       const w = it.st.w + (8 + 10 * k * pulse) * px;
       ctx.globalAlpha = (0.18 + 0.32 * k) * (0.55 + 0.45 * pulse);
       strokeSet(ctx, [it], 0.5 * (roadDown ? 1 : 0), w, k > 0.6 ? '#ff3a20' : '#ff9030', roadDown, null, 'round');
@@ -1910,8 +2474,11 @@
     } else if (state.mode === 'edit' && !state.demo && this.previewVehicle !== false) {
       const L = this.level;
       const tr = L.traffic && L.traffic[0];
-      const def = tr && BG.Vehicles && BG.Vehicles[tr.type];
-      if (def && def.wheels) {
+      const def = tr && tr.type !== 'train' && BG.Vehicles && BG.Vehicles[tr.type];
+      if (tr && tr.type === 'train') {
+        const pv = this._trainPreview(tr);
+        if (pv) list.push(pv);
+      } else if (def && def.wheels) {
         const t = L.terrain;
         // park it on the left bank, nudged right so it is not hidden behind the tool rail
         let x0 = t.leftEdge - 3.5 - def.length;
@@ -1922,7 +2489,10 @@
       }
     }
     this._lights = [];
-    for (const v of list) this._drawVehicle(ctx, v, dt, state);
+    for (const v of list) {
+      if (isTrainVehicle(v)) this._drawTrain(ctx, v, dt, state);
+      else this._drawVehicle(ctx, v, dt, state);
+    }
   };
   R._drawVehicle = function (ctx, v, dt, state) {
     const def = this._vehDef(v);
@@ -1967,8 +2537,10 @@
     for (let i = 0; i < ws.length; i++) {
       const w = ws[i];
       const r = w.r || (def && def.wheelRadius) || 0.35;
-      let rot = w.rot;
-      if (typeof rot !== 'number' || !isFinite(rot)) {
+      // sim rot = rolled distance / r (positive forward); y-up canvas rotation is CCW-positive, so a
+      // wheel rolling to the right turns by -rot
+      let rot = typeof w.rot === 'number' ? -w.rot : NaN;
+      if (!isFinite(rot)) {
         const pxv = vs.px[i]; vs.px[i] = w.x;
         vs.rot[i] = (vs.rot[i] || 0) - (pxv !== undefined ? (w.x - pxv) / r : 0);
         rot = vs.rot[i];
@@ -2012,6 +2584,469 @@
     ctx.fillStyle = '#9fd0ef';
     ctx.fillRect(L * 0.2, H * 0.65, L * 0.5, H * 0.26);
   };
+
+  // =====================================================================================
+  // trains (SPEC §9.3 / §9.4): sim.vehicles entries {kind:'train', cars:[{type, def, x, y, angle,
+  // wheels:[{x,y,r,rot}], state}], state}. cars[0] is the FRONT car. Each car is posed from its wheels
+  // (def.wheels from BG.RailCars, same order as car.wheels), falling back to x/y/angle (= car origin:
+  // rear end on the rail line, like road vehicles).
+  // =====================================================================================
+  function isTrainVehicle(v) { return !!v && (v.kind === 'train' || v.type === 'train' || Array.isArray(v.cars)); }
+  function railDef(car) { return car.def || (BG.RailCars && BG.RailCars[car.type]) || null; }
+
+  R._railPose = function (car, def, idx, n) {
+    const type = car.type || (def && def.type);
+    const meta = RAIL_META[type] || { w: ((def && def.length) || 10) * 100, h: ((def && def.height) || 3.5) * 100, wheel: 'rail_wheel', unknown: true };
+    const Lm = (def && def.length) || meta.w / 100;
+    const k = Lm / (meta.w / 100);
+    const Hm = meta.h / 100 * k;
+    const ws = car.wheels, dw = def && def.wheels;
+    const wr = (def && def.wheelRadius) || 0.45;
+    let ang, ox, oy;
+    if (ws && dw && ws.length === dw.length && ws.length >= 2 && Number.isFinite(ws[0].x)) {
+      let i0 = 0, i1 = 0;
+      for (let i = 1; i < dw.length; i++) { if (dw[i].x < dw[i0].x) i0 = i; if (dw[i].x > dw[i1].x) i1 = i; }
+      const a = ws[i0], b = ws[i1];
+      const r0 = dw[i0].r || wr, r1 = dw[i1].r || wr;
+      ang = Math.atan2(b.y - a.y, b.x - a.x) - Math.atan2(r1 - r0, (dw[i1].x - dw[i0].x) || 1);
+      const c = Math.cos(ang), s = Math.sin(ang);
+      ox = a.x - (c * dw[i0].x - s * r0);
+      oy = a.y - (s * dw[i0].x + c * r0);
+    } else if (Number.isFinite(car.x) && Number.isFinite(car.y)) {
+      ang = car.angle || 0; ox = car.x; oy = car.y;
+    } else return null;
+    const flip = !!meta.nose && n > 1 && idx === n - 1;
+    return { ox, oy, ang, c: Math.cos(ang), s: Math.sin(ang), k, Lm, Hm, type, meta, flip, def, car, wr };
+  };
+  // car-local metres -> world
+  function rloc(P, lx, ly) { return { x: P.ox + P.c * lx - P.s * ly, y: P.oy + P.s * lx + P.c * ly }; }
+  // sprite cm -> world (honours the mirrored trailing power car)
+  function rart(P, sx, sy) { const lx = sx / 100 * P.k; return rloc(P, P.flip ? P.Lm - lx : lx, sy / 100 * P.k); }
+
+  // a parked consist on the left bank for the edit-mode traffic preview
+  R._trainPreview = function (tr) {
+    const T = BG.Trains && BG.Trains[tr.train];
+    const L = this.level, t = L.terrain;
+    if (!T || !BG.RailCars) return null;
+    const key = L.id + '|' + tr.train + '|' + t.leftEdge + '|' + t.leftY;
+    if (this._trainPv && this._trainPv.key === key) return this._trainPv.v;
+    const gap = (BG.RailRules && BG.RailRules.couplerGap) || 0.8;
+    let front = t.leftEdge - 1.2;
+    const cars = [];
+    for (const type of T.cars) {
+      const def = BG.RailCars[type];
+      if (!def) continue;
+      const ox = front - def.length;
+      cars.push({ type, def, x: ox, y: t.leftY, angle: 0, state: 'parked',
+        wheels: def.wheels.map(function (w) { const r = w.r || def.wheelRadius; return { x: ox + w.x, y: t.leftY + r, r, rot: 0 }; }) });
+      front = ox - gap;
+      if (front < t.leftEdge - 400) break;
+    }
+    const v = { kind: 'train', type: 'train', preset: tr.train, cars, state: 'parked', preview: true };
+    this._trainPv = { key, v };
+    return v;
+  };
+
+  R._drawTrain = function (ctx, v, dt, state) {
+    const cars = v.cars || [];
+    if (!cars.length) return;
+    let ts = this._vstate && this._vstate.get(v);
+    if (!ts) { ts = { cars: [], t: null }; if (this._vstate) this._vstate.set(v, ts); }
+    const sim = state.sim;
+    const simT = sim && typeof sim.time === 'number' && !v.preview ? sim.time : null;
+    let dts = simT !== null && ts.t !== null ? simT - ts.t : 0;
+    if (!(dts > 0) || dts > 0.5) dts = 0;
+    ts.t = simT;
+    const vis = this._visibleWorld(60), near = this._visibleWorld(700);
+    const poses = [];
+    for (let i = 0; i < cars.length; i++) {
+      const car = cars[i];
+      const def = railDef(car);
+      const P = this._railPose(car, def, i, cars.length);
+      if (!P) { poses.push(null); continue; }
+      let cs = ts.cars[i];
+      if (!cs) cs = ts.cars[i] = { px: P.ox, py: P.oy, v: 0, a: 0, dist: 0, chuff: 0, emit: Math.random() * 0.3, spark: 0, arc: Math.random() };
+      if (dts > 0) {
+        let vx = typeof car.vx === 'number' ? car.vx : ((P.ox - cs.px) * P.c + (P.oy - cs.py) * P.s) / dts;
+        if (!isFinite(vx)) vx = 0;
+        cs.a = lerp(cs.a, (vx - cs.v) / dts, clamp(dts * 6, 0, 1));
+        cs.v = vx;
+        cs.dist += vx * dts;
+      }
+      cs.px = P.ox; cs.py = P.oy;
+      P.cs = cs;
+      P.derailed = car.state === 'derailed' || car.state === 'fallen' || !!car.derailed;
+      // cull cars well outside the view
+      const mx = P.ox + P.c * P.Lm * 0.5, my = P.oy + P.s * P.Lm * 0.5, rr = P.Lm * 0.6 + P.Hm;
+      P.visible = mx + rr > vis.x0 && mx - rr < vis.x1 && my + rr > vis.y0 && my - rr < vis.y1;
+      P.near = mx + rr > near.x0 && mx - rr < near.x1 && my + rr > near.y0 && my - rr < near.y1;
+      poses.push(P);
+    }
+    for (let i = 0; i + 1 < poses.length; i++) if (poses[i] && poses[i + 1] && (poses[i].visible || poses[i + 1].visible)) this._drawCoupler(ctx, poses[i], poses[i + 1]);
+    for (const P of poses) if (P) { if (P.visible) this._drawRailCar(ctx, P, dt, dts, v); else this._warmRailCar(P); }
+    for (const P of poses) if (P && P.near) this._railEffects(P, dt, dts, v);
+    // lamps: head lamp on the lead car, tail lamps on the last one
+    const lead = poses[0], last = poses[poses.length - 1];
+    if (lead) {
+      const hm = lead.meta.head, tm = last && last.meta.tail;
+      this._lights.push({
+        head: hm && !lead.derailed ? rart(lead, hm[0], hm[1]) : null,
+        tail: tm && !last.derailed ? rart(last, tm[0], tm[1]) : null,
+        ang: lead.ang, L: lead.Lm, fallen: v.state === 'fallen', train: true
+      });
+    }
+  };
+
+  R._drawCoupler = function (ctx, A, B) {
+    const chA = (A.def && A.def.couplerHeight) || 1, chB = (B.def && B.def.couplerHeight) || 1;
+    let a = rloc(A, 0, chA), b = rloc(B, B.Lm, chB);
+    const a2 = rloc(A, A.Lm, chA), b2 = rloc(B, 0, chB);
+    let rev = false;
+    if (Math.hypot(a2.x - b2.x, a2.y - b2.y) < Math.hypot(a.x - b.x, a.y - b.y)) { a = a2; b = b2; rev = true; }
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (dist > 3.5) return; // uncoupled / torn apart
+    const px = 1 / this.camera.zoom;
+    // gangway bellows between passenger cars
+    const ga = A.meta.bellows, gb = B.meta.bellows;
+    if (ga && gb && dist < 2) {
+      const ax = rev ? A.Lm : 0, bx = rev ? 0 : B.Lm;
+      const p = [rloc(A, ax, ga[0] / 100 * A.k), rloc(A, ax, ga[1] / 100 * A.k), rloc(B, bx, gb[1] / 100 * B.k), rloc(B, bx, gb[0] / 100 * B.k)];
+      ctx.fillStyle = '#24282e';
+      ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); for (let i = 1; i < 4; i++) ctx.lineTo(p[i].x, p[i].y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,128,138,0.55)'; ctx.lineWidth = Math.max(0.03, 0.8 * px);
+      ctx.beginPath();
+      for (let k = 1; k < 4; k++) {
+        const t = k / 4;
+        ctx.moveTo(lerp(p[0].x, p[3].x, t), lerp(p[0].y, p[3].y, t)); ctx.lineTo(lerp(p[1].x, p[2].x, t), lerp(p[1].y, p[2].y, t));
+      }
+      ctx.stroke();
+    }
+    // draw bar / screw coupling with hooks
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#15181c'; ctx.lineWidth = Math.max(0.13, 2.4 * px);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.strokeStyle = '#6d7680'; ctx.lineWidth = Math.max(0.05, 1 * px);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.fillStyle = '#2a2f36';
+    const hr = Math.max(0.07, 1.6 * px);
+    ctx.beginPath(); ctx.arc(a.x, a.y, hr, 0, TAU); ctx.moveTo(b.x + hr, b.y); ctx.arc(b.x, b.y, hr, 0, TAU); ctx.fill();
+  };
+
+  R._drawRailCar = function (ctx, P, dt, dts, v) {
+    const z = this.camera.zoom, d = this.dpr, px = 1 / z;
+    const meta = P.meta, def = P.def, car = P.car;
+    const ws = car.wheels || [], dw = (def && def.wheels) || [];
+    // soft contact shadow on the deck
+    ctx.save();
+    ctx.translate(P.ox, P.oy); ctx.rotate(P.ang);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(P.Lm / 2, 0.02, P.Lm * 0.5, Math.max(0.1, P.Lm * 0.02), 0, 0, TAU); ctx.fill();
+    // steam loco: dark frame plates behind the drivers
+    if (meta.underframe) {
+      const u = meta.underframe, k = P.k / 100;
+      ctx.fillStyle = '#1b1e23';
+      ctx.fillRect(u[0] * k, u[2] * k, (u[1] - u[0]) * k, (u[3] - u[2]) * k);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(u[0] * k, u[3] * k - 0.08, (u[1] - u[0]) * k, 0.04);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      for (let x = u[0] + 70; x < u[1] - 20; x += 90) { ctx.beginPath(); ctx.arc(x * k, (u[2] + u[3]) * 0.55 * k, 0.07, 0, TAU); ctx.fill(); }
+    }
+    ctx.restore();
+    // wheels
+    let maxR = 0, minR = 1e9;
+    for (let i = 0; i < ws.length; i++) { const r = ws[i].r || (dw[i] && dw[i].r) || P.wr; if (r > maxR) maxR = r; if (r < minR) minR = r; }
+    const drivers = [];
+    const angles = [];
+    for (let i = 0; i < ws.length; i++) {
+      const w = ws[i];
+      const r = w.r || (dw[i] && dw[i].r) || P.wr;
+      let a = typeof w.rot === 'number' && isFinite(w.rot) ? -w.rot : -P.cs.dist / r;
+      const isDriver = !!meta.driver && maxR > minR * 1.3 && r > maxR * 0.9;
+      angles.push(a);
+      const name = 'rail/' + (isDriver ? meta.driver : (meta.wheel || 'rail_wheel'));
+      const R2 = r * WHEEL_ART_SCALE;
+      const img = Sprites.raster(name, 2 * R2 * z * d);
+      ctx.save();
+      ctx.translate(w.x, w.y);
+      ctx.rotate(a);
+      if (img) { ctx.scale(1, -1); ctx.drawImage(img, -R2, -R2, 2 * R2, 2 * R2); }
+      else {
+        ctx.fillStyle = '#1e2228'; ctx.beginPath(); ctx.arc(0, 0, R2, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#6d7680'; ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#2a2f36'; ctx.fillRect(-r * 0.06, 0, r * 0.12, r * 0.85);
+      }
+      ctx.restore();
+      if (isDriver) drivers.push({ i, x: w.x, y: w.y, r, a, lx: dw[i] ? dw[i].x : 0 });
+    }
+    // bogie side frames over the wheels
+    const bogies = (def && def.bogies) || [];
+    for (let bi = 0; bi < bogies.length; bi++) {
+      if (meta.noFrame && meta.noFrame[bi]) continue;
+      const bg = bogies[bi];
+      if (!bg.axles || bg.axles.length < 2) continue;
+      let f = -1, l = -1;
+      for (let i = 0; i < dw.length && i < ws.length; i++) if (dw[i].bogie === bi) { if (f < 0 || dw[i].x < dw[f].x) f = i; if (l < 0 || dw[i].x > dw[l].x) l = i; }
+      if (f < 0 || l === f) continue;
+      const art = bg.axles.length >= 3 ? BOGIE_ART.bogie3 : BOGIE_ART.bogie;
+      const img = Sprites.raster(bg.axles.length >= 3 ? 'rail/bogie3' : 'rail/bogie', art.w / 100 * z * d * Math.abs(dw[l].x - dw[f].x) / (art.span / 100));
+      const A = ws[f], B = ws[l];
+      const span = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+      const r = A.r || dw[f].r || P.wr;
+      const sx = span / (art.span / 100), sy = clamp(r / (art.r / 100), 0.6, 1.6);
+      ctx.save();
+      ctx.translate((A.x + B.x) / 2, (A.y + B.y) / 2);
+      ctx.rotate(Math.atan2(B.y - A.y, B.x - A.x));
+      ctx.scale(sx, -sy);
+      if (img) ctx.drawImage(img, -art.ox / 100, -art.oy / 100, art.w / 100, art.h / 100);
+      else { ctx.fillStyle = '#2a2f36'; ctx.fillRect(-art.span / 200 - 0.2, -0.3, art.span / 100 + 0.4, 0.4); }
+      ctx.restore();
+    }
+    // body
+    const body = meta.unknown ? null : Sprites.raster('rail/' + P.type, P.Lm * z * d);
+    ctx.save();
+    ctx.translate(P.ox, P.oy); ctx.rotate(P.ang);
+    if (P.flip) { ctx.translate(P.Lm, 0); ctx.scale(-1, 1); }
+    if (body) { ctx.scale(1, -1); ctx.drawImage(body, 0, -P.Hm, P.Lm, P.Hm); }
+    else {
+      const col = (def && def.color) || '#7a2630', H = ((def && def.height) || P.Hm);
+      ctx.fillStyle = '#1a1d22'; roundRect(ctx, -0.03, 0.85, P.Lm + 0.06, H - 0.82, 0.2); ctx.fill();
+      ctx.fillStyle = col; roundRect(ctx, 0.02, 0.9, P.Lm - 0.04, H - 0.92, 0.16); ctx.fill();
+      ctx.fillStyle = 'rgba(160,210,240,0.85)'; ctx.fillRect(P.Lm * 0.08, H * 0.6, P.Lm * 0.84, H * 0.2);
+    }
+    ctx.restore();
+    // steam locomotive valve gear: coupling rod, connecting rod, crosshead, eccentric + radius rods
+    if (meta.steam && drivers.length >= 2) this._drawSteamMotion(ctx, P, drivers, px);
+    // handcar pump lever + pitman rod to a crank on the front axle
+    if (meta.lever && ws.length) {
+      let fi = 0;
+      for (let i = 1; i < ws.length; i++) if ((dw[i] ? dw[i].x : i) > (dw[fi] ? dw[fi].x : fi)) fi = i;
+      const a = angles[fi];
+      const th = 0.32 * Math.sin(-a);
+      const pv = rart(P, meta.lever[0], meta.lever[1]);
+      const fw = ws[fi], cr = 0.11 * P.k;
+      const pin = { x: fw.x + cr * Math.cos(a), y: fw.y + cr * Math.sin(a) };
+      const la = P.ang + th;
+      const tip = { x: pv.x + Math.cos(la) * 0.55 * P.k, y: pv.y + Math.sin(la) * 0.55 * P.k };
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#1c2230'; ctx.lineWidth = Math.max(0.07, 1.5 * px);
+      ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(pin.x, pin.y); ctx.stroke();
+      ctx.strokeStyle = '#8d97a3'; ctx.lineWidth = Math.max(0.035, 0.8 * px);
+      ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(pin.x, pin.y); ctx.stroke();
+      const img = Sprites.raster('rail/handcar_lever', 2.5 * P.k * z * d);
+      ctx.save();
+      ctx.translate(pv.x, pv.y); ctx.rotate(la); ctx.scale(1, -1);
+      if (img) ctx.drawImage(img, -1.25 * P.k, -0.2 * P.k, 2.5 * P.k, 0.4 * P.k);
+      else { ctx.fillStyle = '#b98149'; ctx.fillRect(-1.1 * P.k, -0.05, 2.2 * P.k, 0.1); }
+      ctx.restore();
+    }
+  };
+
+  // rasterise an off-screen car's sprites ahead of time (SVG rasterisation is the expensive part), so a
+  // long consist rolling into view does not hitch
+  R._warmRailCar = function (P) {
+    const z = this.camera.zoom, d = this.dpr, meta = P.meta, def = P.def;
+    if (meta.unknown || !def) return;
+    Sprites.raster('rail/' + P.type, P.Lm * z * d);
+    const seen = {};
+    for (const w of def.wheels || []) {
+      const r = w.r || P.wr, key = Math.round(r * 100);
+      if (seen[key]) continue;
+      seen[key] = 1;
+      const isDriver = !!meta.driver && r > 0.6;
+      Sprites.raster('rail/' + (isDriver ? meta.driver : (meta.wheel || 'rail_wheel')), 2 * r * WHEEL_ART_SCALE * z * d);
+    }
+    for (const bg of def.bogies || []) {
+      if (!bg.axles || bg.axles.length < 2) continue;
+      const art = bg.axles.length >= 3 ? BOGIE_ART.bogie3 : BOGIE_ART.bogie;
+      const span = Math.abs(bg.axles[bg.axles.length - 1] - bg.axles[0]);
+      Sprites.raster(bg.axles.length >= 3 ? 'rail/bogie3' : 'rail/bogie', art.w / 100 * z * d * span / (art.span / 100));
+    }
+  };
+
+  R._drawSteamMotion = function (ctx, P, drivers, px) {
+    drivers.sort(function (a, b) { return a.lx - b.lx; });
+    const main = drivers[Math.floor((drivers.length - 1) / 2)];
+    const st = P.meta.steam, k = P.k / 100;
+    const a = main.a; // all drivers are coupled: one crank phase
+    const cR = DRIVER_CRANK * main.r;
+    const pins = drivers.map(function (dv) { return { x: dv.x + DRIVER_CRANK * dv.r * Math.cos(a), y: dv.y + DRIVER_CRANK * dv.r * Math.sin(a) }; });
+    // crosshead in car-local coordinates
+    const inv = function (q) { const dx = q.x - P.ox, dy = q.y - P.oy; return { x: P.c * dx + P.s * dy, y: -P.s * dx + P.c * dy }; };
+    const mp = inv(pins[drivers.indexOf(main)]);
+    const guideY = st.guideY * k, slideEnd = st.slideEnd * k;
+    const mainLx = inv(main).x;
+    const Lr = Math.max(0.5, slideEnd - mainLx - cR - 0.08);
+    const dy = guideY - mp.y;
+    const chx = mp.x + Math.sqrt(Math.max(0.01, Lr * Lr - dy * dy));
+    const ch = rloc(P, chx, guideY);
+    const rod = function (pts, w, dark, light) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = dark; ctx.lineWidth = Math.max(w, 2 * px);
+      ctx.beginPath(); pts.forEach(function (q, i) { i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.stroke();
+      ctx.strokeStyle = light; ctx.lineWidth = Math.max(w * 0.42, 0.9 * px);
+      ctx.beginPath(); pts.forEach(function (q, i) { i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.stroke();
+    };
+    // piston rod into the cylinder
+    rod([ch, rloc(P, slideEnd + 0.12, guideY)], 0.06 * P.k, '#2a2f36', '#e6ebf0');
+    // eccentric (return crank, 90 deg ahead) -> expansion link -> radius rod to the valve spindle
+    const ec = { x: main.x + cR * 0.62 * Math.cos(a + Math.PI / 2), y: main.y + cR * 0.62 * Math.sin(a + Math.PI / 2) };
+    const link = rloc(P, mainLx + 1.45 * P.k, guideY + 0.5 * P.k);
+    const lift = Math.sin(a) * 0.1 * P.k;
+    const linkPt = rloc(P, mainLx + 1.45 * P.k, guideY + 0.5 * P.k + lift);
+    rod([ec, linkPt], 0.05 * P.k, '#1c2230', '#9aa4ae');
+    rod([linkPt, rloc(P, slideEnd + 0.05, 1.42 * P.k)], 0.045 * P.k, '#1c2230', '#9aa4ae');
+    ctx.fillStyle = '#2a2f36';
+    roundRect(ctx, link.x - 0.05 * P.k, link.y - 0.2 * P.k, 0.1 * P.k, 0.4 * P.k, 0.04 * P.k); ctx.fill();
+    // coupling rod linking every driver's crank pin
+    rod(pins, 0.1 * P.k, '#2a2f36', '#d9dfe5');
+    // connecting (main) rod: crank pin -> crosshead
+    rod([pins[drivers.indexOf(main)], ch], 0.12 * P.k, '#1c2230', '#f1f4f7');
+    // crosshead block between the slide bars
+    ctx.save();
+    ctx.translate(ch.x, ch.y); ctx.rotate(P.ang);
+    ctx.fillStyle = '#1c2230'; roundRect(ctx, -0.17 * P.k, -0.12 * P.k, 0.34 * P.k, 0.24 * P.k, 0.04 * P.k); ctx.fill();
+    ctx.fillStyle = '#8d97a3'; roundRect(ctx, -0.13 * P.k, -0.08 * P.k, 0.26 * P.k, 0.16 * P.k, 0.03 * P.k); ctx.fill();
+    ctx.restore();
+    // crank pin bosses
+    ctx.fillStyle = '#c9d1da';
+    ctx.beginPath();
+    for (const q of pins) { ctx.moveTo(q.x + 0.06 * P.k, q.y); ctx.arc(q.x, q.y, 0.06 * P.k, 0, TAU); }
+    ctx.fill();
+    ctx.fillStyle = '#2a2f36';
+    ctx.beginPath();
+    for (const q of pins) { ctx.moveTo(q.x + 0.025 * P.k, q.y); ctx.arc(q.x, q.y, 0.025 * P.k, 0, TAU); }
+    ctx.fill();
+  };
+
+  // smoke, steam, exhaust, pantograph arcs, brake + derail sparks (visual only)
+  R._railEffects = function (P, dt, dts, v) {
+    const fx = this.effects;
+    if (!fx) return;
+    const meta = P.meta, cs = P.cs, car = P.car;
+    const speed = Math.abs(cs.v);
+    const vxw = cs.v * P.c;
+    const step = dts > 0 ? dts : (v.preview ? dt : 0);
+    if (!(step > 0)) return;
+    const accel = cs.a * (cs.v >= 0 ? 1 : -1);
+    const dead = P.derailed || v.state === 'fallen';
+    // steam locomotive: chuffs synced to the drivers (4 beats per revolution), lazy wisps at rest
+    if (meta.chimney && !dead && fx.steamPuff) {
+      const ch = rart(P, meta.chimney[0], meta.chimney[1]);
+      let rD = 0;
+      for (const w of (P.def && P.def.wheels) || []) rD = Math.max(rD, w.r || 0);
+      rD = rD || 0.75;
+      const throttle = clamp(0.55 + accel * 1.6 + (speed < 4 ? 0.35 : 0), 0.2, 1.6);
+      cs.chuff += speed * step / rD;
+      const beat = Math.PI / 2;
+      let n = 0;
+      while (cs.chuff >= beat && n < 3) { cs.chuff -= beat; n++; }
+      if (cs.chuff >= beat) cs.chuff %= beat;
+      for (let i = 0; i < n; i++) fx.steamPuff(ch.x, ch.y, vxw, throttle, speed);
+      // a continuous lighter trail between the beats (and lazy wisps at rest)
+      cs.emit -= step;
+      if (cs.emit <= 0) { cs.emit = speed < 0.5 ? 0.3 + Math.random() * 0.2 : 0.045; fx.steamPuff(ch.x, ch.y, vxw, speed < 0.5 ? 0.25 : 0.3, speed); }
+      // cylinder drain cocks hiss while starting
+      if (meta.cocks && speed > 0.2 && speed < 3.5 && n > 0) {
+        const cc = rart(P, meta.cocks[0], meta.cocks[1]);
+        fx.cylinderSteam(cc.x, cc.y, P.c);
+      }
+    }
+    // a wrecked steam engine keeps hissing (until it is under water)
+    if (meta.chimney && dead && fx.steamHiss) {
+      const ch = rart(P, meta.chimney[0], meta.chimney[1]);
+      const wy = this.level.terrain.waterY;
+      cs.emit -= step;
+      if (cs.emit <= 0 && !(wy !== null && wy !== undefined && ch.y < wy + 0.3)) { cs.emit = 0.12 + Math.random() * 0.1; fx.steamHiss(ch.x, ch.y); }
+    }
+    // diesel exhaust
+    if (meta.exhaust && !dead && fx.dieselExhaust) {
+      cs.emit -= step;
+      if (cs.emit <= 0) {
+        const throttle = clamp(0.45 + accel * 2.2 + (speed > 1 ? 0.2 : 0), 0.15, 1.5);
+        cs.emit = 0.035 + 0.06 / (0.6 + throttle);
+        const e = rart(P, meta.exhaust[0], meta.exhaust[1]);
+        fx.dieselExhaust(e.x, e.y, vxw, throttle);
+      }
+    }
+    // pantograph arcing at speed
+    if (meta.panto && !dead && speed > 8 && fx.arc) {
+      cs.arc -= step * (0.25 + speed / 60);
+      if (cs.arc <= 0) { cs.arc = 0.6 + Math.random() * 2.2; const p = rart(P, meta.panto[0], meta.panto[1]); fx.arc(p.x, p.y + 0.02); }
+    }
+    // brake sparks under the wheels / derailment sparks + dust
+    const ws = car.wheels || [];
+    if (!ws.length || !fx.wheelSparks) return;
+    const decel = -accel;
+    if (!dead && speed > 1.2 && decel > 0.8 && P.visible) {
+      cs.spark += step * clamp((decel - 0.8) * 5, 0, 10) * ws.length;
+      while (cs.spark >= 1) {
+        cs.spark -= 1;
+        const w = ws[(Math.random() * ws.length) | 0];
+        const r = w.r || P.wr;
+        fx.wheelSparks(w.x - P.s * -r, w.y - P.c * r, vxw, clamp(decel / 3, 0.4, 1.4));
+      }
+    } else if (dead && speed > 0.8 && P.visible) {
+      // the car is grinding along: sparks + dust at its lowest corner
+      cs.spark += step * clamp(speed * 5, 0, 40);
+      const c0 = rloc(P, 0, 0), c1 = rloc(P, P.Lm, 0), c2 = rloc(P, 0, P.Hm), c3 = rloc(P, P.Lm, P.Hm);
+      let lo = c0;
+      for (const q of [c1, c2, c3]) if (q.y < lo.y) lo = q;
+      while (cs.spark >= 1) {
+        cs.spark -= 1;
+        fx.wheelSparks(lo.x + (Math.random() - 0.5) * 0.6, lo.y + 0.05, vxw, 1.2);
+        if (Math.random() < 0.35) fx.derailDust(lo.x, lo.y + 0.1, 1, 0.8);
+      }
+    }
+  };
+  // signal lamps: red while editing / after a failed run, green while a test runs
+  R._drawSignals = function (ctx, mode, state) {
+    const sim = state.sim;
+    const failed = sim && sim.status === 'failed';
+    const go = mode !== 'edit' && !failed;
+    const amt = Math.max(0.35, this.theme.lights || 0);
+    const t = this.time;
+    ctx.save();
+    for (const s of this._signals) {
+      const y = s.kind === 'light' ? s.y - (go ? 0 : 2 * s.dy) : s.y;
+      const col = go ? [90, 255, 140] : [255, 70, 50];
+      const fl = 0.92 + 0.08 * Math.sin(t * 9 + s.x);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgb(' + col.join(',') + ')';
+      ctx.beginPath(); ctx.arc(s.x, y, 0.11, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(s.x, y, 0, s.x, y, 0.9);
+      g.addColorStop(0, 'rgba(' + col.join(',') + ',' + 0.55 * amt * fl + ')'); g.addColorStop(1, 'rgba(' + col.join(',') + ',0)');
+      ctx.fillStyle = g; ctx.fillRect(s.x - 0.9, y - 0.9, 1.8, 1.8);
+    }
+    ctx.restore();
+  };
+
+  // train lamps (either end may be missing): a long head-lamp beam along the track, red tail glow
+  R._drawLamp = function (ctx, l, amt) {
+    if (l.head) {
+      const len = l.train ? 16 : 5.5 + l.L * 0.15;
+      const c = Math.cos(l.ang - 0.02), s = Math.sin(l.ang - 0.02);
+      const g = ctx.createLinearGradient(l.head.x, l.head.y, l.head.x + c * len, l.head.y + s * len);
+      g.addColorStop(0, 'rgba(255,244,205,' + 0.34 * amt + ')');
+      g.addColorStop(1, 'rgba(255,240,190,0)');
+      ctx.fillStyle = g;
+      const c1 = Math.cos(l.ang + 0.06), s1 = Math.sin(l.ang + 0.06), c2 = Math.cos(l.ang - 0.09), s2 = Math.sin(l.ang - 0.09);
+      ctx.beginPath();
+      ctx.moveTo(l.head.x, l.head.y + 0.06);
+      ctx.lineTo(l.head.x + c1 * len, l.head.y + s1 * len);
+      ctx.lineTo(l.head.x + c2 * len, l.head.y + s2 * len);
+      ctx.lineTo(l.head.x, l.head.y - 0.08);
+      ctx.fill();
+      const hg = ctx.createRadialGradient(l.head.x, l.head.y, 0, l.head.x, l.head.y, 0.9);
+      hg.addColorStop(0, 'rgba(255,252,230,' + 0.95 * amt + ')'); hg.addColorStop(1, 'rgba(255,240,190,0)');
+      ctx.fillStyle = hg; ctx.fillRect(l.head.x - 0.9, l.head.y - 0.9, 1.8, 1.8);
+    }
+    if (l.tail) {
+      const tg = ctx.createRadialGradient(l.tail.x, l.tail.y, 0, l.tail.x, l.tail.y, 0.7);
+      tg.addColorStop(0, 'rgba(255,60,40,' + 0.85 * amt + ')'); tg.addColorStop(1, 'rgba(255,40,30,0)');
+      ctx.fillStyle = tg; ctx.fillRect(l.tail.x - 0.7, l.tail.y - 0.7, 1.4, 1.4);
+    }
+  };
   R._drawLights = function (ctx) {
     const amt = this.theme.lights;
     if (!amt || !this._lights || !this._lights.length) return;
@@ -2019,6 +3054,7 @@
     ctx.globalCompositeOperation = 'lighter';
     for (const l of this._lights) {
       if (l.fallen) continue;
+      if (l.train || !l.head || !l.tail) { this._drawLamp(ctx, l, amt); continue; }
       const len = 5.5 + l.L * 0.15;
       const c = Math.cos(l.ang - 0.04), s = Math.sin(l.ang - 0.04);
       const g = ctx.createLinearGradient(l.head.x, l.head.y, l.head.x + c * len, l.head.y + s * len);
@@ -2449,7 +3485,7 @@
     const px = 1 / this.camera.zoom;
     for (const it of its) {
       if (it._nx === undefined) upNormal(it);
-      const road = it.st.kind === 'road';
+      const road = isDeck(it.st);
       strokeSet(ctx, [it], road ? 0.5 : 0, it.st.w + extraPx * px, color, road, null, 'round');
     }
   };
@@ -2657,6 +3693,8 @@
     }
     const mode = state.mode || 'edit';
     const fx = this.effects;
+    if (this._follow && mode !== 'edit' && !state.demo) this._updateFollow(state, dt);
+    else this._followActive = false;
     // particles follow sim time: frozen while paused, slowed in slow-motion
     const fxDt = mode === 'sim' ? (state.paused ? 0 : dt * (state.timeScale > 0 ? state.timeScale : 1)) : dt;
     if (fx) fx.update(fxDt, { waterY: L.terrain.waterY === undefined ? null : L.terrain.waterY, realDt: dt });
@@ -2751,6 +3789,7 @@
     }
     this._worldXf(ctx, sh.x, sh.y);
     this._drawLights(ctx);
+    if (this._signals && this._signals.length) this._drawSignals(ctx, mode, state);
 
     // overlays
     if (editUI) {

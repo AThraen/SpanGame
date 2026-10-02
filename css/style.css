@@ -419,6 +419,57 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 .fader.go { animation: fader .7s var(--ease); }
 @keyframes fader { 0% { opacity: .85; } 100% { opacity: 0; } }
 
+/* ------------------------------------------------------------ Iron Road (rail campaign) */
+.camp-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(0, 0, 0, .25); border: 1px solid rgba(255, 255, 255, .06); flex: none; }
+.camp-tab { position: relative; display: flex; align-items: center; gap: 9px; height: 46px; padding: 0 14px 0 11px; border: 0; border-radius: 11px; background: transparent; color: var(--muted); cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; text-align: left; }
+.camp-tab .ico { width: 20px; height: 20px; flex: none; }
+.camp-tab .ct-txt { display: flex; flex-direction: column; line-height: 1.15; }
+.camp-tab .ct-txt b { font-family: var(--font-display); font-size: 15px; font-weight: 800; color: inherit; }
+.camp-tab .ct-txt small { font-size: 11px; font-weight: 600; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.camp-tab:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.camp-tab.active { color: #fff; background: linear-gradient(170deg, rgba(255, 181, 71, .26), rgba(255, 122, 61, .14)); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, .45), 0 4px 14px rgba(255, 140, 60, .18); }
+.camp-tab.active .ct-txt small { color: #ffd9a0; }
+.camp-tab.is-rail.active { background: linear-gradient(170deg, rgba(120, 190, 255, .26), rgba(73, 198, 242, .12)); box-shadow: inset 0 0 0 1px rgba(120, 190, 255, .5), 0 4px 14px rgba(73, 198, 242, .18); }
+.camp-tab.is-rail.active .ct-txt small { color: #bfe3ff; }
+.camp-tab .ct-lock { display: none; }
+.camp-tab.locked .ct-lock { display: grid; place-items: center; position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; border-radius: 50%; background: rgba(8, 12, 22, .75); }
+.camp-tab.locked .ct-lock .ico { width: 10px; height: 10px; }
+.camp-tab.locked { color: var(--dim); }
+.camp-tab.locked .ct-txt small { color: #ffb4a0; }
+
+.camp-locked { display: flex; align-items: center; gap: 22px; padding: 20px 24px; border-radius: 18px; border: 1px dashed rgba(120, 190, 255, .35); background: linear-gradient(120deg, rgba(40, 70, 110, .45), rgba(13, 19, 33, .6)); }
+.camp-locked .cl-art .veh { width: 120px; height: 48px; }
+.camp-locked h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 20px; font-weight: 800; }
+.camp-locked h3 .ico { width: 18px; height: 18px; color: #bfe3ff; }
+.camp-locked p { margin: 0; color: #c8d3e4; font-size: 14px; line-height: 1.5; max-width: 640px; }
+
+/* rail tiles: a strip of track along the bottom edge of the art, steel-blue rim */
+.tile.is-rail { border-color: rgba(150, 190, 230, .2); }
+.tile.is-rail .tile-art { border-bottom: 3px solid #4a3a2c; }
+.tile.is-rail .tile-art::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 2; background: repeating-linear-gradient(90deg, #7a614a 0 4px, transparent 4px 9px); }
+.tile.is-rail.done .tile-art::before { inset: auto 0 0 0; width: auto; height: 3px; top: auto; right: 0; border-radius: 0; box-shadow: none; background: repeating-linear-gradient(90deg, #7a614a 0 4px, transparent 4px 9px); }
+.tile.is-rail.done .tile-name::after { content: ""; display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px rgba(62, 224, 143, .3); vertical-align: 1px; }
+.tile-train { position: absolute; right: 8px; bottom: 6px; z-index: 1; padding: 2px 4px; border-radius: 7px; background: rgba(8, 12, 22, .55); }
+.tile-train .veh { width: 34px; height: 14px; }
+.ch-rail .ch-num { border-radius: 50%; }
+.tile.soon.is-rail .soon-art span::before { content: "R"; font-size: .6em; margin-right: 1px; opacity: .8; }
+
+/* train traffic chips */
+.veh .vr { stroke: #8792a3; stroke-width: 1.2; }
+.veh.train .vw { stroke-width: .8; }
+.tr-train { gap: 4px; }
+.tr-train em { font-style: normal; color: var(--text); font-weight: 700; white-space: nowrap; }
+.tr-train i { font-style: normal; color: var(--muted); }
+.tr-train b { color: #bfe3ff; }
+.camp-rail .lvl-k { letter-spacing: .2em; }
+
+/* material palette: track tile gets a sleeper strip */
+.mat.mat-rail::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 2px; background: repeating-linear-gradient(90deg, rgba(160, 125, 90, .7) 0 3px, transparent 3px 7px); }
+
+/* results: finale of the Iron Road */
+.results.finale-rail .res-banner { background: rgba(120, 190, 255, .16); color: #cfe9ff; border-color: rgba(120, 190, 255, .45); }
+[data-act=continue].is-rail .ico { color: #bfe3ff; }
+
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 1280px) {
   .mat { flex-basis: 136px; min-width: 104px; }
@@ -427,6 +478,7 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
   .veh { width: 26px; height: 12px; }
 }
 @media (max-width: 1100px) {
+  .ls-title p { display: none; }
   :root { --gap: 10px; --top-h: 56px; }
   .lvl-title { flex-basis: 180px; }
   .lvl-sub { display: none; }
@@ -458,6 +510,8 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 }
 @media (max-width: 860px) {
   .traffic { display: none; }
+  .ls-title { display: none; }
+  .camp-tab .ct-txt small { display: none; }
   .tiles { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .ch-text p { white-space: normal; }
 }

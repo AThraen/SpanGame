@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="250" height="40" viewBox="-125 -20 250 40">
+  <!-- SPAN handcar pump lever (walking beam). Pivot at (0,0); the renderer rocks it about the pivot in
+       step with the wheels. 1 unit = 1 cm. -->
+  <defs>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2b37c"/><stop offset="0.5" stop-color="#b98149"/><stop offset="1" stop-color="#6a4122"/>
+    </linearGradient>
+    <radialGradient id="knob" cx="-2" cy="-2" r="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f4e0b8"/><stop offset="1" stop-color="#8a5a30"/>
+    </radialGradient>
+  </defs>
+  <path d="M-110 -4 L-14 -7 L14 -7 L110 -4 L110 4 L14 7 L-14 7 L-110 4 Z" fill="url(#beam)" stroke="#3a2412" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M-100 -1 H-20 M20 -1 H100" stroke="#8a5a30" stroke-width="1.2" opacity="0.7"/>
+  <!-- iron straps -->
+  <g fill="#3a3f47" stroke="#1c2230" stroke-width="1"><rect x="-24" y="-8" width="6" height="16"/><rect x="18" y="-8" width="6" height="16"/></g>
+  <!-- cross handles (seen end-on) -->
+  <circle cx="-112" cy="0" r="9" fill="url(#knob)" stroke="#3a2412" stroke-width="2.5"/>
+  <circle cx="112" cy="0" r="9" fill="url(#knob)" stroke="#3a2412" stroke-width="2.5"/>
+  <!-- pivot -->
+  <circle r="10" fill="#4e5a68" stroke="#1c2230" stroke-width="2.5"/>
+  <circle r="4" fill="#c9d1da"/>
+</svg>

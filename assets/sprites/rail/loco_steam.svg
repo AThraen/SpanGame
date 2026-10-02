@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="430" viewBox="0 -430 1250 430">
+  <!-- SPAN steam locomotive (4-6-0). 1 unit = 1 cm, origin = rear of the car on the rail line, facing
+       right. Wheels, bogie, coupling + connecting rods and the crosshead are drawn by the renderer:
+       drivers at x = 240 / 400 / 560 (r 75), leading bogie axles at x = 1005 / 1115 (r 45).
+       Cylinder 765..905 (centre height 88), slide bars 660..768. Chimney top at (1136, 430). -->
+  <defs>
+    <linearGradient id="boiler" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fd39b"/><stop offset="0.18" stop-color="#3f9a5c"/><stop offset="0.55" stop-color="#2a7444"/><stop offset="1" stop-color="#123a20"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f9a5c"/><stop offset="0.6" stop-color="#2a7444"/><stop offset="1" stop-color="#174a2a"/>
+    </linearGradient>
+    <linearGradient id="black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.25" stop-color="#2a2f36"/><stop offset="1" stop-color="#0f1114"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2453a"/><stop offset="1" stop-color="#8a1a14"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a6420"/><stop offset="0.45" stop-color="#ffe08a"/><stop offset="1" stop-color="#9a6e1e"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+  </defs>
+
+  <!-- rear drawbar + valance under the cab -->
+  <rect x="0" y="-112" width="44" height="22" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="26" y="-172" width="136" height="66" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="40" y="-140" width="56" height="12" rx="3" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <!-- cab steps -->
+  <rect x="104" y="-96" width="44" height="8" rx="2" fill="#2a2f36" stroke="#1c2230" stroke-width="2"/>
+  <path d="M110 -96 V-170 M142 -96 V-170" stroke="#1c2230" stroke-width="4"/>
+
+  <!-- steam pipe, steam chest, cylinder, slide bars -->
+  <path d="M1098 -178 C1080 -150 930 -158 893 -146" fill="none" stroke="#1c2230" stroke-width="20" stroke-linecap="round"/>
+  <path d="M1098 -178 C1080 -150 930 -158 893 -146" fill="none" stroke="url(#green)" stroke-width="14" stroke-linecap="round"/>
+  <rect x="777" y="-158" width="118" height="32" rx="6" fill="url(#green)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="763" y="-130" width="144" height="82" rx="16" fill="url(#green)" stroke="#1c2230" stroke-width="3.5"/>
+  <rect x="763" y="-130" width="14" height="82" rx="5" fill="url(#brass)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="893" y="-130" width="14" height="82" rx="5" fill="url(#brass)" stroke="#1c2230" stroke-width="2"/>
+  <path d="M781 -114 H889" stroke="#7fd39b" stroke-width="3" opacity="0.6"/>
+  <g fill="#1c2230"><circle cx="820" cy="-142" r="3"/><circle cx="850" cy="-142" r="3"/></g>
+  <path d="M800 -48 V-38 M870 -48 V-38" stroke="#1c2230" stroke-width="4"/>
+  <path d="M654 -101 H768 M654 -75 H768" stroke="#1c2230" stroke-width="7" stroke-linecap="round"/>
+  <path d="M654 -101 H768 M654 -75 H768" stroke="url(#chrome)" stroke-width="4" stroke-linecap="round"/>
+  <rect x="644" y="-108" width="14" height="40" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <!-- motion bracket -->
+  <path d="M651 -152 L651 -106" stroke="#1c2230" stroke-width="8"/>
+  <path d="M651 -152 L651 -106" stroke="#3a3f48" stroke-width="4"/>
+
+  <!-- front buffer beam, buffers, coupling hook -->
+  <rect x="1194" y="-160" width="30" height="92" rx="4" fill="url(#red)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="1222" y="-111" width="16" height="22" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1236" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M1222 -90 Q1240 -90 1238 -72" fill="none" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <path d="M1198 -122 H1220" stroke="#ffd36b" stroke-width="3" opacity="0.8"/>
+
+  <!-- running board (footplate) with red valance in front of the drivers -->
+  <rect x="640" y="-156" width="556" height="12" fill="url(#red)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M640 -150 H1194" stroke="#ffd36b" stroke-width="2" opacity="0.7"/>
+  <rect x="20" y="-174" width="1206" height="20" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <!-- lamp on the front of the running board -->
+  <rect x="1198" y="-200" width="22" height="26" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1213" y="-194" width="8" height="14" rx="3" fill="url(#head)" stroke="#1c2230" stroke-width="1.5"/>
+  <path d="M1203 -200 Q1209 -212 1215 -200" fill="none" stroke="#1c2230" stroke-width="3"/>
+
+  <!-- boiler -->
+  <rect x="380" y="-334" width="714" height="160" fill="url(#boiler)" stroke="#1c2230" stroke-width="3.5"/>
+  <g fill="url(#brass)" stroke="#1c2230" stroke-width="1.5">
+    <rect x="520" y="-334" width="9" height="160"/><rect x="680" y="-334" width="9" height="160"/>
+    <rect x="860" y="-334" width="9" height="160"/><rect x="1010" y="-334" width="9" height="160"/>
+  </g>
+  <path d="M390 -324 H1088" stroke="#c4f0d2" stroke-width="5" opacity="0.35"/>
+  <path d="M380 -190 H1094" stroke="#0b1f12" stroke-width="10" opacity="0.35"/>
+  <!-- handrail -->
+  <path d="M420 -288 H1080" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <path d="M420 -288 H1080" stroke="url(#chrome)" stroke-width="2.5" stroke-linecap="round"/>
+  <g stroke="#1c2230" stroke-width="3"><path d="M470 -288 V-280 M760 -288 V-280 M960 -288 V-280"/></g>
+  <!-- sand box on the running board -->
+  <path d="M690 -174 L690 -198 Q700 -212 730 -212 Q760 -212 770 -198 L770 -174 Z" fill="url(#green)" stroke="#1c2230" stroke-width="3"/>
+
+  <!-- smokebox -->
+  <rect x="1090" y="-340" width="100" height="166" rx="6" fill="url(#black)" stroke="#1c2230" stroke-width="3.5"/>
+  <rect x="1182" y="-328" width="16" height="142" rx="6" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <circle cx="1192" cy="-256" r="5" fill="url(#chrome)" stroke="#1c2230" stroke-width="1.5"/>
+  <g fill="#8d97a3"><circle cx="1106" cy="-328" r="3"/><circle cx="1106" cy="-188" r="3"/><circle cx="1174" cy="-328" r="3"/><circle cx="1174" cy="-188" r="3"/></g>
+  <!-- chimney -->
+  <path d="M1104 -340 Q1114 -346 1116 -356 L1114 -414 L1158 -414 L1156 -356 Q1158 -346 1168 -340 Z" fill="url(#black)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="1106" y="-429" width="60" height="18" rx="5" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M1122 -408 V-360" stroke="#8d97a3" stroke-width="4" opacity="0.5"/>
+  <rect x="1108" y="-427" width="56" height="5" fill="url(#brass)" opacity="0.9"/>
+
+  <!-- steam dome, safety valves, whistle -->
+  <path d="M760 -332 Q762 -376 800 -380 Q838 -376 840 -332 Z" fill="url(#boiler)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="780" y="-386" width="40" height="10" rx="4" fill="url(#brass)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="550" y="-360" width="26" height="28" rx="3" fill="url(#brass)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="544" y="-368" width="38" height="10" rx="4" fill="url(#brass)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="404" y="-372" width="10" height="40" fill="url(#brass)" stroke="#1c2230" stroke-width="1.5"/>
+  <path d="M398 -372 L420 -372 L416 -394 Q409 -400 402 -394 Z" fill="url(#brass)" stroke="#1c2230" stroke-width="2"/>
+
+  <!-- cab -->
+  <path d="M30 -174 L30 -384 L376 -384 L376 -174 Z" fill="url(#green)" stroke="#1c2230" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M46 -190 L46 -368 L360 -368 L360 -190 Z" fill="none" stroke="#ffd36b" stroke-width="3" opacity="0.75"/>
+  <path d="M12 -382 Q200 -424 394 -382 L394 -374 L12 -374 Z" fill="url(#black)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M50 -388 Q200 -416 356 -388" fill="none" stroke="#8d97a3" stroke-width="3" opacity="0.5"/>
+  <!-- cab doorway with the driver -->
+  <rect x="66" y="-352" width="110" height="168" rx="8" fill="#14171b" stroke="#1c2230" stroke-width="3"/>
+  <path d="M72 -346 L170 -346 L170 -336 L72 -336 Z" fill="#2a2f36"/>
+  <g fill="#2a3442">
+    <circle cx="126" cy="-302" r="17"/>
+    <path d="M104 -312 Q126 -336 150 -312 L156 -310 L102 -310 Z" fill="#1c2638"/>
+    <rect x="104" y="-286" width="44" height="70" rx="14"/>
+  </g>
+  <path d="M66 -252 H176" stroke="#8d97a3" stroke-width="5"/>
+  <path d="M66 -252 H176" stroke="url(#chrome)" stroke-width="2.5"/>
+  <!-- cab side window -->
+  <rect x="216" y="-356" width="130" height="78" rx="10" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M234 -350 L262 -350 L240 -284 L222 -284 Z" fill="#fff" opacity="0.28"/>
+  <!-- number plate -->
+  <rect x="222" y="-254" width="118" height="34" rx="16" fill="url(#brass)" stroke="#1c2230" stroke-width="2.5"/>
+  <g fill="#3a1c0c"><rect x="242" y="-246" width="10" height="18" rx="2"/><rect x="260" y="-246" width="22" height="7" rx="2"/><rect x="272" y="-239" width="10" height="11" rx="2"/><rect x="290" y="-246" width="10" height="18" rx="2"/><rect x="308" y="-246" width="18" height="18" rx="5" fill="none" stroke="#3a1c0c" stroke-width="5"/></g>
+</svg>

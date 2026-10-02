@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="340" viewBox="0 -340 750 340">
+  <!-- SPAN steam tender (coal + water). 1 unit = 1 cm, origin = rear of the car on the rail line, facing
+       right (the front end couples to the locomotive). Bogies drawn separately: centres x = 190 / 560,
+       axles +-60, wheel r 45. Coupler height 100. -->
+  <defs>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fae6c"/><stop offset="0.15" stop-color="#3f9a5c"/><stop offset="0.6" stop-color="#2a7444"/><stop offset="1" stop-color="#143e23"/>
+    </linearGradient>
+    <linearGradient id="black" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.25" stop-color="#2a2f36"/><stop offset="1" stop-color="#0f1114"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2453a"/><stop offset="1" stop-color="#8a1a14"/></linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a6420"/><stop offset="0.45" stop-color="#ffe08a"/><stop offset="1" stop-color="#9a6e1e"/>
+    </linearGradient>
+    <radialGradient id="coal" cx="0.4" cy="0.2" r="0.9">
+      <stop offset="0" stop-color="#4a4f58"/><stop offset="0.5" stop-color="#22262c"/><stop offset="1" stop-color="#0c0d10"/>
+    </radialGradient>
+  </defs>
+  <!-- buffers (rear) / drawbar (front) -->
+  <rect x="2" y="-125" width="13" height="50" rx="5" fill="url(#chrome)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="13" y="-111" width="20" height="22" rx="3" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="706" y="-111" width="44" height="22" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <!-- underframe -->
+  <rect x="26" y="-146" width="698" height="34" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="26" y="-146" width="26" height="62" rx="3" fill="url(#red)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="320" y="-114" width="110" height="24" rx="5" fill="#2a2f36" stroke="#1c2230" stroke-width="2"/>
+  <path d="M332 -102 H418" stroke="#5a616b" stroke-width="2"/>
+  <!-- coal heap (behind the flared coal rails) -->
+  <path d="M262 -298 Q280 -330 312 -324 Q336 -338 368 -328 Q398 -340 430 -326 Q462 -336 492 -322 Q526 -334 556 -318 Q590 -328 622 -312 Q660 -318 700 -296 Z" fill="url(#coal)" stroke="#0c0d10" stroke-width="2"/>
+  <g fill="#6d7680" opacity="0.55"><circle cx="312" cy="-318" r="4"/><circle cx="372" cy="-322" r="3"/><circle cx="440" cy="-320" r="4"/><circle cx="508" cy="-318" r="3"/><circle cx="574" cy="-312" r="4"/><circle cx="642" cy="-304" r="3"/></g>
+  <!-- tank -->
+  <path d="M40 -146 L40 -290 L710 -290 L710 -146 Z" fill="url(#green)" stroke="#1c2230" stroke-width="3.5"/>
+  <path d="M30 -290 L24 -306 L726 -306 L720 -290 Z" fill="url(#green)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M28 -302 H722" stroke="#9fe0b4" stroke-width="2.5" opacity="0.4"/>
+  <path d="M58 -162 L58 -274 L692 -274 L692 -162 Z" fill="none" stroke="#ffd36b" stroke-width="3" opacity="0.75"/>
+  <path d="M66 -170 L66 -266 L684 -266 L684 -170 Z" fill="none" stroke="#1c2230" stroke-width="1.5" opacity="0.35"/>
+  <!-- water filler at the rear -->
+  <rect x="70" y="-322" width="90" height="18" rx="5" fill="url(#black)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="100" y="-334" width="30" height="14" rx="4" fill="url(#black)" stroke="#1c2230" stroke-width="2"/>
+  <!-- emblem -->
+  <g transform="translate(375 -218)">
+    <circle r="34" fill="url(#brass)" stroke="#1c2230" stroke-width="2.5"/>
+    <circle r="25" fill="#2a7444" stroke="#7a5a12" stroke-width="2"/>
+    <path d="M-17 8 Q0 -14 17 8" fill="none" stroke="#ffe08a" stroke-width="5" stroke-linecap="round"/>
+    <path d="M-20 10 H20" stroke="#ffe08a" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- ladder + handrail -->
+  <path d="M46 -290 V-156 M70 -290 V-156" stroke="#1c2230" stroke-width="3.5"/>
+  <path d="M46 -274 H70 M46 -248 H70 M46 -222 H70 M46 -196 H70 M46 -170 H70" stroke="#1c2230" stroke-width="3"/>
+  <path d="M696 -280 V-160" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <path d="M696 -280 V-160" stroke="url(#chrome)" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

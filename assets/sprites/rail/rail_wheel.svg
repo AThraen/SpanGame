@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="-54 -54 108 108">
+  <!-- SPAN rail wheel (modern disc wheel: tram, diesel, wagons, high speed). Centre (0,0).
+       Tread diameter = 100 units (r 50); the flange (r 54) is drawn too, so the renderer draws this
+       image 1.08 x the tread diameter. -->
+  <defs>
+    <radialGradient id="disc" cx="-10" cy="-12" r="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c9d1da"/><stop offset="0.5" stop-color="#7d8894"/><stop offset="1" stop-color="#3a414b"/>
+    </radialGradient>
+    <radialGradient id="hub" cx="-3" cy="-4" r="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#aeb8c3"/><stop offset="1" stop-color="#4b5560"/>
+    </radialGradient>
+  </defs>
+  <!-- flange -->
+  <circle r="53.5" fill="#23272e" stroke="#0d0f12" stroke-width="1"/>
+  <!-- tread / tyre -->
+  <circle r="50" fill="#5d6670" stroke="#16191e" stroke-width="2"/>
+  <circle r="47" fill="none" stroke="#a7b1bc" stroke-width="2.5" opacity="0.8"/>
+  <!-- web -->
+  <circle r="42" fill="url(#disc)" stroke="#2a2f36" stroke-width="2"/>
+  <circle r="31" fill="none" stroke="#3d454f" stroke-width="2.5" opacity="0.7"/>
+  <!-- lightening holes -->
+  <g fill="#262b32">
+    <circle cx="0" cy="-23" r="5"/><circle cx="19.9" cy="-11.5" r="5"/><circle cx="19.9" cy="11.5" r="5"/>
+    <circle cx="0" cy="23" r="5"/><circle cx="-19.9" cy="11.5" r="5"/><circle cx="-19.9" cy="-11.5" r="5"/>
+  </g>
+  <!-- hub / axle box cover -->
+  <circle r="13" fill="url(#hub)" stroke="#20252b" stroke-width="2"/>
+  <g fill="#3a414b"><circle cx="0" cy="-8" r="1.8"/><circle cx="7" cy="4" r="1.8"/><circle cx="-7" cy="4" r="1.8"/></g>
+  <circle r="3.5" fill="#d8342b"/>
+  <!-- paint index mark so rotation reads -->
+  <rect x="-2" y="-46" width="4" height="10" fill="#f2f2ee" opacity="0.85"/>
+  <path d="M-36 -26 A44 44 0 0 1 -14 -42" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.22" stroke-linecap="round"/>
+</svg>

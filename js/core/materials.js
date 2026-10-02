@@ -6,7 +6,11 @@
  * Road materials are continuous decks: consecutive road segments meeting at a joint
  * resist bending (bendStiffness [N·m/rad], momentLimit [N·m]). The bending ratio
  * |M|/momentLimit adds to the axial ratio, so an unsupported flat deck sags and snaps,
- * while the same road carried by a truss at every joint is fine. */
+ * while the same road carried by a truss at every joint is fine.
+ * Railway (SPEC §9.2): rail is a ballasted track deck (isRail; trains ride only on it, road
+ * vehicles never do) - heavier and stiffer in bending than road. Masonry is cheap, very heavy,
+ * enormously strong in compression and nearly useless in tension. Girder is a heavy steel box
+ * member for the ore trains. */
 (function (root) {
   'use strict';
   const BG = (root.BG = root.BG || {});
@@ -50,11 +54,30 @@
       stiffness: 2.0e8, tensionLimit: 1.2e6, compressionLimit: 1.2e6,
       maxLength: 40, isRoad: false, tensionOnly: true, width: 0.12,
     },
+    rail: {
+      id: 'rail', name: 'Rail Track', color: '#5b4a3e',
+      costPerMeter: 160, massPerMeter: 240,
+      stiffness: 1.5e8, tensionLimit: 1.2e6, compressionLimit: 1.2e6,
+      bendStiffness: 9.0e5, momentLimit: 1.6e5, bendRefLength: 4,
+      maxLength: 6, isRoad: false, isRail: true, tensionOnly: false, width: 0.6,
+    },
+    masonry: {
+      id: 'masonry', name: 'Masonry', color: '#a89a86',
+      costPerMeter: 35, massPerMeter: 700,
+      stiffness: 5.0e8, tensionLimit: 50e3, compressionLimit: 3.0e6,
+      maxLength: 5, isRoad: false, tensionOnly: false, width: 0.75,
+    },
+    girder: {
+      id: 'girder', name: 'Box Girder', color: '#3e5c78',
+      costPerMeter: 480, massPerMeter: 260,
+      stiffness: 7.0e8, tensionLimit: 4.0e6, compressionLimit: 3.4e6,
+      maxLength: 12, isRoad: false, tensionOnly: false, width: 0.5,
+    },
   };
 
   BG.Materials = M;
-  /** Palette order (keys 1–6). */
-  BG.MaterialOrder = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable'];
+  /** Palette order (keys 1–6 on road levels; rail levels list their own materials). */
+  BG.MaterialOrder = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable', 'rail', 'masonry', 'girder'];
   /** Cost constants. Pier cost = pierBase + pierPerMeter * (topY - floorY). */
   BG.Costs = { joint: 0, pierBase: 1000, pierPerMeter: 250 };
 })(typeof window !== 'undefined' ? window : globalThis);

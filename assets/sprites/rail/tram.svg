@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="400" viewBox="0 -400 1400 400">
+  <!-- SPAN tram (bidirectional, with pantograph). 1 unit = 1 cm, origin = rear of the car on the rail
+       line, facing right. Bogies drawn separately: centres x = 300 / 1100, axles +-90, wheel r 34.
+       Body skirts hide the wheel tops (drawn behind the body). -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset="0.2" stop-color="#f6cd4a"/><stop offset="0.7" stop-color="#e8b22e"/><stop offset="1" stop-color="#b07e10"/>
+    </linearGradient>
+    <linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="1" stop-color="#22262c"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="1" stop-color="#aab4bf"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#cfeaff"/><stop offset="0.4" stop-color="#5f93bd"/><stop offset="1" stop-color="#22394f"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.45" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <path id="shape" d="M10 -100 Q8 -250 40 -296 Q60 -312 110 -312 L1290 -312 Q1340 -312 1360 -296 Q1392 -250 1390 -100 L1386 -66 Q1384 -52 1366 -52 L34 -52 Q16 -52 14 -66 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <!-- pantograph -->
+  <g stroke="#1c2230" stroke-linecap="round" fill="none">
+    <path d="M640 -322 L760 -368 L690 -392" stroke-width="9"/>
+    <path d="M640 -322 L760 -368 L690 -392" stroke="#8d97a3" stroke-width="5"/>
+    <path d="M650 -392 H730" stroke-width="10"/>
+    <path d="M650 -392 H730" stroke="#d9dfe5" stroke-width="5"/>
+  </g>
+  <rect x="610" y="-326" width="70" height="14" rx="4" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <g fill="#3a3f48" stroke="#1c2230" stroke-width="2"><rect x="760" y="-322" width="34" height="10" rx="3"/><rect x="590" y="-320" width="16" height="8" rx="3"/></g>
+  <!-- roof pods -->
+  <rect x="200" y="-330" width="300" height="22" rx="10" fill="url(#roof)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="880" y="-330" width="300" height="22" rx="10" fill="url(#roof)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M230 -320 H470 M910 -320 H1150" stroke="#9aa3ad" stroke-width="3" stroke-dasharray="14 8"/>
+  <!-- body -->
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-320" width="1400" height="30" fill="url(#roof)"/>
+    <rect x="0" y="-292" width="1400" height="4" fill="#1c2230" opacity="0.25"/>
+    <rect x="0" y="-110" width="1400" height="60" fill="url(#skirt)"/>
+    <rect x="0" y="-116" width="1400" height="6" fill="#ffffff" opacity="0.8"/>
+    <rect x="0" y="-128" width="1400" height="8" fill="#2a3a66"/>
+  </g>
+  <!-- window band -->
+  <rect x="120" y="-276" width="1160" height="110" rx="12" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <g fill="#232831">
+    <rect x="260" y="-278" width="10" height="114"/><rect x="420" y="-278" width="10" height="114"/><rect x="580" y="-278" width="10" height="114"/>
+    <rect x="810" y="-278" width="10" height="114"/><rect x="970" y="-278" width="10" height="114"/><rect x="1130" y="-278" width="10" height="114"/>
+  </g>
+  <g fill="#ffffff" opacity="0.22">
+    <path d="M150 -272 L190 -272 L160 -170 L132 -170 Z"/><path d="M300 -272 L340 -272 L310 -170 L282 -170 Z"/><path d="M460 -272 L500 -272 L470 -170 L442 -170 Z"/>
+    <path d="M850 -272 L890 -272 L860 -170 L832 -170 Z"/><path d="M1010 -272 L1050 -272 L1020 -170 L992 -170 Z"/><path d="M1170 -272 L1210 -272 L1180 -170 L1152 -170 Z"/>
+  </g>
+  <!-- passengers -->
+  <g fill="#1a2a3c" opacity="0.45">
+    <circle cx="200" cy="-214" r="13"/><rect x="184" y="-202" width="32" height="34" rx="10"/>
+    <circle cx="360" cy="-218" r="12"/><rect x="345" y="-207" width="30" height="40" rx="10"/>
+    <circle cx="900" cy="-212" r="13"/><rect x="884" y="-200" width="32" height="32" rx="10"/>
+    <circle cx="1060" cy="-216" r="12"/><rect x="1045" y="-205" width="30" height="38" rx="10"/>
+  </g>
+  <!-- doors (centre double door) -->
+  <g stroke="#1c2230" stroke-width="3" fill="url(#glass)">
+    <rect x="620" y="-280" width="80" height="222" rx="6"/><rect x="700" y="-280" width="80" height="222" rx="6"/>
+  </g>
+  <path d="M630 -270 L660 -270 L640 -70 L630 -70 Z M710 -270 L740 -270 L720 -70 L710 -70 Z" fill="#fff" opacity="0.18"/>
+  <rect x="682" y="-176" width="36" height="8" rx="3" fill="#2ecc71" stroke="#1c2230" stroke-width="1.5"/>
+  <!-- cab windows at both ends -->
+  <path d="M1300 -296 Q1348 -296 1362 -270 Q1380 -230 1382 -170 L1300 -170 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M100 -296 Q52 -296 38 -270 Q20 -230 18 -170 L100 -170 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1316 -290 L1340 -288 L1326 -176 L1312 -176 Z" fill="#fff" opacity="0.3"/>
+  <!-- destination display -->
+  <rect x="1190" y="-304" width="150" height="20" rx="4" fill="#15181d"/>
+  <g fill="#ffb02e"><rect x="1200" y="-299" width="12" height="10"/><rect x="1218" y="-299" width="40" height="10"/><rect x="1264" y="-299" width="60" height="10"/></g>
+  <!-- lights -->
+  <rect x="1372" y="-150" width="16" height="22" rx="5" fill="url(#head)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="12" y="-150" width="16" height="22" rx="5" fill="url(#tail)" stroke="#1c2230" stroke-width="2"/>
+  <!-- fleet number -->
+  <g fill="#2a3a66"><rect x="1020" y="-150" width="12" height="20" rx="3"/><rect x="1038" y="-150" width="20" height="9" rx="3"/><rect x="1046" y="-141" width="12" height="11" rx="3"/></g>
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="4" stroke-linejoin="round"/>
+</svg>

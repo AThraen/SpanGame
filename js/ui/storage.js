@@ -77,15 +77,40 @@
       for (const k in lv) t += (lv[k] && lv[k].stars) | 0;
       return t;
     },
-    // A level is unlocked if it is the first one or the previous level (by array order) is completed.
+    // ---- campaigns ----
+    // Road levels (1-50) have no campaign field (or 'road'); Iron Road levels (101-120) have campaign 'rail'.
+    RAIL_UNLOCK_LEVEL: 10,
+    campaignOf(level) { return level && level.campaign === 'rail' ? 'rail' : 'road'; },
+    // the levels of one campaign, sorted by id (the order unlocking and "Next level" follow)
+    campaignLevels(levels, campaign) {
+      return (levels || []).filter(l => l && Storage.campaignOf(l) === campaign)
+        .slice().sort((a, b) => (a.id != null ? a.id : 0) - (b.id != null ? b.id : 0));
+    },
+    // the Iron Road opens once road level 10 is complete (or with ?unlockall)
+    isCampaignUnlocked(campaign) {
+      if (campaign !== 'rail') return true;
+      if (Storage.get('unlockAll', false)) return true;
+      return Storage.isCompleted(Storage.RAIL_UNLOCK_LEVEL);
+    },
+    campaignStars(levels, campaign) {
+      let got = 0, max = 0;
+      Storage.campaignLevels(levels, campaign).forEach(l => { got += Storage.getStars(l.id); max += 3; });
+      return { got, max };
+    },
+    // A level is unlocked if it is the first one of its campaign (and that campaign is open), or if
+    // either of the two levels before it in the same campaign is completed.
     isUnlocked(id, levels) {
       if (Storage.get('unlockAll', false)) return true;
       if (!levels || !levels.length) return id === 1;
-      const idx = levels.findIndex(l => (l.id != null ? l.id : -1) === id);
+      const lv = levels.find(l => l && l.id === id);
+      const campaign = lv ? Storage.campaignOf(lv) : (id > 100 ? 'rail' : 'road');
+      if (!Storage.isCampaignUnlocked(campaign)) return false;
+      const list = lv ? Storage.campaignLevels(levels, campaign) : levels;
+      const idx = list.findIndex(l => (l.id != null ? l.id : -1) === id);
       if (idx <= 0) return idx === 0 || id === 1;
       // a level opens when either of the two levels before it is complete, so one hard
       // crossing never blocks progress: it can be skipped and come back to later
-      const done = (k) => k >= 0 && Storage.isCompleted(levels[k].id != null ? levels[k].id : k + 1);
+      const done = (k) => k >= 0 && Storage.isCompleted(list[k].id != null ? list[k].id : k + 1);
       return done(idx - 1) || done(idx - 2);
     },
     // result: { passed, stars, cost }

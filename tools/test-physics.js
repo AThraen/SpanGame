@@ -479,6 +479,275 @@ test('model: joints keep clear of rock, beams may not pass through it', () => {
   assert(BG.Model.validate(L2, thru).errors.some(e => e.type === 'in_terrain' && e.beamIndex === 1), 'beam from a bank-top anchor through the bank');
 });
 
+// ------------------------------------------------------------------ railway (SPEC §9)
+const trainTraffic = (train, count, interval) => [{ type: 'train', train, count: count || 1, interval: interval || 3 }];
+
+/** Pratt deck truss under a rail deck at y=0, X-braced panels; bottom chord at -h between anchors a2/a3. */
+function railTruss(train, gap, panel, h, chord, web, piers, extra) {
+  const L = makeLevel(gap, trainTraffic(train), Object.assign({
+    anchors: [{ x: 0, y: 0 }, { x: gap, y: 0 }, { x: 0, y: -h }, { x: gap, y: -h }],
+    pierZones: [{ x0: 1, x1: gap - 1 }], maxPiers: 9, timeLimit: 120,
+  }, extra || {}));
+  L.terrain.floorY = -h - 15; L.terrain.waterY = -h - 11;
+  const b = Builder(L);
+  for (const x of piers || []) b.pier(x, -h);
+  const n = Math.round(gap / panel);
+  const top = b.line(0, 0, gap, 0, n, 'rail'), bot = b.line(0, -h, gap, -h, n, chord);
+  for (let i = 1; i < n; i++) b.beam(top[i], bot[i], web);
+  for (let i = 0; i < n; i++) { b.beam(top[i], bot[i + 1], web); b.beam(bot[i], top[i + 1], web); }
+  return { L, b, top, bot };
+}
+
+/** Masonry arch viaduct: arches spring from a2/a3 and pier tops at y=spring, masonry posts carry the rail at y=0. */
+function railViaduct(train, gap, piers, spring, rise, diag, count) {
+  const L = makeLevel(gap, trainTraffic(train, count, 4), {
+    anchors: [{ x: 0, y: 0 }, { x: gap, y: 0 }, { x: 0, y: spring }, { x: gap, y: spring }],
+    pierZones: [{ x0: 1, x1: gap - 1 }], maxPiers: piers.length,
+  });
+  L.terrain.floorY = -16; L.terrain.waterY = -13;
+  const b = Builder(L);
+  const springs = ['a2'].concat(piers.map(x => b.pier(x, spring)), ['a3']);
+  const sx = [0].concat(piers, [gap]);
+  const deckX = new Set(sx), arches = [];
+  for (let s = 0; s + 1 < sx.length; s++) {
+    const x0 = sx[s], S = sx[s + 1] - x0, n = 4, arch = [{ id: springs[s], x: x0, y: spring }];
+    for (let i = 1; i < n; i++) {
+      const x = x0 + S * i / n, u = (x - x0 - S / 2) / (S / 2), y = Math.round((spring + rise * (1 - u * u)) * 4) / 4;
+      arch.push({ id: b.node(x, y), x, y }); deckX.add(x);
+    }
+    arch.push({ id: springs[s + 1], x: sx[s + 1], y: spring });
+    arches.push(arch);
+  }
+  const xs = [...deckX].sort((p, q) => p - q);
+  for (let i = 0; i + 1 < xs.length; i++) b.beam(b.node(xs[i], 0), b.node(xs[i + 1], 0), 'rail');
+  for (const arch of arches) {
+    for (let i = 0; i + 1 < arch.length; i++) b.beam(arch[i].id, arch[i + 1].id, 'masonry');
+    for (let i = 1; i + 1 < arch.length; i++) b.beam(arch[i].id, b.node(arch[i].x, 0), 'masonry');
+    if (diag) for (let i = 0; i + 1 < arch.length; i++) {
+      if (i < (arch.length - 1) / 2) b.beam(arch[i].id, b.node(arch[i + 1].x, 0), diag);
+      else b.beam(arch[i + 1].id, b.node(arch[i].x, 0), diag);
+    }
+  }
+  piers.forEach((x, k) => b.beam('p' + k, b.node(x, 0), 'masonry'));
+  return { L, d: b.d };
+}
+
+function couplerDev(T) {
+  let dev = 0;
+  for (let k = 0; k + 1 < T.cars.length; k++) {
+    const A = T.cars[k], B = T.cars[k + 1];
+    if (!A._sim || !B._sim) continue;
+    const ax = A._px + A._qc * A._cxR - A._qs * A._chY, ay = A._py + A._qs * A._cxR + A._qc * A._chY;
+    const bx = B._px + B._qc * B._cxF - B._qs * B._chY, by = B._py + B._qs * B._cxF + B._qc * B._chY;
+    dev = Math.max(dev, Math.abs(Math.hypot(ax - bx, ay - by) - BG.RailRules.couplerGap));
+  }
+  return dev;
+}
+
+test('rail: definitions - car masses, presets ~1 t .. ~2000 t, sim.vehicles kinds', () => {
+  for (const id of BG.RailCarOrder) {
+    const c = BG.RailCars[id];
+    assert(c && c.type === id && c.bogies.length >= 1 && c.wheels.length >= 2, 'car ' + id);
+    approx(c.bogies.reduce((s, bg) => s + bg.mass, 0), c.mass, 1e-9, id + ' bogie masses sum to car mass');
+  }
+  for (const id of BG.TrainOrder) {
+    const T = BG.Trains[id];
+    assert(T && T.id === id && T.cars.length === T.carCount && T.speed > 0 && T.cars.every(t => BG.RailCars[t]), 'preset ' + id);
+    assert(BG.RailCars[T.cars[0]].power, id + ' is led by a powered car');
+  }
+  approx(BG.Trains.handcar.mass, 1000, 200, 'handcar ~1 t');
+  approx(BG.Trains.ore.mass, 2.0e6, 0.1e6, 'ore ~2000 t');
+  assert(BG.Trains.ore.carCount === 24, 'ore train has 24 cars');
+  const L = makeLevel(10, [{ type: 'car', count: 1 }, { type: 'train', train: 'steam_local', count: 1 }, { type: 'train', train: 'nope' }]);
+  const sim = new BG.Simulation(L, flatDeck(L, 10, 2));
+  assert(sim.vehicles.length === 2 && sim.vehicles[0].kind === 'road' && sim.vehicles[1].kind === 'train', 'kinds: ' + sim.vehicles.map(v => v.kind));
+  const T = sim.vehicles[1];
+  assert(T.type === 'train' && T.preset === 'steam_local' && T.cars.length === 4 && T.cars[0].type === 'loco_steam' && T.state === 'waiting', 'train entry shape');
+  assert(T.cars[0].wheels.length === BG.RailCars.loco_steam.wheels.length && T.cars.every(c => c.state === 'waiting'), 'car entries');
+});
+
+test('rail: trains cross flat ground at cruise speed, wheels stay on the rail line', () => {
+  for (const id of ['handcar', 'steam_local', 'freight_long', 'ore', 'highspeed']) {
+    const L = makeLevel(0, trainTraffic(id), { timeLimit: 120 });
+    L.terrain.rightEdge = 0; L.anchors = [{ x: 0, y: 0 }];
+    let maxVy = 0, maxDy = 0, minV = Infinity;
+    const sim = run(L, { nodes: [], beams: [], piers: [] }, 120, s => {
+      const T = s.vehicles[0];
+      if (T.state !== 'driving' || s.time < 0.5) return;
+      for (const c of T.cars) {
+        maxVy = Math.max(maxVy, Math.abs(c._vy)); minV = Math.min(minV, c._vx);
+        for (const w of c.wheels) maxDy = Math.max(maxDy, Math.abs(w.y - w.r));
+      }
+    });
+    const s = sim.summary();
+    assert(s.status === 'success' && s.vehiclesFinished === 1 && s.derailedCars === 0, id + ': ' + JSON.stringify(s));
+    assert(maxVy < 0.02, id + ' no bouncing, max |vy| ' + maxVy);
+    assert(maxDy < 0.06, id + ' wheels sit on the rail line, max dev ' + maxDy.toFixed(3));
+    approx(minV, BG.Trains[id].speed, 0.05, id + ' holds cruise speed');
+    assert(sim.vehicles[0].cars.every(c => c.state === 'finished'), id + ' all cars finished');
+  }
+});
+
+test('rail: couplers hold (slack only) while a train brakes hard behind another', () => {
+  const L = makeLevel(0, trainTraffic('ore', 2, 0.5), { timeLimit: 120 });
+  L.terrain.rightEdge = 0; L.anchors = [{ x: 0, y: 0 }];
+  let dev = 0, minSpeed2 = Infinity, braking = false;
+  const slack = BG.RailRules.couplerSlack;
+  run(L, { nodes: [], beams: [], piers: [] }, 70, s => {
+    for (const T of s.vehicles) if (T._live) dev = Math.max(dev, couplerDev(T));
+    const T2 = s.vehicles[1];
+    if (T2.state === 'driving') { minSpeed2 = Math.min(minSpeed2, T2.vx); if (T2._target < BG.Trains.ore.speed * 0.5) braking = true; }
+  });
+  assert(braking && minSpeed2 < BG.Trains.ore.speed * 0.8, 'second train had to brake (min speed ' + minSpeed2.toFixed(2) + ')');
+  // (slack action: when the locos take up the free play the coupler overshoots a few cm - draft-gear travel)
+  assert(dev <= slack + 0.06, 'coupler stays within slack + draft gear: max deviation ' + dev.toFixed(3) + ' m');
+});
+
+test('rail: trains ride only on rail, road vehicles never on rail; deck connectivity per traffic kind', () => {
+  const L = makeLevel(10, trainTraffic('handcar'));
+  const road = flatDeck(L, 10, 2, 'road'), rail = flatDeck(L, 10, 2, 'rail');
+  const r1 = runHeadless(L, road);
+  assert(r1.status === 'failed' && r1.failReason === 'derailed' && r1.firstDerail.reason === 'missing', 'handcar on a road deck derails: ' + JSON.stringify(r1.firstDerail));
+  assert(!BG.Model.roadConnected(L, road) && BG.Model.roadConnected(L, rail) && BG.Model.railConnected(L, rail), 'rail level needs the rail');
+  assert(runHeadless(L, rail).status === 'success', 'handcar crosses plain 10 m rail');
+  const Lc = makeLevel(6, [{ type: 'car', count: 1 }]);
+  const rc = runHeadless(Lc, flatDeck(Lc, 6, 1, 'rail'));
+  assert(rc.status === 'failed' && (rc.failReason === 'vehicle_fell' || rc.failReason === 'vehicle_jumped'), 'a car falls through a rail-only deck: ' + rc.failReason);
+  assert(!BG.Model.roadConnected(Lc, flatDeck(Lc, 6, 1, 'rail')), 'road level does not accept rail as road');
+  const Lm = makeLevel(10, [{ type: 'car', count: 1 }].concat(trainTraffic('handcar')));
+  const both = { nodes: [], beams: rail.beams.concat([{ a: 'a2', b: 'a3', m: 'road' }]), piers: [] };
+  assert(!BG.Model.roadConnected(Lm, rail) && BG.Model.deckConnected(Lm, both, 'rail') && !BG.Model.roadConnected(Lm, both), 'double-deck needs both decks from the road anchors');
+  const ts = BG.Model.trafficSummary({ traffic: [{ type: 'train', train: 'ore', count: 1 }, { type: 'car', count: 2 }] });
+  assert(ts.total === 3 && ts.items[0].kind === 'train' && ts.items[0].cars === 24 && ts.items[1].kind === 'road' && /ore train \(24 cars\)/.test(ts.text), 'traffic summary: ' + ts.text);
+});
+
+test('rail: kink and grade derail; fast trains derail on dips slow ones ride through', () => {
+  // a 0.6 m hump on a stiff truss: ~7 deg kinks -> derail 'kink'
+  {
+    const { L, b, top } = railTruss('steam_local', 30, 5, 8, 'steel', 'steel');
+    b.d.nodes.find(n => n.id === top[3]).y = 0.6;
+    const v = BG.Model.validate(L, b.d);
+    assert(v.ok && v.warnings.some(w => w.type === 'rail_kink'), 'hump is valid but warned: ' + JSON.stringify(v.warnings.map(w => w.type)));
+    const r = runHeadless(L, b.d);
+    assert(r.failReason === 'derailed' && r.firstDerail.reason === 'kink', 'hump derails by kink: ' + JSON.stringify(r.firstDerail));
+    assert(r.brokenBeams === 0, 'derailed by geometry, not by a failure');
+  }
+  // a straight 5 % ramp to a higher bank: fine with the default 6 %, derails with level.rail.maxGrade 0.03
+  {
+    const mk = extra => {
+      const { L, b } = railTruss('freight_short', 30, 5, 8, 'steel', 'steel', [], extra);
+      L.anchors[1].y = 1.5; L.terrain.rightY = 1.5;
+      for (const n of b.d.nodes) if (Math.abs(n.y) < 1e-9) n.y = n.x * 0.05;
+      return { L, d: b.d };
+    };
+    const a = mk(), r1 = runHeadless(a.L, a.d);
+    assert(r1.status === 'success', '5 % grade within the default limit: ' + r1.failReason + ' ' + JSON.stringify(r1.firstDerail));
+    const c = mk({ rail: { maxGrade: 0.03 } }), r2 = runHeadless(c.L, c.d);
+    assert(r2.failReason === 'derailed' && r2.firstDerail.reason === 'grade', 'grade over the level limit derails: ' + JSON.stringify(r2.firstDerail));
+    assert(BG.Model.validate(c.L, c.d).warnings.some(w => w.type === 'rail_grade'), 'grade warning');
+  }
+  // a 0.1 m dip (~2.3 deg kink): freight at 10 m/s rides through, high-speed (42 m/s, limit ~1.4 deg) derails
+  {
+    const dip = train => { const { L, b, top } = railTruss(train, 30, 5, 8, 'steel', 'steel'); b.d.nodes.find(n => n.id === top[3]).y = -0.1; return runHeadless(L, b.d); };
+    const slow = dip('freight_short'), fast = dip('highspeed');
+    assert(slow.status === 'success', 'freight rides through the dip: ' + JSON.stringify(slow.firstDerail));
+    assert(fast.failReason === 'derailed' && fast.firstDerail.reason === 'kink', 'high-speed derails on the dip: ' + JSON.stringify(fast.firstDerail));
+  }
+  // rail must be laid nearly level (not a cheap web member)
+  const Lv = makeLevel(10);
+  assert(BG.Model.validate(Lv, { nodes: [], beams: [{ a: 'a2', b: 'a0', m: 'rail' }], piers: [] }).errors.some(e => e.type === 'rail_too_steep'), 'steep rail invalid');
+});
+
+test('rail: masonry arch viaduct carries steam trains; posts-only arch is a mechanism', () => {
+  const v = railViaduct('steam_local', 40, [10, 20, 30], -4, 3, 'steel', 2);
+  const r = runHeadless(v.L, v.d);
+  assert(r.valid, 'viaduct valid: ' + r.errors.map(e => e.type));
+  assert(r.status === 'success' && r.brokenBeams === 0 && r.peakStress < 0.7, 'steam over the masonry viaduct: ' + r.status + ' ' + r.failReason + ' peak ' + r.peakStress);
+  const sim = new BG.Simulation(v.L, v.d);
+  for (let i = 0; i < 60 * 8; i++) sim.step();
+  for (let j = 0; j < v.d.beams.length; j++) if (v.d.beams[j].m === 'masonry' && v.d.beams[j].a !== 'p0' && v.d.beams[j].a !== 'p1' && v.d.beams[j].a !== 'p2') assert(sim.beams[j].force < 25e3, 'masonry stays (nearly) compressed, beam ' + j + ' force ' + sim.beams[j].force.toFixed(0));
+  const loose = railViaduct('steam_local', 40, [10, 20, 30], -4, 3, null, 1);
+  assert(runHeadless(loose.L, loose.d).status === 'failed', 'pinned arch with posts only must not carry the loco');
+});
+
+test('rail: masonry fails in tension, carries enormous compression', () => {
+  const L = makeLevel(12, trainTraffic('tram'), { anchors: [{ x: 0, y: 0 }, { x: 12, y: 0 }, { x: 6, y: 5 }, { x: 6, y: -4 }] });
+  const mk = (anchor, m) => { const b = Builder(L); const r = b.line(0, 0, 12, 0, 2, 'rail'); const k = b.beam(anchor, r[1], m); return { d: b.d, k }; };
+  const hang = mk('a2', 'masonry'), s1 = run(L, hang.d, 30);
+  const fb = s1.summary().firstBreak;
+  assert(fb && fb.beamIndex === hang.k && fb.m === 'masonry' && fb.mode === 'tension', 'masonry hanger snaps in tension: ' + JSON.stringify(fb));
+  const steel = mk('a2', 'steel'), s2 = run(L, steel.d, 30);
+  assert(s2.summary().status === 'success' && !s2.beams[steel.k].broken, 'a steel hanger holds the same deck');
+  const post = mk('a3', 'masonry'), s3 = run(L, post.d, 30);
+  assert(s3.summary().status === 'success' && s3.beams[post.k].peak < 0.2, 'the same masonry as a post is barely loaded: ' + s3.beams[post.k].peak);
+  assert(BG.Materials.masonry.compressionLimit > 40 * BG.Materials.masonry.tensionLimit, 'masonry: compression >> tension');
+});
+
+test('rail: ore train collapses a bridge that carries steam (dramatic, finite, coupled)', () => {
+  const steam = railTruss('steam_local', 30, 5, 8, 'steel', 'steel');
+  assert(runHeadless(steam.L, steam.b.d).status === 'success', 'steam crosses the 30 m steel truss');
+  steam.L.traffic = trainTraffic('ore');
+  const sim = new BG.Simulation(steam.L, steam.b.d);
+  const ev = {};
+  let maxV = 0;
+  for (let i = 0; i < 60 * 30; i++) {
+    sim.step();
+    for (const e of sim.drainEvents()) {
+      ev[e.type] = (ev[e.type] || 0) + 1;
+      if (e.type === 'derail') assert(e.i === 0 && typeof e.car === 'number' && isFinite(e.x) && isFinite(e.y) && e.reason, 'derail event shape');
+    }
+    for (let k = 0; k < sim.nNodes; k++) maxV = Math.max(maxV, Math.hypot(sim.vx[k], sim.vy[k]));
+    for (const c of sim.vehicles[0].cars) maxV = Math.max(maxV, Math.hypot(c._vx, c._vy));
+  }
+  const s = sim.summary();
+  assert(s.status === 'failed' && s.failReason === 'derailed' && s.brokenBeams >= 3, 'ore collapses it: ' + JSON.stringify(s));
+  assert(ev.derail >= 2 && ev.vehicle_fall === 1 && ev.splash >= 1 && ev.break >= 3, 'events: ' + JSON.stringify(ev));
+  const cars = sim.vehicles[0].cars;
+  assert(cars.some(c => c.state === 'fallen') && cars.some(c => c.state === 'derailed' || c.state === 'running'), 'some cars fell, the rest were dragged / braked: ' + cars.map(c => c.state[0]).join(''));
+  assert(cars.every(c => c.state === 'fallen' || c.state === 'derailed' || Math.abs(c._vx) < 2), 'cars still on the rail emergency-brake: ' + cars.map(c => c._vx.toFixed(1)).join(' '));
+  assert(sim.vehicles[0].state === 'derailed', 'train state derailed');
+  assert(allFinite(sim) && cars.every(c => isFinite(c.x) && isFinite(c.y) && isFinite(c.angle) && c.wheels.every(w => isFinite(w.x) && isFinite(w.y))), 'finite');
+  assert(maxV <= 60.0001, 'velocities clamped: ' + maxV);
+});
+
+test('rail: determinism - identical summaries, structure and car poses', () => {
+  const v = railViaduct('steam_local', 40, [10, 20, 30], -4, 3, 'wood', 2);
+  const hash = sim => { let h = 0; for (let i = 0; i < sim.nNodes; i++) h = (h * 31 + Math.round(sim.px[i] * 1e9) + Math.round(sim.py[i] * 1e9) * 7) % 1e15; return h; };
+  const s1 = run(v.L, v.d, 20), s2 = run(v.L, v.d, 20);
+  assert(JSON.stringify(s1.summary()) === JSON.stringify(s2.summary()), 'summary differs');
+  assert(hash(s1) === hash(s2), 'structure differs');
+  for (let i = 0; i < s1.vehicles.length; i++) for (let k = 0; k < s1.vehicles[i].cars.length; k++) {
+    const a = s1.vehicles[i].cars[k], b = s2.vehicles[i].cars[k];
+    assert(a.x === b.x && a.y === b.y && a.angle === b.angle && a.state === b.state, 'car pose differs');
+  }
+  const ore = railTruss('ore', 30, 5, 8, 'steel', 'steel');
+  const r1 = runHeadless(ore.L, ore.b.d, { maxTime: 20 }), r2 = runHeadless(ore.L, ore.b.d, { maxTime: 20 });
+  delete r1.wallMs; delete r2.wallMs;
+  assert(JSON.stringify(r1) === JSON.stringify(r2), 'collapse run differs');
+});
+
+test('rail: performance - 24-car ore train over a 300-beam bridge >= 3x realtime', () => {
+  const { L, b } = railTruss('ore', 150, 2.5, 8, 'girder', 'girder', [30, 60, 90, 120]);
+  for (let i = 0; i < b.d.beams.length; i++) if (b.d.beams[i].m === 'girder' && (b.d.beams[i].a.startsWith('n') && b.d.beams[i].b.startsWith('n'))) { /* keep */ }
+  // verticals in steel (lighter), chords + diagonals girder
+  const all = BG.Model.nodeMap(L, b.d);
+  for (const bm of b.d.beams) { const A = all.get(bm.a), B = all.get(bm.b); if (bm.m === 'girder' && Math.abs(A.x - B.x) < 1e-9) bm.m = 'steel'; }
+  assert(b.d.beams.length >= 295 && BG.Model.validate(L, b.d).ok, 'beams ' + b.d.beams.length);
+  const sim = new BG.Simulation(L, b.d);
+  const t0 = Date.now();
+  let onBridge = 0;
+  while (sim.time < 60) {
+    sim.step(); sim.events.length = 0;
+    onBridge = Math.max(onBridge, sim.vehicles[0].cars.filter(c => c.x > 0 && c.x < 150).length);
+  }
+  const wall = (Date.now() - t0) / 1000, factor = 60 / wall;
+  console.log(`      ${b.d.beams.length} beams, ${sim.vehicles[0].cars.length} cars (max ${onBridge} on the bridge): 60 s in ${wall.toFixed(2)} s wall = ${factor.toFixed(1)}x realtime, ${sim.status}`);
+  assert(onBridge >= 12, 'train actually on the bridge');
+  assert(sim.summary().status === 'success', 'the girder bridge carries the ore train: ' + JSON.stringify(sim.summary().firstBreak || sim.summary().firstDerail));
+  assert(factor >= 3, 'too slow: ' + factor.toFixed(1) + 'x');
+  assert(allFinite(sim), 'finite');
+});
+
 // ------------------------------------------------------------------ run
 (async function main() {
   const filter = process.argv[2];

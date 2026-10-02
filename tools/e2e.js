@@ -46,8 +46,8 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.keyboard.press('Enter');
   await page.waitForTimeout(900);
   ok('level select state', await page.evaluate(() => BG.Game.state) === 'levelSelect');
-  const ls = await page.evaluate(() => ({ tiles: document.querySelectorAll('.tile').length, soon: document.querySelectorAll('.tile.soon').length, chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), ranges: Array.from(document.querySelectorAll('.chapter .ch-text p')).map(p => p.textContent.split(' · ')[0]), levels: BG.Levels.length }));
-  ok('level select: 50 levels in 6 chapters', ls.tiles === 50 && ls.soon === 0 && ls.levels === 50 && ls.chapters.length === 6, ls);
+  const ls = await page.evaluate(() => ({ tiles: document.querySelectorAll('.tile').length, soon: document.querySelectorAll('.tile.soon').length, chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), ranges: Array.from(document.querySelectorAll('.chapter .ch-text p')).map(p => p.textContent.split(' · ')[0]), levels: BG.Levels.filter(l => l.campaign !== 'rail').length, tab: BG.Hud.tab }));
+  ok('level select: 50 road levels in 6 chapters (Roads tab)', ls.tab === 'road' && ls.tiles === 50 && ls.soon === 0 && ls.levels === 50 && ls.chapters.length === 6, ls);
   await shot('02-levelselect');
 
   await page.click('.tile[data-id="1"]');

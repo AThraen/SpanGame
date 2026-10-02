@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="470" viewBox="0 -470 2000 470">
+  <!-- SPAN high-speed power car with an aerodynamic nose. 1 unit = 1 cm, origin = rear of the car on the
+       rail line, nose to the right (the renderer mirrors the trailing power car). Bogies drawn separately:
+       centres x = 320 / 1580, axles +-140, wheel r 46; the skirts hide the wheel tops. The raised
+       pantograph head reaches 465 (contact wire height used by the catenary decoration). -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eef1f5"/><stop offset="0.85" stop-color="#cdd4dc"/><stop offset="1" stop-color="#9aa4ae"/>
+    </linearGradient>
+    <linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6d7680"/><stop offset="1" stop-color="#2a2f36"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a4a"/><stop offset="1" stop-color="#b3121a"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.4" stop-color="#4f7fa6"/><stop offset="1" stop-color="#14263a"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a4250"/><stop offset="1" stop-color="#1a1e26"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe9a8"/></linearGradient>
+    <path id="shape" d="M14 -60 L10 -350 Q12 -384 46 -386 L1320 -386 Q1520 -386 1700 -330 Q1880 -272 1972 -176 Q1996 -148 1994 -118 Q1990 -64 1936 -60 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <!-- pantograph (raised) -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M420 -392 L560 -438 L470 -462" stroke="#1c2230" stroke-width="9"/>
+    <path d="M420 -392 L560 -438 L470 -462" stroke="#9aa4ae" stroke-width="5"/>
+    <path d="M426 -464 H516" stroke="#1c2230" stroke-width="9"/>
+    <path d="M426 -464 H516" stroke="#e6ebf0" stroke-width="4"/>
+  </g>
+  <rect x="380" y="-398" width="90" height="14" rx="4" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <g fill="#3a3f48" stroke="#1c2230" stroke-width="2"><rect x="620" y="-396" width="160" height="12" rx="4"/><rect x="900" y="-394" width="60" height="10" rx="3"/></g>
+  <!-- rear gangway end -->
+  <rect x="0" y="-330" width="16" height="250" rx="3" fill="#2a2f36" stroke="#1c2230" stroke-width="2"/>
+  <!-- body -->
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-122" width="2000" height="70" fill="url(#skirt)"/>
+    <rect x="0" y="-126" width="2000" height="6" fill="#ffffff" opacity="0.7"/>
+    <!-- red swoosh -->
+    <path d="M0 -196 L1500 -196 Q1760 -196 2000 -320 L2000 -260 Q1780 -160 1520 -164 L0 -164 Z" fill="url(#red)"/>
+    <path d="M0 -150 L1560 -150 Q1800 -146 2000 -226 L2000 -214 Q1800 -136 1560 -140 L0 -140 Z" fill="#1e2a48"/>
+    <!-- louvres -->
+    <g fill="#9aa4ae" opacity="0.6">
+      <rect x="160" y="-330" width="260" height="90" rx="6"/><rect x="460" y="-330" width="260" height="90" rx="6"/><rect x="760" y="-330" width="260" height="90" rx="6"/>
+    </g>
+    <g stroke="#6d7680" stroke-width="3" opacity="0.7">
+      <path d="M170 -318 H410 M170 -304 H410 M170 -290 H410 M170 -276 H410 M170 -262 H410 M170 -248 H410"/>
+      <path d="M470 -318 H710 M470 -304 H710 M470 -290 H710 M470 -276 H710 M470 -262 H710 M470 -248 H710"/>
+      <path d="M770 -318 H1010 M770 -304 H1010 M770 -290 H1010 M770 -276 H1010 M770 -262 H1010 M770 -248 H1010"/>
+    </g>
+    <rect x="0" y="-386" width="2000" height="10" fill="#ffffff" opacity="0.7"/>
+  </g>
+  <!-- cab windscreen + side window -->
+  <path d="M1560 -350 Q1660 -340 1730 -306 Q1790 -278 1830 -246 L1690 -246 Q1640 -290 1560 -300 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1600 -340 Q1640 -336 1672 -322 L1640 -266 Q1620 -280 1596 -290 Z" fill="#ffffff" opacity="0.28"/>
+  <rect x="1360" y="-336" width="150" height="70" rx="12" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <!-- cab door -->
+  <rect x="1240" y="-350" width="80" height="210" rx="8" fill="none" stroke="#9aa4ae" stroke-width="3"/>
+  <!-- headlights in the nose -->
+  <path d="M1900 -172 Q1940 -164 1962 -142 L1946 -126 Q1920 -146 1890 -152 Z" fill="url(#head)" stroke="#1c2230" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- logo -->
+  <g transform="translate(1080 -300)">
+    <path d="M0 40 Q60 -6 120 40" fill="none" stroke="#b3121a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M-6 46 H126" stroke="#1e2a48" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="4" stroke-linejoin="round"/>
+</svg>

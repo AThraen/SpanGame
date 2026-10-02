@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="80" viewBox="-230 -50 460 80">
+  <!-- SPAN three-axle (Co-Co) bogie side frame for the diesel locomotive. Origin = bogie centre at
+       axle height; axles at x = -170 / 0 / +170 (nominal wheel radius 50). Stretched by the renderer. -->
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a616b"/><stop offset="0.45" stop-color="#3a3f48"/><stop offset="1" stop-color="#1b1e23"/>
+    </linearGradient>
+    <linearGradient id="spring" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7a6208"/><stop offset="0.5" stop-color="#f2c21d"/><stop offset="1" stop-color="#7a6208"/>
+    </linearGradient>
+  </defs>
+  <path d="M-212 -14 L-200 -32 L-150 -32 L-128 -16 L-42 -16 L-26 -32 L26 -32 L42 -16 L128 -16 L150 -32 L200 -32 L212 -14 L212 4 L196 12 L-196 12 L-212 4 Z" fill="url(#frame)" stroke="#121418" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M-196 -28 L-152 -28 M-22 -28 L22 -28 M152 -28 L196 -28" stroke="#8d97a3" stroke-width="2" opacity="0.6"/>
+  <!-- coil springs over each axle box -->
+  <g fill="url(#spring)" stroke="#3a2c04" stroke-width="1.2">
+    <rect x="-182" y="-46" width="24" height="18" rx="4"/><rect x="-12" y="-46" width="24" height="18" rx="4"/><rect x="158" y="-46" width="24" height="18" rx="4"/>
+  </g>
+  <g stroke="#3a2c04" stroke-width="1.2" opacity="0.8"><path d="M-182 -40 H-158 M-182 -34 H-158 M-12 -40 H12 M-12 -34 H12 M158 -40 H182 M158 -34 H182"/></g>
+  <!-- axle boxes -->
+  <g fill="#2a2f36" stroke="#121418" stroke-width="2.5">
+    <rect x="-188" y="-15" width="36" height="28" rx="4"/><rect x="-18" y="-15" width="36" height="28" rx="4"/><rect x="152" y="-15" width="36" height="28" rx="4"/>
+  </g>
+  <g fill="#c9d1da" stroke="#121418" stroke-width="1.5"><circle cx="-170" cy="-1" r="8"/><circle cx="0" cy="-1" r="8"/><circle cx="170" cy="-1" r="8"/></g>
+  <!-- traction motor / sand boxes -->
+  <g fill="#1b1e23" stroke="#121418" stroke-width="1.5">
+    <rect x="-110" y="-12" width="48" height="20" rx="4"/><rect x="62" y="-12" width="48" height="20" rx="4"/>
+  </g>
+  <g fill="#f2c21d"><rect x="-104" y="-7" width="8" height="4" rx="1"/><rect x="96" y="-7" width="8" height="4" rx="1"/></g>
+</svg>
