@@ -1,0 +1,55 @@
+{
+  "id": 2,
+  "name": "Timber Truss",
+  "hint": "Triangles are strong. Build a wooden truss above the road so the van loads flow into the banks.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 20,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -7
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 20,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 20,
+      "y": -3
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 20,
+    "y0": -7,
+    "y1": 8
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 6700,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 35,
+  "templates": true
+}

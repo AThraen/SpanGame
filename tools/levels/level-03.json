@@ -1,0 +1,66 @@
+{
+  "id": 3,
+  "name": "River Pier",
+  "hint": "Too far for one span. Place a pier in the marked zone, then build two steel trusses that rest on it.",
+  "theme": "canyon",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 40,
+    "rightY": 0,
+    "floorY": -12,
+    "waterY": -8
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 40,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 40,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 17,
+      "x1": 23
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 40,
+    "y0": -9,
+    "y1": 10
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 27000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

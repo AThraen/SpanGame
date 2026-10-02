@@ -1,0 +1,55 @@
+{
+  "id": 1,
+  "name": "First Crossing",
+  "hint": "Drag from an anchor to build a road across. A flat road alone sags and snaps - brace the middle with wood struts down to the lower anchors.",
+  "theme": "meadow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 10,
+    "rightY": 0,
+    "floorY": -8,
+    "waterY": -5.5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 10,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -2.5
+    },
+    {
+      "x": 10,
+      "y": -2.5
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 10,
+    "y0": -5,
+    "y1": 6
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 2300,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 2,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 30,
+  "templates": false
+}
