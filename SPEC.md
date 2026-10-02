@@ -355,3 +355,57 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
+
+## 10. Daily Challenge & procedural levels (extension)
+
+A generated level per calendar day plus an Endless mode. Campaign levels, progress and verification are untouched.
+
+### 10.1 `BG.Generator` — `js/core/generator.js` (core: browser + Node, no DOM)
+```js
+BG.Generator.generate(seed, opts)      // -> level (SPEC §4.3 shape) + level.generator meta; synchronous
+BG.Generator.createJob(seed, opts)     // -> job; job.step(ms) -> done?; job.level | job.error; job.progress
+BG.Generator.generateAsync(seed, opts, done(err, level, job), onProgress)  // rAF / setTimeout slices
+BG.Generator.daily(dateOrSeed)         // daily level; seed = YYYYMMDD (player's local date)
+BG.Generator.dailyOpts(seed) / endlessOpts(runSeed, k) / endlessSeed(runSeed, k)
+BG.Generator.dailySeed(date), dailyDifficulty(seed), weekdayOf(seed) /* 0 = Mon */, dateLabel(seed), addDays(seed, k)
+// opts: { difficulty 0..1, mode: 'daily'|'endless'|'custom', id, index, name }
+```
+- **Deterministic:** own mulberry32 PRNG + `Math.imul` hash; only IEEE basic ops and `sqrt` (no `Math.random`,
+  no transcendental functions). The same seed + `BG.Generator.VERSION` gives a bit-identical level everywhere.
+  Bump `VERSION` whenever the output changes (it invalidates browser caches).
+- **Difficulty:** daily difficulty = weekday curve Mon 0.08 → Sun 0.88 (± 0.035 per date). Endless crossing k:
+  `0.06 + 0.075 k` (capped at 1).
+- **Level ids:** `'daily-YYYYMMDD'`, `'endless-<runSeed>-<k>'` (strings, never in `BG.Levels`); `templates: false`.
+- **Solvable by construction:** an in-generator solver builds editor-buildable parametric trusses (0.25 m grid;
+  Pratt / Warren; above, below or both sides; 1–2 tiers; wood / steel; road / reinforced road; 0–2 piers),
+  validates them with `BG.Model.validate` and runs them headless in `BG.Simulation` (seed 1). A candidate passes
+  on `success` with peak stress ≤ 0.92 (early abort as soon as the peak exceeds it). Families are tried
+  cheapest-first by their strongest variant, then the passing family is binary-searched for cheaper variants.
+  `budget = ceil(cost / 0.75 / 50) * 50`, `timeLimit = max(25, ceil5(1.3 t + 6))`. If no candidate passes, the
+  level is adjusted deterministically (more materials → pier zone → lighter traffic → shorter gap → re-roll).
+- `level.generator = { version, seed, difficulty, mode, archetype, attempt, sims, date?, index?,
+  solution: { design, kind, cost, peak, time, params } }` — the proof design (not shown to the player).
+- `node tools/test-generator.js`: 365 consecutive days + 200 random seeds; asserts well-formed levels, valid
+  editor-buildable solutions, re-verified pass on the final level, `0.70 < cost/budget ≤ 0.75`, determinism
+  (repeat + time-sliced job == sync), rising weekday curve, p95 generation time ≤ 2 s; prints distributions.
+
+### 10.2 `BG.Daily` — `js/features/daily.js` + `css/daily.css`
+- Title button "Daily Challenge" (date, today's stars, streak) opens the daily panel: today's crossing (name,
+  thumbnail, gap, traffic, budget, weekday difficulty pips), today's best, streak / best streak, 14-day history
+  (click a past day → practice), Play, Copy result, Endless (continue / new run).
+- Integration is by **wrapping** public methods (no edits to shared files beyond `index.html` tags):
+  `BG.Game.findLevel` (resolves generated ids), `nextLevel` (daily → panel, endless → next crossing),
+  `goLevelSelect` (from a generated level → title + panel), `resetProgress` (also clears daily/endless), `init`
+  (URL helpers); `BG.Storage.recordResult` (generated ids → daily/endless records, never campaign progress),
+  `setLastLevel` (ignores generated ids); `BG.Hud.init` (inject UI), `refreshTitle`, `enterLevel` (DAILY /
+  ENDLESS badge), `showResults` (share card / run score, "Daily menu" / "Next crossing").
+- Storage keys (`BG.Storage.get/set`): `daily` = `{ days: { YYYYMMDD: { name, budget, gap, difficulty,
+  attempts, passed, stars, cost, members, practice? } }, bestStreak }`; `endless` = `{ best:{cleared, stars},
+  run:{seed, index, cleared, stars, starsBy}, runs }`; caches `dailyCache` (today) and `endlessCache`
+  (current crossing), both keyed by `VERSION`. Designs use the normal `design.<id>` keys (old ones pruned).
+- Streak = consecutive days whose daily was passed **on that day**; today still open does not break it.
+- Share text: `SPAN Daily #<n> · <Ddd D Mon YYYY>` / `🌉 <name> · <gap> m` / `★★☆ · 82% of budget · 24 members` /
+  10-cell emoji bar (🟩 ≤ 70 %, 🟨, 🟧, 🟥, ⬜) / `🔥 N-day streak`. Clipboard API with `execCommand` fallback.
+- Generation in the browser runs time-sliced on `requestAnimationFrame` (6 ms slices while prefetching on the
+  title screen, 80 ms while the player waits behind the loader); no Web Worker, because `file://` pages
+  cannot load worker scripts reliably in every browser (slicing never changes the result). `node tools/test-daily.js` covers records + the headless browser flow.

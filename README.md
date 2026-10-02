@@ -28,6 +28,16 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
 
 Your progress and your last design for each level are saved in `localStorage` automatically. The game still works when storage is unavailable.
 
+### Daily Challenge and Endless
+
+The **Daily Challenge** button on the title screen opens a new generated crossing every day. Everyone gets the same level for the same date, in every browser. Difficulty follows the week: Monday is gentle and Sunday is brutal. The generator proves that every level can be solved before you see it (see "Level generator" below). Its own bridge costs about 75% of the budget, so its design earns ★★. For ★★★ you need a better bridge than the generator found.
+
+- The daily panel shows today's crossing, your best result today, your streak (consecutive days with a passed daily) and your best streak. It also has a 14-day history strip. Click a past day to play it as practice. Practice results are kept, but they don't count toward the streak.
+- After a pass, the results show a share card: date, stars, cost as a percentage of the budget, number of members, and an emoji bar. **Copy result** puts it on the clipboard.
+- **Endless** plays random generated crossings that get harder each time. Your run score is crossings cleared plus stars. The best run is saved, and you can continue the current run later.
+- Daily and endless results are stored apart from the 50-level campaign, so they never change campaign stars or unlocks. Today's level is cached, and your design for each daily is saved like any other level.
+- URL helpers: `?daily` plays today's daily, `?daily=20261002` plays a given date, `?endless` continues the endless run, and `?today=20261005` pretends it is that day (for testing).
+
 ## Controls
 
 ### Building (edit mode)
@@ -83,6 +93,7 @@ js/core/                 simulation core - runs in the browser AND in Node, no D
   physics.js             BG.Simulation - deterministic XPBD, fixed 1/60 s step with substeps
   levels.js              BG.Levels - level definitions
   templates.js           BG.Templates - bridge-type generators
+  generator.js           BG.Generator - deterministic procedural levels, each proven solvable (daily / endless)
 js/render/
   effects.js             BG.Effects - particles, debris, splashes, camera shake
   renderer.js            BG.Renderer + BG.Sprites - layered canvas renderer (parallax, water, terrain, beams, vehicles)
@@ -92,6 +103,8 @@ js/ui/
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
+js/features/daily.js     BG.Daily - Daily Challenge + Endless mode (title button, panel, share card, streak/history)
+css/daily.css            styles for the daily panel, loader and share card
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint
 assets/icons/            SVG UI icons
 assets/bg/               painterly per-theme backgrounds (<theme>.jpg)
@@ -104,6 +117,8 @@ tools/                   Node tooling (not loaded by the game)
   test-editor.js         editor tests (fake DOM / renderer)
   test-templates.js      template generator tests (--verbose, --svg out.html)
   e2e.js                 headless-Chrome end-to-end check of the real game
+  test-generator.js      365 dailies + 200 random seeds: valid, solvable, deterministic; distribution + timing
+  test-daily.js          daily/endless records, streaks, share text (Node) + headless-browser daily/endless flow
   shot.js                headless screenshot helper
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level
 SPEC.md                  binding data contracts between modules
@@ -121,6 +136,8 @@ node tools/verify-levels.js    # all 50 levels, reference + best design each (se
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels
 node tools/e2e.js [outDir]     # full browser run; screenshots go to %TEMP%/span-e2e by default
+node tools/test-generator.js   # generator batch: 365 days + 200 seeds (--quick for a short run, --verbose per level)
+node tools/test-daily.js       # daily/endless: Node records + headless browser flow (--node-only)
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```
 
@@ -162,3 +179,14 @@ Budgets are set so the reference costs at most about 88% of the budget and the b
 1. Write `tools/levels/level-NN.json` (the shape is in SPEC.md §4.3) and run `node tools/build-levels.js`, which regenerates `js/core/levels.js`. Do not edit `levels.js` by hand.
 2. Save a reference design as `tools/solutions/level-NN.json` and a cheap one as `level-NN-best.json`. You can build them in the game and copy them with `BG.Model.serialize(BG.Game.getDesign())` in the browser console.
 3. Run `node tools/verify-levels.js --only NN` and adjust the budget until both designs pass.
+
+## Level generator
+
+`BG.Generator` (`js/core/generator.js`) builds a level from a seed and a difficulty from 0 to 1. Daily seeds are dates in `YYYYMMDD` form. The generator uses its own seeded PRNG and only basic arithmetic and `sqrt`, so a seed gives a bit-identical level in Node and in every browser.
+
+1. **Shape.** A seeded archetype picks the layout: open valley, cliff ledges, low headroom, no ledges, a ship channel or a pier valley. The difficulty sets the gap (about 12–42 m, or 34–62 m for pier valleys), bank heights, water, materials and traffic. Traffic runs from cars and vans up to semis and tankers.
+2. **Proof.** A built-in solver makes parametric trusses on the editor's 0.25 m grid. They come in Pratt or Warren form, above, below or on both sides of the deck, with one or two tiers, in wood or steel, on road or reinforced road, with or without piers. The solver runs each candidate through the real simulation headless. It takes the cheapest family whose strongest truss passes with peak stress ≤ 92%, then binary-searches that family's cheaper variants.
+3. **Budget.** The budget is set to the cheapest passing cost ÷ 0.75. The time limit comes from that bridge's run.
+4. **Retry.** If nothing passes, the level is adjusted the same way every time and solved again: first more materials, then a pier zone, then lighter traffic, then a shorter gap.
+
+Generation takes about 0.1–1 s (about 0.45 s on average in Node). The browser runs it in time slices and caches today's level. `node tools/test-generator.js` checks 365 days and 200 random seeds and reports the distributions.

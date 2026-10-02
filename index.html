@@ -8,6 +8,8 @@
   <title>SPAN — Bridge Builder</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1424'/%3E%3Cpath d='M8 44h48M18 44V16M46 44V16M6 40Q12 39 18 16Q32 46 46 16Q52 39 58 40' stroke='%23ffb547' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
+  <!-- daily-challenge: -->
+  <link rel="stylesheet" href="css/daily.css">
 </head>
 <body data-screen="boot">
   <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
@@ -22,6 +24,8 @@
   <script src="js/core/physics.js"></script>
   <script src="js/core/levels.js"></script>
   <script src="js/core/templates.js"></script>
+  <!-- daily-challenge: procedural level generator -->
+  <script src="js/core/generator.js"></script>
   <!-- rendering -->
   <script src="js/render/effects.js"></script>
   <script src="js/render/renderer.js"></script>
@@ -31,5 +35,7 @@
   <script src="js/ui/editor.js"></script>
   <script src="js/ui/hud.js"></script>
   <script src="js/main.js"></script>
+  <!-- daily-challenge: Daily Challenge + Endless mode (wraps BG.Game / BG.Hud / BG.Storage) -->
+  <script src="js/features/daily.js"></script>
 </body>
 </html>
