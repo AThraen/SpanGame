@@ -1,0 +1,73 @@
+/* SPAN — Goals (badges) styles. Only touches elements added by js/features/goals-ui.js (plus tile-badges inside tiles). */
+.gb-img { width: 40px; height: 40px; flex: none; display: block; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .35)); }
+.gb-img.locked { filter: grayscale(1) brightness(.62) contrast(.9) drop-shadow(0 2px 4px rgba(0, 0, 0, .3)); opacity: .75; }
+.gb-img.gb-mini { width: 26px; height: 26px; }
+.gb-img.gb-tile { width: 18px; height: 18px; margin-right: 3px; }
+.gb-img.gb-chip { width: 22px; height: 22px; }
+
+/* top-bar button */
+.goals-btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 10px 0 6px; border-radius: 12px; cursor: pointer; pointer-events: auto; }
+#screen-level .goals-btn { pointer-events: auto; }
+.goals-count { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+.goals-count b { color: var(--text); font-size: 15px; }
+.goals-btn.on { border-color: rgba(255, 210, 94, .5); background: rgba(255, 210, 94, .12); }
+.goals-btn.all .goals-count b { color: var(--star); }
+
+/* in-level panel */
+.goals-panel { position: absolute; top: calc(var(--gap) * 2 + var(--top-h)); right: var(--gap); width: min(318px, calc(100vw - 2 * var(--gap))); padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px;
+  transform: translateX(24px); opacity: 0; visibility: hidden; transition: transform .4s var(--spring), opacity .25s, visibility 0s .3s; max-height: calc(100% - var(--top-h) - 150px); overflow-y: auto; scrollbar-width: thin; z-index: 3; }
+.goals-panel.open { transform: none; opacity: 1; visibility: visible; transition-delay: 0s; pointer-events: auto; }
+body[data-state="sim"] .goals-panel.open, body[data-state="results"] .goals-panel.open { opacity: .0; visibility: hidden; pointer-events: none; }
+.gp-head { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.gp-head b { font-family: var(--font-display); font-weight: 900; letter-spacing: .02em; }
+.gp-head span { color: var(--muted); font-size: 12.5px; flex: 1; }
+.gp-sub { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.35; }
+.gp-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: var(--glass-hi); border: 1px solid transparent; transition: border-color .25s, background .25s; }
+.gp-row.ontrack { border-color: rgba(62, 224, 143, .45); background: rgba(62, 224, 143, .07); }
+.gp-row.have { border-color: rgba(255, 210, 94, .55); background: rgba(255, 210, 94, .09); }
+.gp-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.gp-txt b { font-size: 13.5px; }
+.gp-txt b i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #1a1305; background: var(--star); border-radius: 99px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
+.gp-txt > span { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.gp-txt small { color: var(--dim); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.gp-row.ontrack small { color: var(--good); }
+.gp-bar { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .1); overflow: hidden; margin-top: 3px; }
+.gp-bar em { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--good)); border-radius: 4px; transition: width .4s var(--ease); }
+.gp-row.have .gp-bar em { background: linear-gradient(90deg, #ffd25e, #ff9d3d); }
+
+/* results modal */
+.res-badges { margin: 0 0 14px; padding: 10px 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); opacity: 0; transform: translateY(8px); transition: opacity .4s, transform .5s var(--spring); }
+.res-badges.show { opacity: 1; transform: none; }
+.rb-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 4px 8px; }
+.rb-title b { color: var(--star); font-size: 13px; letter-spacing: .04em; }
+.rb-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+.rb { width: 104px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px 6px; border-radius: 12px; opacity: 0; transform: scale(.6) translateY(8px); transition: opacity .3s, transform .4s var(--spring); position: relative; }
+.rb.in { opacity: 1; transform: none; }
+.rb .gb-img { width: 56px; height: 56px; }
+.rb b { font-size: 12.5px; line-height: 1.15; }
+.rb span { font-size: 11px; color: var(--dim); line-height: 1.2; min-height: 13px; }
+.rb.have span, .rb.now span { color: var(--star); }
+.rb.new { background: radial-gradient(circle at 50% 30%, rgba(255, 210, 94, .22), transparent 70%); }
+.rb.new span { font-weight: 800; letter-spacing: .1em; color: #1a1305; background: var(--star); border-radius: 99px; padding: 1px 8px; min-height: 0; }
+.rb.pop .gb-img { animation: badgepop .7s var(--spring); filter: drop-shadow(0 0 12px rgba(255, 200, 80, .7)); }
+.rb.new.pop::after { content: ""; position: absolute; left: 50%; top: 36px; width: 12px; height: 12px; margin: -6px; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 0 rgba(255, 210, 94, .8); animation: badgering .9s ease-out; }
+@keyframes badgepop { 0% { transform: scale(.1) rotate(-140deg); } 55% { transform: scale(1.3) rotate(12deg); } 100% { transform: none; } }
+@keyframes badgering { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 94, .8); } 100% { box-shadow: 0 0 0 46px rgba(255, 210, 94, 0); } }
+@media (prefers-reduced-motion: reduce) { .rb.pop .gb-img, .rb.new.pop::after { animation: none; } }
+
+/* level tiles + totals */
+.tile-stars { align-items: center; }
+.tile-badges { margin-left: auto; display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700; color: var(--dim); font-variant-numeric: tabular-nums; }
+.tile-badges b { color: var(--muted); margin-right: 1px; }
+.tile-badges .gb-img { filter: grayscale(1) brightness(.7); opacity: .8; }
+.tile-badges.some .gb-img, .tile-badges.all .gb-img { filter: none; opacity: 1; }
+.tile-badges.some b { color: var(--text); }
+.tile-badges.all, .tile-badges.all b { color: var(--star); }
+.badge-chip { gap: 6px; }
+.badge-chip .gb-img { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .35)); }
+
+@media (max-width: 760px) {
+  .goals-count { display: none; }
+  .goals-panel { right: var(--gap); top: calc(var(--gap) * 2 + var(--top-h)); }
+  .rb { width: 92px; }
+}
