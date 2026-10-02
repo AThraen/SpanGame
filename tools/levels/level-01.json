@@ -1,7 +1,7 @@
 {
   "id": 1,
-  "name": "First Crossing",
-  "hint": "Drag from an anchor to build a road across. A flat road alone sags and snaps - brace the middle with wood struts down to the lower anchors.",
+  "name": "Wobble Creek",
+  "hint": "Step 1: with Road picked, drag from the left bank anchor toward the right. A beam stops at its 6 m limit and building carries on from its end - click the far anchor to finish. Step 2: pick Wood (key 2) and drag from a lower anchor up to a road joint to make a triangle (right-click or Esc stops building). Step 3: press Test (Space).",
   "theme": "meadow",
   "terrain": {
     "leftEdge": 0,
@@ -35,21 +35,26 @@
   "buildArea": {
     "x0": 0,
     "x1": 10,
-    "y0": -5,
-    "y1": 6
+    "y0": -0.25,
+    "y1": 0.25
   },
   "materials": [
     "road",
     "wood"
   ],
-  "budget": 2300,
+  "budget": 1900,
   "traffic": [
     {
       "type": "car",
       "count": 2,
       "interval": 2.5
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 3
     }
   ],
-  "timeLimit": 30,
+  "timeLimit": 32,
   "templates": false
 }

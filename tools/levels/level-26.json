@@ -1,0 +1,77 @@
+{
+  "id": 26,
+  "name": "Gridlock",
+  "theme": "city",
+  "hint": "A sloping deck loaded end to end at once. Three spots could take a pier, but you may only pour two - choose them wisely.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 60,
+    "rightY": 3,
+    "floorY": -9,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 60,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 60,
+      "y": -2
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 13,
+      "x1": 17
+    },
+    {
+      "x0": 28,
+      "x1": 32
+    },
+    {
+      "x0": 43,
+      "x1": 47
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 60,
+    "y0": -6,
+    "y1": 10
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 35000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 5,
+      "interval": 2.2
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.8
+    }
+  ],
+  "timeLimit": 38,
+  "templates": true
+}

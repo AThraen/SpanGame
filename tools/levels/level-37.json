@@ -1,0 +1,79 @@
+{
+  "id": 37,
+  "name": "Moonlit Strait",
+  "hint": "The ships own the middle and the sky is low. Lean out from the cliff bolts as far as the lane allows, then leap.",
+  "theme": "night",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 88,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -18
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 88,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 88,
+      "y": -6
+    },
+    {
+      "x": 0,
+      "y": -12
+    },
+    {
+      "x": 88,
+      "y": -12
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [
+    {
+      "x0": 22,
+      "x1": 66,
+      "y0": -18,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": -2,
+    "x1": 90,
+    "y0": -17,
+    "y1": 14
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 105000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

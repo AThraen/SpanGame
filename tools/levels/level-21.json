@@ -1,0 +1,64 @@
+{
+  "id": 21,
+  "name": "Twenty Tonnes",
+  "theme": "meadow",
+  "hint": "Trucks weigh 20 t. Reinforced road is pricier but carries more than twice the load of plain road - use it where the deck itself works hard.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 46,
+    "rightY": 0,
+    "floorY": -13,
+    "waterY": -9
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 46,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 46,
+      "y": -6
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 46,
+    "y0": -8,
+    "y1": 7
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 21500,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

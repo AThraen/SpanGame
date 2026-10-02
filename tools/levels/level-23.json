@@ -1,0 +1,80 @@
+{
+  "id": 23,
+  "name": "Harbour Mouth",
+  "theme": "city",
+  "hint": "Ships need the red channel clear. Stand piers outside it - nothing may hang below the deck over the water lane.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 50,
+    "rightY": 0,
+    "floorY": -11,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 50,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 50,
+      "y": -5
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 6,
+      "x1": 12
+    },
+    {
+      "x0": 38,
+      "x1": 44
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 13,
+      "x1": 37,
+      "y0": -6,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 50,
+    "y0": -6,
+    "y1": 9
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 30500,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 35,
+  "templates": true
+}

@@ -1,0 +1,94 @@
+{
+  "id": 46,
+  "name": "Avalanche Arch",
+  "theme": "snow",
+  "hint": "A bottomless gorge and not one pier - but the cliff faces are studded with bolts. Arch it, and brace the arch.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 130,
+    "rightY": 0,
+    "floorY": -80,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 130,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 130,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 130,
+      "y": -16
+    },
+    {
+      "x": 0,
+      "y": -24
+    },
+    {
+      "x": 130,
+      "y": -24
+    },
+    {
+      "x": 0,
+      "y": -32
+    },
+    {
+      "x": 130,
+      "y": -32
+    },
+    {
+      "x": 0,
+      "y": -40
+    },
+    {
+      "x": 130,
+      "y": -40
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 130,
+    "y0": -42,
+    "y1": 6
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 307000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 22
+    },
+    {
+      "type": "tanker",
+      "count": 1,
+      "interval": 22
+    }
+  ],
+  "timeLimit": 95,
+  "templates": true
+}

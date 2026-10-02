@@ -25,6 +25,7 @@
   const MIN_LEN = 0.25;      // m: shortest beam the editor will create
   const AXIS_EPS = 0.02;     // m: a joint this close to the mirror axis is "on axis" (shared)
   const POS_EPS = 0.02;      // m: two joints this close are the same place
+  const SPLIT_TOL = 0.15;    // m: a new joint this close to an existing beam splits it (joins it)
   const DRAG_PX = 5;         // px before a press becomes a drag (touch ×2)
   const LONG_PRESS_MS = 380; // hold still on a joint, then drag → move the joint
   const HISTORY = 200;
@@ -338,11 +339,14 @@
       if (ba && (x < ba.x0 - 1e-6 || x > ba.x1 + 1e-6 || y < ba.y0 - 1e-6 || y > ba.y1 + 1e-6)) return 'outside_build_area';
       for (const r of lv.noBuild || []) if (inRectOpen(x, y, r)) return 'in_nobuild';
       if (inTerrain(lv, x, y, 0.05)) return 'in_terrain';
+      const M = BG.Model;
+      if (M && M.terrainDistance && M.TERRAIN_CLEARANCE && M.terrainDistance(lv, x, y) < M.TERRAIN_CLEARANCE - 1e-6) return 'near_terrain';
       return null;
     }
     _segProblem(ax, ay, bx, by) {
       const lv = this._level() || {};
       for (const r of lv.noBuild || []) if (segHitsRect(ax, ay, bx, by, r)) return 'in_nobuild';
+      if (BG.Model && BG.Model.segmentInTerrain) return BG.Model.segmentInTerrain(lv, ax, ay, bx, by, 0.05) ? 'in_terrain' : null;
       for (let k = 1; k < 8; k++) {
         const f = k / 8;
         if (inTerrain(lv, ax + (bx - ax) * f, ay + (by - ay) * f, 0.1)) return 'in_terrain';
@@ -603,13 +607,17 @@
     _placeBeam(fromId, g) {
       if (!g || !g.valid) { this._sfx('error'); return null; }
       this._begin();
+      const fresh = !g.snapNode;
       let end = g.snapNode || this._addNode(g.x2, g.y2);
+      if (fresh) this._splitAt(end, fromId);
       this._addBeam(fromId, end, g.m);
       if (this._mirror) {
         const mg = this._mirrorGhost(g);
         if (mg && mg.valid) {
           const a = this._partner(fromId, true);
+          const had = !!this._partner(end, false);
           const b = this._partner(end, true);
+          if (b && !had) this._splitAt(b, a);
           if (a && b && a !== b && this._beamIndex(a, b) < 0) this._addBeam(a, b, g.m);
           this._pruneOrphans([fromId, end]);
         }
@@ -617,6 +625,30 @@
       this._commit();
       this._sfx('place', { material: g.m, pan: this._pan(g.x2) });
       return end;
+    }
+
+    /** A new joint that lands on an existing beam joins it: split that beam in two at the joint.
+     *  (Otherwise a clamped beam end can sit on the road without being connected to it.) */
+    _splitAt(id, skipId) {
+      const N = this._node(id);
+      if (!N) return false;
+      const beams = this._design.beams;
+      for (let i = 0; i < beams.length; i++) {
+        const b = beams[i];
+        if (b.a === id || b.b === id || b.a === skipId || b.b === skipId) continue;
+        const A = this._node(b.a), B = this._node(b.b);
+        if (!A || !B) continue;
+        const dx = B.x - A.x, dy = B.y - A.y, l2 = dx * dx + dy * dy;
+        if (l2 < 1e-9) continue;
+        const t = ((N.x - A.x) * dx + (N.y - A.y) * dy) / l2;
+        if (t <= 0 || t >= 1) continue;
+        if (hyp(N.x - (A.x + t * dx), N.y - (A.y + t * dy)) > SPLIT_TOL) continue;
+        if (hyp(N.x - A.x, N.y - A.y) < MIN_LEN || hyp(N.x - B.x, N.y - B.y) < MIN_LEN) continue;
+        beams.splice(i, 1, { a: b.a, b: id, m: b.m }, { a: id, b: b.b, m: b.m });
+        this._invalidate();
+        return true;
+      }
+      return false;
     }
 
     /** Build a beam between two world points/joints programmatically (used by tests & tools). */
@@ -1132,12 +1164,21 @@
         // a click on a joint
         if (this.chainFrom && this.chainFrom !== a.node) {
           const N = this._node(a.node);
-          const g = N ? this._ghost(this.chainFrom, N.x, N.y, o) : null;
+          let g = N ? this._ghost(this.chainFrom, N.x, N.y, o) : null;
           if (g && g.snapNode === a.node) {
             const end = this._placeBeam(this.chainFrom, g);
-            if (end) this.chainFrom = end;
+            if (end) this.chainFrom = this._chainNext(end);
           } else {
-            this.chainFrom = a.node; this._sfx('click');
+            // out of reach: do what the preview shows - build toward it, stopped at the max length
+            g = this._ghost(this.chainFrom, x, y, o);
+            if (g && g.snapNode === a.node) g = this._ghost(this.chainFrom, N.x, N.y, o);
+            if (g && g.valid) {
+              const end = this._placeBeam(this.chainFrom, g);
+              if (end) this.chainFrom = this._chainNext(end);
+              if (g.clamped) this._toast((matDef(g.m) || {}).name + ' reaches at most ' + g.maxLength + ' m - the beam stops short of that joint.');
+            } else {
+              this.chainFrom = a.node; this._sfx('click');
+            }
           }
         } else if (this.chainFrom === a.node) {
           this.chainFrom = null;
@@ -1150,14 +1191,14 @@
         if (g && g.reason === 'too_short') this.chainFrom = a.node; // dropped back on itself: just start a chain
         else {
           const end = this._placeBeam(a.node, g);
-          this.chainFrom = end || a.node;
+          this.chainFrom = end ? this._chainNext(end) : a.node;
         }
       } else if (a.type === 'chainpress') {
         const g = this._ghost(this.chainFrom, x, y, o);
         if (g && g.reason === 'too_short') { /* tapped the chain joint again: nothing */ }
         else {
           const end = this._placeBeam(this.chainFrom, g);
-          if (end) this.chainFrom = end;
+          if (end) this.chainFrom = this._chainNext(end);
         }
       } else if (a.type === 'move') {
         this._act = a;
@@ -1175,6 +1216,12 @@
         for (const b of this._design.beams) if (inside(this._node(b.a)) && inside(this._node(b.b))) this._sel.beams.add(key(b.a, b.b));
       }
       this._refresh(o);
+    }
+
+    /** Where the auto-chain continues after a beam ended at `end`: reaching an anchor finishes the chain. */
+    _chainNext(end) {
+      const n = this._node(end);
+      return n && n.kind === 'anchor' ? null : end;
     }
 
     /** Right-click (no drag): end chain / cancel gesture, otherwise erase what is under the cursor. */

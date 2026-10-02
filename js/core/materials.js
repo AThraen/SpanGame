@@ -16,14 +16,14 @@
       id: 'road', name: 'Road', color: '#3b4049',
       costPerMeter: 100, massPerMeter: 120,
       stiffness: 5.0e7, tensionLimit: 300e3, compressionLimit: 300e3,
-      bendStiffness: 2.4e5, momentLimit: 3.0e4,
+      bendStiffness: 2.4e5, momentLimit: 3.0e4, bendRefLength: 4,
       maxLength: 6, isRoad: true, tensionOnly: false, width: 0.5,
     },
     reinforced_road: {
       id: 'reinforced_road', name: 'Reinforced Road', color: '#5a4a3c',
       costPerMeter: 180, massPerMeter: 160,
       stiffness: 1.2e8, tensionLimit: 720e3, compressionLimit: 720e3,
-      bendStiffness: 6.5e5, momentLimit: 1.1e5,
+      bendStiffness: 6.5e5, momentLimit: 1.1e5, bendRefLength: 4,
       maxLength: 6, isRoad: true, tensionOnly: false, width: 0.62,
     },
     wood: {

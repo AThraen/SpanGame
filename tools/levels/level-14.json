@@ -1,0 +1,58 @@
+{
+  "id": 14,
+  "name": "Rope Trick",
+  "theme": "tropical",
+  "hint": "No steel here, and only cars and vans. Rope is dirt cheap but it only pulls: raise a pier tower and fan ropes out from its top to hold the road up.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 35,
+    "rightY": 0,
+    "floorY": -5,
+    "waterY": -1.5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 35,
+      "y": 0
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 14,
+      "x1": 21
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 35,
+    "y0": -3,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "wood",
+    "rope"
+  ],
+  "budget": 11500,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 3,
+      "interval": 1.6
+    },
+    {
+      "type": "van",
+      "count": 4,
+      "interval": 1.8
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

@@ -1,0 +1,66 @@
+{
+  "id": 11,
+  "name": "Pier Review",
+  "theme": "tropical",
+  "hint": "Shallow water makes piers cheap. Plant one in the yellow zone (drag to set its height) and let it carry the middle, then truss out to each bank.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 28,
+    "rightY": 0,
+    "floorY": -3,
+    "waterY": -1.6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 28,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -1.5
+    },
+    {
+      "x": 28,
+      "y": -1.5
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 10,
+      "x1": 18
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 28,
+    "y0": -2.5,
+    "y1": 3.5
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 12000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 2.2
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

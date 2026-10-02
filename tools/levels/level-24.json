@@ -1,0 +1,71 @@
+{
+  "id": 24,
+  "name": "Coral Gate",
+  "theme": "tropical",
+  "hint": "Tall masts sail through here and there is no room for piers. Spring an arch from the cliff bolts, high over the road, and hang the deck from it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 54,
+    "rightY": 0,
+    "floorY": -12,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 54,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 54,
+      "y": -3
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [
+    {
+      "x0": 4,
+      "x1": 50,
+      "y0": -6,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 54,
+    "y0": -6,
+    "y1": 15
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 35000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3.5
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 5
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

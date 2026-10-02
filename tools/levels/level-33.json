@@ -1,0 +1,80 @@
+{
+  "id": 33,
+  "name": "Graveyard Shift",
+  "hint": "Keep the shipping lane clear. Piers do not have to stop at the road.",
+  "theme": "night",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 75,
+    "rightY": 0,
+    "floorY": -26,
+    "waterY": -14
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 75,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 75,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 14,
+      "x1": 22
+    },
+    {
+      "x0": 53,
+      "x1": 61
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 23,
+      "x1": 52,
+      "y0": -14,
+      "y1": -2
+    }
+  ],
+  "buildArea": {
+    "x0": -2,
+    "x1": 77,
+    "y0": -13,
+    "y1": 18
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 54500,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

@@ -426,6 +426,59 @@ test('events: finish events, creak near limit, drainEvents clears', () => {
   assert(creak, 'creak emitted before snapping');
 });
 
+test('exploits: finely cut road decks are not stiffer/cheaper than a supported deck', () => {
+  // 14 m road-only deck under cars: every segment length must fail (deck bending no longer depends on cut density)
+  const L = makeLevel(14, [{ type: 'car', count: 2, interval: 2.5 }, { type: 'van', count: 1, interval: 3 }]);
+  for (const n of [56, 28, 14, 7, 3]) {
+    const r = runHeadless(L, flatDeck(L, 14, n));
+    assert(r.status === 'failed', 'road-only deck cut into ' + n + ' pieces must fail, got ' + r.status);
+  }
+  // bend link stiffness scales for short segments
+  const s = new BG.Simulation(L, flatDeck(L, 14, 28), {});
+  const ref = 1 / BG.Materials.road.bendStiffness;
+  assert(s.lcompl[0] < ref * 0.2, 'short-segment link is stiffer (' + s.lcompl[0] + ' vs ' + ref + ')');
+  const s2 = new BG.Simulation(makeLevel(15), flatDeck(makeLevel(15), 15, 3), {});
+  approx(s2.lcompl[0], ref, 1e-12, '5 m segments keep the base stiffness');
+});
+
+test('exploits: ramps / unconnected roads cannot pass; first break is reported', () => {
+  const L = makeLevel(10, [{ type: 'car', count: 2, interval: 2.5 }], { anchors: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: -2.5 }, { x: 10, y: -2.5 }] });
+  const ramp = { nodes: [{ id: 'n1', x: 3.5, y: 1.75 }], beams: [{ a: 'a0', b: 'n1', m: 'road' }, { a: 'a2', b: 'n1', m: 'wood' }], piers: [] };
+  assert(!BG.Model.roadConnected(L, ramp), 'ramp road is not connected');
+  const r = runHeadless(L, ramp);
+  assert(r.status === 'failed' && (r.failReason === 'vehicle_jumped' || r.failReason === 'vehicle_fell'), 'ramp jump must fail, got ' + r.status + '/' + r.failReason);
+  const L12 = makeLevel(12, [{ type: 'car', count: 2, interval: 2.5 }]);
+  const flat = flatDeck(L12, 12, 2);
+  assert(BG.Model.roadConnected(L12, flat), 'flat deck is connected');
+  const f = runHeadless(L12, flat);
+  assert(f.status === 'failed' && f.firstBreak && f.firstBreak.m === 'road' && f.firstBreak.mode === 'bending', 'unsupported deck reports a bending failure: ' + JSON.stringify(f.firstBreak));
+});
+
+test('stalled traffic ends the run early', () => {
+  // (physics only - the members are longer than the editor allows) a 5.5 m high peak the bus cannot climb: vehicles stop; the run ends with 'stalled' long before the 60 s limit
+  const L = makeLevel(12, [{ type: 'bus', count: 1, interval: 2 }], { timeLimit: 60 });
+  const b = Builder(L);
+  const top = b.node(6, 5.5);
+  b.beam('a0', top, 'reinforced_road'); b.beam(top, 'a1', 'reinforced_road');
+  b.beam('a2', top, 'steel'); b.beam('a3', top, 'steel');
+  const r = runHeadless(L, b.d);
+  assert(r.status === 'failed' && r.failReason === 'stalled', 'got ' + r.status + '/' + r.failReason + ' at ' + r.time);
+  assert(r.time < 20, 'stall detected early (' + r.time + ' s)');
+});
+
+test('model: joints keep clear of rock, beams may not pass through it', () => {
+  const L = makeLevel(20);
+  const v = (nodes, beams) => BG.Model.validate(L, { nodes, beams, piers: [] });
+  assert(v([{ id: 'n1', x: 0, y: -6 }], [{ a: 'a0', b: 'n1', m: 'steel' }]).errors.some(e => e.type === 'near_terrain'), 'joint on the cliff face');
+  assert(v([{ id: 'n1', x: 5, y: -14.8 }], [{ a: 'a2', b: 'n1', m: 'steel' }]).errors.some(e => e.type === 'near_terrain'), 'joint resting on the floor');
+  assert(v([{ id: 'n1', x: 1, y: -6 }], [{ a: 'a0', b: 'n1', m: 'steel' }, { a: 'a2', b: 'n1', m: 'steel' }]).ok, 'joint 1 m off the face is fine');
+  assert(v([{ id: 'n1', x: 2, y: -6 }], [{ a: 'n1', b: 'a0', m: 'steel' }, { a: 'n1', b: 'a2', m: 'steel' }, { a: 'a2', b: 'a0', m: 'steel' }]).ok, 'beam along the cliff face between bolts is fine');
+  const thru = { nodes: [{ id: 'n1', x: 3, y: -6 }], beams: [{ a: 'n1', b: 'a0', m: 'steel' }], piers: [] };
+  const L2 = makeLevel(20, [], { anchors: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: -5, y: 0 }] });
+  thru.beams.push({ a: 'n1', b: 'a2', m: 'steel' });
+  assert(BG.Model.validate(L2, thru).errors.some(e => e.type === 'in_terrain' && e.beamIndex === 1), 'beam from a bank-top anchor through the bank');
+});
+
 // ------------------------------------------------------------------ run
 (async function main() {
   const filter = process.argv[2];

@@ -5,7 +5,7 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 
 ## 1. Player experience
 
-1. Pick a level (50, unlocked sequentially, 0–3 stars each).
+1. Pick a level (50 in 6 chapters, 0–3 stars each). A level unlocks when either of the two levels before it is complete.
 2. See the gap: two banks, anchors (fixed bolts), maybe a valley floor with pier zones, water, a ship
    clearance zone. Budget bar at top, traffic preview ("3 cars, 1 bus").
 3. Build with drag-and-drop: pick a material from the bottom palette, drag from any joint/anchor to
@@ -17,9 +17,11 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 4. Press **Test** (Space). The physics sim runs: the deck sags, traffic drives across.
    Beams are coloured by live stress (cool → yellow → red); hover a beam for exact force/%.
    Overstressed beams snap with debris, sparks, splash, camera shake, sound.
-   Controls: pause, slow-mo (0.25×), fast (2×), restart, back to edit (design preserved).
+   Controls: pause, speed ¼× / 1× / 2× / 4× / 8×, restart, back to edit (design preserved).
 5. After the run: a stress heat-map of the **peak** stress each beam saw, so the player can optimise.
-6. Pass = all vehicles reach the far side within the time limit **and** cost ≤ budget.
+6. Pass = all vehicles drive to the far side within the time limit **and** cost ≤ budget. The road must
+   connect both banks; a vehicle launched across (airborne > 0.35 s over the gap) fails the run, and the run
+   ends early when all traffic has been stuck for 5 s.
    (Over-budget designs may be tested; they just can't complete the level.)
    Stars: ★ pass, ★★ cost ≤ 85 % budget, ★★★ cost ≤ 70 % budget.
 7. Progress + last design per level saved in localStorage (wrapped in try/catch; game works without it).
@@ -51,8 +53,9 @@ js/ui/hud.js             BG.Hud (menus, level select, palette, results, tooltips
 js/main.js               BG.Game (state machine + main loop)
 tools/harness.js         Node loader for js/core/* + runHeadless()
 tools/test-physics.js    physics unit/behaviour tests
-tools/verify-levels.js   runs every level against its reference solution
-tools/solutions/level-NN.json   reference designs (not loaded by the game)
+tools/verify-levels.js   runs every level against its reference + best designs
+tools/build-levels.js    tools/levels/level-NN.json -> js/core/levels.js (generated; never edit levels.js by hand)
+tools/solutions/level-NN.json, level-NN-best.json   reference / best designs (not loaded by the game)
 ```
 
 Every `js/core/*` file must run in both browser and Node:
@@ -74,7 +77,11 @@ Object keyed by id. Each:
 { id, name, color, costPerMeter, massPerMeter, stiffness /* EA, N */,
   tensionLimit, compressionLimit /* N, positive numbers */, maxLength /* m */,
   isRoad /* vehicles drive on it */, tensionOnly /* ropes/cables go slack in compression */,
-  width /* render thickness, m */ }
+  width /* render thickness, m */,
+  // road materials only: deck bending at joints between consecutive road segments
+  bendStiffness /* N·m/rad */, momentLimit /* N·m */,
+  bendRefLength /* m: joints between segments shorter than this get a proportionally stiffer
+                   spring, so a finely cut deck is not floppier/cheaper than a supported one */ }
 ```
 Required ids: `road`, `reinforced_road`, `wood`, `steel`, `rope`, `cable`.
 Starting tuning (engine owner may re-tune; level designers build on final values):
@@ -133,7 +140,12 @@ BG.Model.allNodes(level, design)   // -> [{id,x,y,fixed}] anchors + pier tops + 
 BG.Model.cost(level, design)       // -> { total, beams, piers }  (integer $)
 BG.Model.validate(level, design)   // -> { ok, errors:[{type, msg, beamIndex?, nodeId?}] }
                                    //    too long, outside build area, in noBuild, disallowed material,
-                                   //    duplicate beam, pier out of zone / too many, zero-length
+                                   //    duplicate beam, pier out of zone / too many, zero-length,
+                                   //    in_terrain (joint in rock, or beam passing through rock),
+                                   //    near_terrain (user joint < TERRAIN_CLEARANCE = 0.5 m from the ground:
+                                   //    only anchors and piers may bear on rock)
+BG.Model.roadConnected(level, design)   // road/reinforced road path from the left road anchor to the right one
+BG.Model.segmentInTerrain(level, x1, y1, x2, y2, tol), BG.Model.terrainDistance(level, x, y)
 BG.Model.clone(design), BG.Model.serialize(design), BG.Model.deserialize(str)
 BG.Model.beamLength(level, design, beam)
 ```
@@ -144,7 +156,10 @@ const sim = new BG.Simulation(level, design, { seed: 1 });
 sim.step();            // advance exactly 1/60 s (internal substeps)
 sim.time               // seconds
 sim.status             // 'running' | 'success' | 'failed'
-sim.failReason         // 'vehicle_fell' | 'timeout' | null
+sim.failReason         // 'vehicle_fell' | 'vehicle_jumped' (launched across / road not connected)
+                       // | 'stalled' (all driving vehicles stopped for 5 s) | 'timeout' | null
+sim.roadConnected      // BG.Model.roadConnected at construction (success requires it)
+sim.firstBreak         // null | {beamIndex, m, mode:'tension'|'compression'|'bending', force, axial, bend, time, x, y}
 sim.nodes              // [{id, x, y, fixed}]   positions live
 sim.beams              // [{a, b /* indices into sim.nodes */, m, material, restLength,
                        //   force /* N, + tension */, stress /* signed ratio: force/limit, |1| = break */,
@@ -153,9 +168,10 @@ sim.piers              // [{x, baseY, topY}]
 sim.vehicles           // [{type, def, state: 'waiting'|'driving'|'finished'|'fallen',
                        //   x, y, angle /* body pose */, wheels: [{x, y, r, rot}], vx}]
 sim.events             // array pushed during step(); consumer drains with sim.drainEvents()
-                       //   {type:'break', beamIndex, x, y, m} {type:'splash', x, y, size}
-                       //   {type:'vehicle_finish', i} {type:'vehicle_fall', i} {type:'creak', beamIndex, stress}
-sim.summary()          // { status, time, peakStress, vehiclesFinished, vehiclesTotal, brokenBeams }
+                       //   {type:'break', beamIndex, x, y, m, mode} {type:'splash', x, y, size}
+                       //   {type:'vehicle_finish', i} {type:'vehicle_fall', i} {type:'vehicle_jump', i, x, y}
+                       //   {type:'creak', beamIndex, stress}
+sim.summary()          // { status, time, peakStress, vehiclesFinished, vehiclesTotal, brokenBeams, failReason, firstBreak }
 ```
 **Physics approach (required):** XPBD (extended position-based dynamics) with substepping.
 Joints are particles (mass = half of each attached beam’s mass + small joint mass). Beams are
@@ -180,6 +196,8 @@ runHeadless(level, design, { maxTime }) // -> sim.summary() plus { cost, budgetO
 `{nodes, beams, piers}` spanning the main road anchors using allowed materials.
 Ids: `beam`, `warren`, `pratt`, `howe`, `deck_arch`, `through_arch`, `suspension`, `cable_stayed`.
 Templates are a starting point; they need not be cost-optimal or pass every level.
+`BG.Templates.available(level)` → list entries plus `{ok, reason}`; `ok:false` when the template needs rope/cable
+the level lacks or its best variant still breaks the level's rules. The HUD only offers `ok` templates.
 
 ### 4.9 Renderer — `BG.Renderer`
 ```js
@@ -207,7 +225,10 @@ ed.state  // for renderer: {hoverNode, hoverBeam, dragFrom, ghost:{x1,y1,x2,y2,v
 ```
 Mouse + touch. Wheel zoom, middle/right-drag or Space-drag pan. Snap 1 m grid (Shift = 0.25 m),
 magnet to joints within 0.6 m. Auto-chain: after placing a beam, continue from its end until Esc
-/ right-click. Keyboard: 1–6 materials, E erase, P pier, M mirror, Ctrl+Z/Y, Space test, Esc.
+/ right-click, or until the chain reaches an anchor. Clicking an out-of-reach joint while chaining places the
+previewed (clamped) beam toward it. A new joint that lands on an existing beam (within 0.15 m) splits that beam,
+so it is connected. The chain is cleared when a test starts or ends.
+Keyboard: 1–6 materials, E erase, P pier, M mirror, Ctrl+Z/Y, Space test, Esc.
 
 ### 4.11 HUD / shell
 Title screen with animated bridge scene; level select grid (50 tiles, stars, lock, themed thumbnails
@@ -221,20 +242,23 @@ States: `title → levelSelect → edit ⇄ sim → results`. Owns current level
 `requestAnimationFrame` loop with fixed-step accumulator (sim speed multiplier), drains sim events
 into Effects + Audio, records results into Storage.
 
-## 5. Difficulty curve (50 levels)
+## 5. Difficulty curve (50 levels, 6 chapters — the level select uses the same bands)
 
-| Levels | Gap | Traffic | New idea |
-|---|---|---|---|
-| 1–5 | 8–18 m | cars | road + wood, simple triangles; hints |
-| 6–12 | 18–30 m | cars, vans | trusses, steel introduced (8), budget pressure |
-| 13–20 | 30–45 m | vans, buses | piers (13), rope/cable (16), arches, uneven bank heights |
-| 21–30 | 45–70 m | buses, trucks | ship clearance zones, suspension & cable-stayed towers, reinforced road |
-| 31–40 | 70–100 m | trucks, semis | heavy convoys, few/no piers, deep canyons |
-| 41–50 | 100–150 m | semis, tankers, heavy | long spans, mixed convoys, tight budgets — finale |
+| Chapter | Levels | Gap | Traffic | New idea |
+|---|---|---|---|---|
+| First Crossings | 1–5 | 10–20 m | cars, vans | road + wood, triangles, trusses above/below the deck; tutorial hints |
+| Timber & Steel | 6–10 | 20–28 m | cars, vans, buses | uneven banks, long wood trusses, steel (8) |
+| Piers & Cables | 11–20 | 28–45 m | vans, buses | piers (11), rope (14), arches (15), cable (16), ship channels (18) |
+| Shipping Lanes | 21–30 | 46–70 m | buses, trucks | reinforced road, clearance zones, towers, cable-stayed & suspension |
+| Heavy Haul | 31–40 | 70–100 m | trucks, semis | heavy convoys, few/no piers, deep canyons |
+| Grand Spans | 41–50 | 100–150 m | semis, tankers, heavy | long arches, cantilevers, multi-span cable bridges — finale |
 
-**Every level is verified solvable**: a reference design in `tools/solutions/level-NN.json` must pass
-in the headless sim with peak stress ≤ 0.92 and cost ≤ budget. Budget is set from the reference cost
-(≈ ×1.45 early levels → ≈ ×1.12 late levels).
+**Every level is verified solvable** (`node tools/verify-levels.js`), with two designs per level:
+- `tools/solutions/level-NN.json` (reference): passes, peak stress ≤ 0.92, cost ≤ budget;
+- `tools/solutions/level-NN-best.json`: passes, peak stress ≤ 0.99, cost ≤ 70 % of budget (★★★ reachable).
+Both must be valid, editor-buildable (joints on the 0.25 m grid, ≥ 0.6 m apart) and free of floppy parts
+(no joint drifting > 1 m while nothing breaks). Budgets: reference ≤ ≈ 88 % of budget, best ≤ 70 %
+(≤ 68 % on 41–50). No template may reach ★★★.
 
 ## 6. Implementation plan (workflow waves)
 

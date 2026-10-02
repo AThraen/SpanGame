@@ -142,13 +142,14 @@
   };
   function theme(name) { return THEMES[name] || THEMES.meadow; }
 
+  const SHORT_MAT = { reinforced_road: 'Reinf. Road', cable: 'Cable' };
   const CHAPTERS = [
-    { n: 1, name: 'First Crossings', from: 1, to: 5, desc: '8–18 m gaps · cars · road & wood basics', theme: 'meadow' },
-    { n: 2, name: 'Truss Country', from: 6, to: 12, desc: '18–30 m · cars & vans · trusses and steel', theme: 'autumn' },
-    { n: 3, name: 'Piers & Arches', from: 13, to: 20, desc: '30–45 m · vans & buses · piers, ropes, arches', theme: 'desert' },
-    { n: 4, name: 'Shipping Lanes', from: 21, to: 30, desc: '45–70 m · buses & trucks · towers and clearance', theme: 'tropical' },
-    { n: 5, name: 'Heavy Haul', from: 31, to: 40, desc: '70–100 m · trucks & semis · deep canyons', theme: 'canyon' },
-    { n: 6, name: 'Grand Spans', from: 41, to: 50, desc: '100–150 m · tankers & heavies · the finale', theme: 'volcanic' },
+    { n: 1, name: 'First Crossings', from: 1, to: 5, desc: '10–20 m gaps · cars & vans · road, wood and triangles', theme: 'meadow' },
+    { n: 2, name: 'Timber & Steel', from: 6, to: 10, desc: '20–28 m · cars, vans & buses · trusses, then steel', theme: 'autumn' },
+    { n: 3, name: 'Piers & Cables', from: 11, to: 20, desc: '28–45 m · vans & buses · piers, rope & cable, arches, ship channels', theme: 'desert' },
+    { n: 4, name: 'Shipping Lanes', from: 21, to: 30, desc: '46–70 m · buses & trucks · reinforced road, towers, clearances', theme: 'tropical' },
+    { n: 5, name: 'Heavy Haul', from: 31, to: 40, desc: '70–100 m · trucks & semis · convoys, deep canyons, few piers', theme: 'canyon' },
+    { n: 6, name: 'Grand Spans', from: 41, to: 50, desc: '100–150 m · semis, tankers & heavies · the finale', theme: 'volcanic' },
   ];
 
   function levelsList() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
@@ -261,7 +262,7 @@
               <button class="btn btn-icon btn-glass" data-act="settings" title="Settings">${icon('gear')}</button>
             </div>
           </div>
-          <div class="title-foot">Drag to build · Space to test · Esc to go back</div>
+          <div class="title-foot">Drag to build · Space to test · Enter to play</div>
         </section>`);
       el.addEventListener('click', e => {
         const b = e.target.closest('[data-act]');
@@ -320,7 +321,7 @@
         else {
           sfx('error');
           t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope');
-          this.toast(t.classList.contains('soon') ? 'This crossing is still being surveyed — coming soon.' : 'Complete the previous level to unlock this one.', 'info');
+          this.toast(t.classList.contains('soon') ? 'This crossing is still being surveyed — coming soon.' : 'Complete one of the two levels before this one to unlock it.', 'info');
         }
       });
       this.el.levels = el;
@@ -422,7 +423,7 @@
               <button class="btn btn-icon btn-ghost" data-act="pause" title="Pause / resume (P)">${icon('pause')}</button>
               <button class="btn btn-icon btn-ghost" data-act="step" title="Single step (.)">${icon('step')}</button>
               <div class="seg" data-ref="speed">
-                <button data-speed="0.25" title="Slow motion">¼×</button><button data-speed="1">1×</button><button data-speed="2" title="Fast">2×</button>
+                <button data-speed="0.25" title="Slow motion (-)">¼×</button><button data-speed="1">1×</button><button data-speed="2" title="Fast (=)">2×</button><button data-speed="4" title="Faster">4×</button><button data-speed="8" title="Fastest">8×</button>
               </div>
               <div class="sb-sep"></div>
               <div class="sb-stat">${icon('clock')}<b data-ref="simTime">0.0</b><span data-ref="simLimit">/ 40 s</span></div>
@@ -489,6 +490,7 @@
       const sp = e.target.closest('[data-speed]');
       if (sp) { sfx('click'); call('setSpeed', +sp.dataset.speed); return; }
       const tpl = e.target.closest('[data-tpl]');
+      if (tpl && tpl.disabled) return;
       if (tpl) {
         sfx('click');
         this.closeTemplates();
@@ -559,9 +561,16 @@
       // tools
       const hasPiers = Array.isArray(level.pierZones) && level.pierZones.length > 0 && (level.maxPiers == null || level.maxPiers > 0);
       $('[data-tool=pier]', this.el.rail).hidden = !hasPiers;
-      const list = (BG.Templates && Array.isArray(BG.Templates.list)) ? BG.Templates.list : [];
+      let list = (BG.Templates && Array.isArray(BG.Templates.list)) ? BG.Templates.list : [];
+      if (level.templates && BG.Templates && typeof BG.Templates.available === 'function') {
+        try { list = BG.Templates.available(level).filter(t => t.ok !== false); } catch (e) { /* keep the plain list */ }
+      }
       const hasTpl = !!level.templates && list.length > 0;
       this.el.tplWrap.hidden = !hasTpl;
+      // pier tool shows how many piers this crossing allows
+      const pierLbl = $('[data-tool=pier] span', this.el.rail);
+      if (pierLbl) pierLbl.textContent = hasPiers && level.maxPiers != null ? 'Pier 0/' + level.maxPiers : 'Pier';
+      this._pierSig = null;
       this.el.tplMenu.innerHTML = '<div class="tpl-head">Start from a template</div>' + list.map(t =>
         `<button class="tpl-item" data-tpl="${esc(t.id)}"><span class="tpl-pic">${tplPic(t.id)}</span><span class="tpl-txt"><b>${esc(t.name || t.id)}</b><small>${esc(t.desc || '')}</small></span></button>`).join('');
 
@@ -569,7 +578,7 @@
       const hasHint = !!level.hint;
       $('[data-act=hint]', this.el.level).hidden = !hasHint;
       this.hideHint();
-      if (hasHint) setTimeout(() => { if (this.level === level && this.mode === 'edit') this.showHint(); }, 650);
+      if (hasHint) setTimeout(() => { if (this.level === level && this.mode === 'edit') this.showHint(null, id != null && id <= 3 ? 0 : 24000); }, 650);
 
       this.hideResults(true);
       this.setMode('edit');
@@ -590,7 +599,7 @@
         return `<button class="mat" data-mat="${esc(id)}" title="${esc(m.name)} — ${money(m.costPerMeter)}/m, max ${m.maxLength} m${m.tensionOnly ? ', tension only' : ''}">
             <span class="kbd">${i + 1}</span>
             <span class="mat-ico">${matSwatch(id, m)}</span>
-            <span class="mat-info"><b>${esc(m.name || id)}</b>
+            <span class="mat-info"><b>${esc(SHORT_MAT[id] || m.name || id)}</b>
               <span class="mat-meta"><em>${money(m.costPerMeter)}/m</em><i>≤ ${m.maxLength} m</i></span>
               <span class="mat-str" title="Strength"><span style="width:${Math.round(pct * 100)}%"></span></span>
             </span>
@@ -612,14 +621,16 @@
     },
 
     // ---------------------------------------------------------------- hint & toasts
-    showHint(text) {
+    // ms: auto-hide delay (0 = stay until dismissed; the first tutorial levels keep their hint up)
+    showHint(text, ms) {
       const lv = this.level;
       const msg = text || (lv && lv.hint);
       if (!msg) return;
       this.el.hintText.textContent = msg;
       this.el.hint.classList.add('show');
       clearTimeout(this._hintTimer);
-      this._hintTimer = setTimeout(() => this.hideHint(), 16000);
+      if (ms == null) ms = 24000;
+      if (ms > 0) this._hintTimer = setTimeout(() => this.hideHint(), ms);
     },
     hideHint() {
       clearTimeout(this._hintTimer);
@@ -695,6 +706,19 @@
         }
       }
 
+      // pier count (n / max)
+      if (lv.maxPiers != null && ed && ed.design && this.mode === 'edit') {
+        const np = (ed.design.piers || []).length;
+        const sigP = np + '/' + lv.maxPiers;
+        if (this._pierSig !== sigP) {
+          this._pierSig = sigP;
+          const pl = $('[data-tool=pier] span', this.el.rail);
+          if (pl) pl.textContent = 'Pier ' + sigP;
+          const pb = $('[data-tool=pier]', this.el.rail);
+          if (pb) pb.title = 'Pier (P): ' + np + ' of ' + lv.maxPiers + ' allowed';
+        }
+      }
+
       // sim bar
       const sim = g.sim;
       if (this.mode === 'sim' || this.mode === 'results') {
@@ -715,7 +739,7 @@
           $('[data-act=step]', this.el.simbar).disabled = !g.paused;
           $$('[data-speed]', this.el.speed).forEach(b => b.classList.toggle('active', +b.dataset.speed === +g.speed));
           $('[data-act=stress]', this.el.simbar).classList.toggle('on', !!(g.settings && g.settings.showStress));
-          this.el.simTime.parentElement.classList.toggle('warn', tl && t > tl * 0.8);
+          this.el.simTime.parentElement.classList.toggle('warn', tl && t > tl * 0.9);
         }
       }
 
@@ -783,8 +807,21 @@
       const nb = $('[data-act=next]', el);
       nb.hidden = !res.passed;
       $('span', nb).textContent = res.hasNext ? 'Next level' : 'All levels';
-      $('[data-act=retry]', el).classList.toggle('btn-primary', !res.passed);
-      $('[data-act=retry]', el).classList.toggle('btn-glass', !!res.passed);
+      // the sim is deterministic: retrying an unchanged failed bridge replays the same failure,
+      // so after a failure the main action is going back to edit
+      $('[data-act=retry]', el).classList.remove('btn-primary');
+      $('[data-act=retry]', el).classList.add('btn-glass');
+      $('[data-act=resEdit]', el).classList.toggle('btn-primary', !res.passed);
+      $('[data-act=resEdit]', el).classList.toggle('btn-glass', !!res.passed);
+      $('[data-act=retry] span', el).textContent = res.passed ? 'Replay' : 'Retry';
+      el.classList.toggle('finale', !!res.finale);
+      if (res.finale) {
+        let tot = 0, max = 0;
+        try { const S = stor(); tot = S ? S.totalStars() : 0; max = levelsList().length * 3; } catch (e) { /* */ }
+        this.el.resBanner.textContent = 'All crossings complete';
+        this.el.resTitle.textContent = 'You spanned them all!';
+        this.el.resReason.textContent = 'Fifty bridges, from a wobbly plank to a 150 m suspension span. ' + (max ? 'You hold ' + tot + ' of ' + max + ' stars' + (tot < max ? '. The three-star lines are still waiting.' : '. A perfect run.') : '');
+      }
       this.el.pillText.textContent = res.passed ? ('★'.repeat(res.stars) + ' · ' + money(res.cost)) : (res.simOk ? 'Over budget' : 'Failed');
       el.classList.add('show');
       for (let i = 0; i < 3; i++) {

@@ -503,6 +503,10 @@
       }
       const sim = safe(() => new BG.Simulation(lv, cloneDesign(d), { seed: 1 }), null);
       if (!sim) { sfx('error'); hudCall('toast', 'Simulation failed to start.', 'warn'); return false; }
+      if (BG.Model && BG.Model.roadConnected && !safe(() => BG.Model.roadConnected(lv, d), true)) {
+        hudCall('toast', 'Heads up: the road does not connect both banks yet, so traffic cannot make it across.', 'warn', 4200);
+      }
+      if (this.editor) { this.editor.chainFrom = null; safe(() => this.editor._refresh && this.editor._refresh()); }
       this._lastToggle = nowMs();
       this._saveNow();
       this.sim = sim;
@@ -524,12 +528,17 @@
     },
     backToEdit(fromStop) {
       if (this.state !== 'sim' && this.state !== 'results') return;
+      const last = this.sim;
+      if (last && last.beams) {
+        const d = this.getDesign();
+        this._lastPeaks = { keys: d.beams.map(b => b.a + '|' + b.b + '|' + b.m), peaks: d.beams.map((b, i) => last.beams[i] ? { p: +last.beams[i].peak || 0, broken: !!last.beams[i].broken } : null) };
+      }
       this.sim = null;
       this.paused = false;
       if (BG.Audio) BG.Audio.stopEngines();
       this._fx('clear');
       this._setState('edit');
-      if (this.editor) safe(() => this.editor.attach && this.editor.attach(this.canvas));
+      if (this.editor) { this.editor.chainFrom = null; safe(() => this.editor.attach && this.editor.attach(this.canvas)); }
       hudCall('hideResults');
       hudCall('setMode', 'edit');
       sfx('stop');
@@ -561,7 +570,7 @@
       this._stepSim();
     },
     setSpeed(s) {
-      const allowed = [0.25, 1, 2];
+      const allowed = [0.25, 1, 2, 4, 8];
       this.speed = allowed.indexOf(+s) >= 0 ? +s : 1;
     },
     _stepSim() {
@@ -711,12 +720,30 @@
         const where = lv.terrain && lv.terrain.waterY != null ? 'into the water' : 'into the valley';
         title = broken > 0 ? 'Collapse!' : 'Off the edge!';
         text = (/^[aeiou]/.test(what) ? 'An ' : 'A ') + what + ' fell ' + where + '. ' + (broken > 0 ? broken + ' beam' + (broken === 1 ? '' : 's') + ' snapped — check the red members on the stress map.' : 'Make sure the road reaches all the way across, without gaps or steep steps.');
+      } else if (reason === 'vehicle_jumped') {
+        title = 'No jumping!';
+        text = 'A vehicle flew across instead of driving. The road has to run continuously from bank to bank and carry the traffic all the way.';
+      } else if (reason === 'stalled') {
+        title = 'Traffic stuck';
+        text = 'Every vehicle came to a stop on the bridge. Is the deck too steep, too bumpy, or sagging into a dip they cannot climb out of?';
       } else if (reason === 'timeout') {
         title = 'Out of time';
         text = 'Only ' + vf + ' of ' + vt + ' vehicles made it across in ' + (lv.timeLimit || Math.round(sim.time)) + ' s. Is the deck too steep, or sagging so much that traffic gets stuck?';
       } else {
         title = 'Bridge failed';
         text = 'Not every vehicle made it across. Strengthen the overloaded members and try again.';
+      }
+
+      // what gave way first, and why (teaches reading the stress map)
+      const fb = sum.firstBreak || sim.firstBreak;
+      if (!passed && !simOk && fb) {
+        const mname = (materialDef(fb.m).name || fb.m).toLowerCase();
+        const kN = Math.round(Math.abs(fb.force || 0) / 1000);
+        let why;
+        if (fb.mode === 'bending') why = 'The ' + mname + ' deck bent too far at a joint - road needs a supported joint (a strut, hanger or chord below it) about every 5-6 m.';
+        else if (fb.mode === 'compression') why = 'The first beam to fail was ' + mname + ' crushed in compression (' + kN + ' kN). Shorten it, double it up, or use a stronger material.';
+        else why = 'The first beam to fail was ' + mname + ' pulled apart in tension (' + kN + ' kN). Share the load with more members or use a stronger material.';
+        text += ' ' + why;
       }
 
       let rec = { entry: null, improved: false };
@@ -726,7 +753,8 @@
       const res = {
         passed, stars, cost, budget, title, reasonText: text, simOk, reason,
         time: sum.time != null ? sum.time : sim.time, peakStress: peak, vehiclesFinished: vf, vehiclesTotal: vt,
-        brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry,
+        brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
+        finale: passed && !next,
       };
       this.lastResult = res;
       this._setState('results');
@@ -800,6 +828,11 @@
         const rows = [['Length', fmtLen(len) + ' / ' + (m.maxLength || '?') + ' m'], ['Cost', money(len * (m.costPerMeter || 0))]];
         if (m.tensionOnly) rows.push(['Type', 'Tension only']);
         else if (m.isRoad) rows.push(['Type', 'Road deck']);
+        const lp = this._lastPeaks, bi = d.beams.indexOf(beam);
+        if (lp && bi >= 0 && lp.keys[bi] === beam.a + '|' + beam.b + '|' + beam.m && lp.peaks[bi]) {
+          const q = lp.peaks[bi];
+          rows.push(['Last test', q.broken ? 'broke' : 'peak ' + Math.round(q.p * 100) + '%', q.broken || q.p >= 0.9 ? 'bad' : q.p >= 0.7 ? 'warn' : 'good']);
+        }
         return { x: p.x, y: p.y, title: m.name || beam.m, color: m.color, rows };
       }
       if ((this.state === 'sim' || this.state === 'results') && this.sim && r && r.screenToWorld) {
@@ -831,6 +864,10 @@
           ['Stress', Math.round(s * 100) + '%', s >= 0.9 ? 'bad' : s >= 0.7 ? 'warn' : 'good'],
           ['Peak', Math.round(pk * 100) + '%', pk >= 0.9 ? 'bad' : pk >= 0.7 ? 'warn' : ''],
         ];
+        if (b.bend != null) {
+          const bd = Math.abs(+b.bend || 0);
+          rows.splice(3, 0, ['of which bending', Math.round(bd * 100) + '%', bd >= 0.5 ? 'warn' : '']);
+        }
         return { x: p.x, y: p.y, title: (m && m.name) || b.m, color: m && m.color, rows, stress: this.state === 'results' ? pk : s, peak: pk };
       }
       return null;
@@ -854,10 +891,10 @@
       const t = DEMO_LEVEL.terrain;
       const cx = (t.leftEdge + t.rightEdge) / 2;
       safe(() => {
-        if (cam.zoom) cam.zoom = Math.min(cam.zoom * (W / H > 1.5 ? 0.92 : 1), (H * 0.125) / 4.5);
+        if (cam.zoom) cam.zoom = Math.min(cam.zoom * (W / H > 1.5 ? 0.92 : 1), (H * (H < 760 ? 0.095 : 0.125)) / 4.5);
         for (let it = 0; it < 2; it++) {
           ['x', 'y'].forEach(ax => {
-            const want = ax === 'x' ? W * 0.5 : H * 0.84;
+            const want = ax === 'x' ? W * 0.5 : H * (H < 760 ? 0.82 : 0.84);
             const p0 = r.worldToScreen(cx, 0)[ax];
             cam[ax] += 1;
             const p1 = r.worldToScreen(cx, 0)[ax];
@@ -942,6 +979,7 @@
           mode, level: this.level, design: this.getDesign(), sim: mode === 'edit' ? null : this.sim,
           editorState: this.editor ? this.editor.state : null, dt,
           showStress: s.showStress !== false, peakView: mode === 'results', showGrid: s.showGrid !== false,
+          undeformed: mode === 'results' && !!safe(() => { const H = hud(); return H && H.resultsInspecting && H.resultsInspecting(); }, false),
           paused: this.paused, timeScale: mode === 'sim' ? this.speed : 1,
         };
       } else return;
@@ -1006,9 +1044,9 @@
         if (k === 'r') { e.preventDefault(); this.restartSim(); }
         else if (st === 'sim' && k === 'p') this.togglePause();
         else if (st === 'sim' && (k === '.' || k === 'n')) this.stepOnce();
-        else if (st === 'sim' && (k === '-' || k === '_')) { this.setSpeed(this.speed >= 2 ? 1 : 0.25); }
-        else if (st === 'sim' && (k === '=' || k === '+')) { this.setSpeed(this.speed <= 0.25 ? 1 : 2); }
-        else if (st === 'results' && key === 'Enter') { if (this.lastResult && this.lastResult.passed && this.lastResult.hasNext) this.nextLevel(); else this.retry(); }
+        else if (st === 'sim' && (k === '-' || k === '_')) { const S = [0.25, 1, 2, 4, 8]; this.setSpeed(S[Math.max(0, S.indexOf(this.speed) - 1)]); }
+        else if (st === 'sim' && (k === '=' || k === '+')) { const S = [0.25, 1, 2, 4, 8]; this.setSpeed(S[Math.min(S.length - 1, S.indexOf(this.speed) + 1)]); }
+        else if (st === 'results' && key === 'Enter') { if (this.lastResult && this.lastResult.passed) { if (this.lastResult.hasNext) this.nextLevel(); else this.goLevelSelect(); } else this.backToEdit(); }
         return;
       }
       if (st === 'edit' && !this.editor) {

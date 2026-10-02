@@ -1,0 +1,60 @@
+{
+  "id": 5,
+  "name": "Penny Pincher",
+  "hint": "A rush-hour platoon and a tight purse. After a test, press Inspect: members that stay white or green are barely working - trim or shorten them. Back in the editor, hover a beam to see its peak from the last test.",
+  "theme": "desert",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 20,
+    "rightY": 0,
+    "floorY": -11,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 20,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 20,
+      "y": -4
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 20,
+    "y0": -7,
+    "y1": 7
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 5100,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 5,
+      "interval": 1.4
+    },
+    {
+      "type": "van",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 38,
+  "templates": true
+}

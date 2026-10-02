@@ -1,0 +1,74 @@
+{
+  "id": 8,
+  "name": "Steel Yourself",
+  "hint": "A bus joins the convoy under a low ceiling. Wood copes only with a lot of bracing - steel is 5x stronger and reaches 10 m, but costs more per metre.",
+  "theme": "canyon",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 24,
+    "rightY": 0,
+    "floorY": -22,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 24,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 24,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 24,
+      "y": -8
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 24,
+    "y0": -6,
+    "y1": 2
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 9000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 42,
+  "templates": true
+}

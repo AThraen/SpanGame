@@ -1,0 +1,87 @@
+{
+  "id": 35,
+  "name": "Rush Hour",
+  "hint": "The only pier sits off-centre and the sky is low. Run the truss unbroken over the pier so the short side helps lift the long one.",
+  "theme": "city",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 80,
+    "rightY": 4,
+    "floorY": -14,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 80,
+      "y": 4
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 80,
+      "y": -1
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 28,
+      "x1": 32
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [
+    {
+      "x0": 2,
+      "x1": 27,
+      "y0": -14,
+      "y1": -1.5
+    },
+    {
+      "x0": 33,
+      "x1": 78,
+      "y0": -14,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": -4,
+    "x1": 84,
+    "y0": -13,
+    "y1": 16
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 89500,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 6,
+      "interval": 1
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "semi",
+      "count": 1,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

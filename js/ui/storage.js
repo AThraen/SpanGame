@@ -83,8 +83,10 @@
       if (!levels || !levels.length) return id === 1;
       const idx = levels.findIndex(l => (l.id != null ? l.id : -1) === id);
       if (idx <= 0) return idx === 0 || id === 1;
-      const prev = levels[idx - 1];
-      return Storage.isCompleted(prev.id != null ? prev.id : idx);
+      // a level opens when either of the two levels before it is complete, so one hard
+      // crossing never blocks progress: it can be skipped and come back to later
+      const done = (k) => k >= 0 && Storage.isCompleted(levels[k].id != null ? levels[k].id : k + 1);
+      return done(idx - 1) || done(idx - 2);
     },
     // result: { passed, stars, cost }
     recordResult(id, result) {

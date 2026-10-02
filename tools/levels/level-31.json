@@ -1,0 +1,62 @@
+{
+  "id": 31,
+  "name": "Convoy",
+  "hint": "One pier, two spans, four trucks: the last is still on the near span when the first reaches the far one. Let the pier carry the middle.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 70,
+    "rightY": 0,
+    "floorY": -22,
+    "waterY": -16
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 70,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 70,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 31,
+      "x1": 39
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -4,
+    "x1": 74,
+    "y0": -15,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 50500,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 4,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

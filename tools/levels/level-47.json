@@ -1,0 +1,85 @@
+{
+  "id": 47,
+  "name": "Paradise Suspended",
+  "theme": "tropical",
+  "hint": "Two towers at the shore, one long sagging cable between them - and a deck stiff enough not to ripple.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 140,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -24
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 140,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 140,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 6,
+      "x1": 16
+    },
+    {
+      "x0": 124,
+      "x1": 134
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 30,
+      "x1": 110,
+      "y0": -24,
+      "y1": -3
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 140,
+    "y0": -12,
+    "y1": 46
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 288000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "tanker",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "heavy",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 75,
+  "templates": true
+}

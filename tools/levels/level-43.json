@@ -1,0 +1,65 @@
+{
+  "id": 43,
+  "name": "Monsoon Stays",
+  "theme": "tropical",
+  "hint": "The flood leaves no room below the road. Two islands, two chances to reach for the sky.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 115,
+    "rightY": 0,
+    "floorY": -26,
+    "waterY": -3
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 115,
+      "y": 0
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 28,
+      "x1": 36
+    },
+    {
+      "x0": 79,
+      "x1": 87
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 115,
+    "y0": -1,
+    "y1": 26
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 112000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "tanker",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

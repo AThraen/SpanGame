@@ -830,14 +830,20 @@
     return design;
   }
 
-  // Which templates make sense for this level (all ids, flagged)
+  // Which templates make sense for this level (all ids, flagged). A template whose best variant
+  // still breaks the level's rules (no-build zones, max lengths...) is flagged ok:false with a reason.
   function available(level) {
     const allowed = allowedMaterials(level);
     const hasT = allowed.indexOf('cable') >= 0 || allowed.indexOf('rope') >= 0;
     return LIST.map((t) => {
-      let ok = true;
-      if ((t.id === 'suspension' || t.id === 'cable_stayed') && !hasT) ok = false;
-      return Object.assign({}, t, { ok });
+      let ok = true, reason = null;
+      if ((t.id === 'suspension' || t.id === 'cable_stayed') && !hasT) { ok = false; reason = 'needs rope or cable'; }
+      if (ok && level) {
+        let d = null;
+        try { d = generate(t.id, level, {}); } catch (e) { d = null; }
+        if (!d || !d.beams.length || fullCheck(level, d).length) { ok = false; reason = "doesn't fit this crossing"; }
+      }
+      return Object.assign({}, t, { ok, reason });
     });
   }
 

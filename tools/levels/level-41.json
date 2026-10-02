@@ -1,0 +1,67 @@
+{
+  "id": 41,
+  "name": "Cold Open",
+  "theme": "snow",
+  "hint": "One pier has to carry half the bridge. Give it plenty of members to lean on.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -24,
+    "waterY": -20
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 100,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 44,
+      "x1": 56
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 100,
+    "y0": -14,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 115000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "semi",
+      "count": 3,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

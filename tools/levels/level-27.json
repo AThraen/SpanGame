@@ -1,0 +1,77 @@
+{
+  "id": 27,
+  "name": "Ice Cathedral",
+  "theme": "snow",
+  "hint": "An overhanging glacier leaves no headroom above the road, but the canyon is deep. Vault it from below.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 64,
+    "rightY": 0,
+    "floorY": -32,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 64,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 64,
+      "y": -6
+    },
+    {
+      "x": 0,
+      "y": -11
+    },
+    {
+      "x": 64,
+      "y": -11
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 64,
+    "y0": -24,
+    "y1": 2.5
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 42500,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 4
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

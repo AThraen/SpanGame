@@ -108,6 +108,46 @@
     return false;
   }
 
+  /** Solid ground regions as rectangles (left bank, right bank, below the valley floor). */
+  function terrainRects(level) {
+    const t = (level && level.terrain) || {};
+    const B = 1e6, fy = num(t.floorY, -10);
+    return [
+      { x0: -B, x1: num(t.leftEdge, 0), y0: -B, y1: num(t.leftY, 0) },
+      { x0: num(t.rightEdge, 0), x1: B, y0: -B, y1: num(t.rightY, 0) },
+      { x0: -B, x1: B, y0: -B, y1: fy },
+    ];
+  }
+
+  /** Does the beam (x1,y1)-(x2,y2) cut through solid ground? (grazing within tol is allowed) */
+  function segmentInTerrain(level, x1, y1, x2, y2, tol) {
+    const e = tol == null ? 0.05 : tol;
+    for (const r of terrainRects(level)) {
+      const rr = { x0: r.x0 + e, x1: r.x1 - e, y0: r.y0 + e, y1: r.y1 - e };
+      if (segmentHitsRect(x1, y1, x2, y2, rr)) return true;
+    }
+    return false;
+  }
+
+  /** Distance from (x,y) to the nearest terrain surface (bank tops, cliff faces, valley floor). */
+  function terrainDistance(level, x, y) {
+    const t = (level && level.terrain) || {};
+    const L = num(t.leftEdge, 0), R = num(t.rightEdge, 0), ly = num(t.leftY, 0), ry = num(t.rightY, 0), fy = num(t.floorY, -10);
+    const segs = [[L - 1e6, ly, L, ly], [L, ly, L, fy], [L, fy, R, fy], [R, fy, R, ry], [R, ry, R + 1e6, ry]];
+    let best = Infinity;
+    for (const [ax, ay, bx, by] of segs) {
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+      let u = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
+      u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const d = hyp(x - ax - u * dx, y - ay - u * dy);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  /** User joints must keep this clearance from the ground: only anchors and piers may bear on rock. */
+  const TERRAIN_CLEARANCE = 0.5;
+
   /** The two main road anchors (left/right bank edge) -> {left:'a<i>', right:'a<j>'} */
   function roadAnchors(level) {
     const t = (level && level.terrain) || {};
@@ -121,6 +161,28 @@
       if (dr < rd) { rd = dr; ri = i; }
     }
     return { left: li >= 0 ? 'a' + li : null, right: ri >= 0 ? 'a' + ri : null };
+  }
+
+  /** Is there a continuous road (road / reinforced road beams) from the left road anchor to the right one? */
+  function roadConnected(level, design) {
+    const ra = roadAnchors(level);
+    if (!ra.left || !ra.right) return false;
+    if (ra.left === ra.right) return true;
+    const adj = new Map();
+    for (const b of (design && design.beams) || []) {
+      const mat = mats()[b && b.m];
+      if (!mat || !mat.isRoad || b.a === b.b) continue;
+      if (!adj.has(b.a)) adj.set(b.a, []);
+      if (!adj.has(b.b)) adj.set(b.b, []);
+      adj.get(b.a).push(b.b); adj.get(b.b).push(b.a);
+    }
+    const seen = new Set([ra.left]), queue = [ra.left];
+    while (queue.length) {
+      const id = queue.shift();
+      if (id === ra.right) return true;
+      for (const o of adj.get(id) || []) if (!seen.has(o)) { seen.add(o); queue.push(o); }
+    }
+    return false;
   }
 
   function nextNodeId(design) {
@@ -158,6 +220,7 @@
         if (pointInRect(n.x, n.y, r)) { errors.push({ type: 'in_nobuild', msg: 'Joint inside a no-build zone', nodeId: n.id }); break; }
       }
       if (inTerrain(lv, n.x, n.y, 0.05)) errors.push({ type: 'in_terrain', msg: 'Joint is inside the ground', nodeId: n.id });
+      else if (terrainDistance(lv, n.x, n.y) < TERRAIN_CLEARANCE - EPS) errors.push({ type: 'near_terrain', msg: 'Joints must stay ' + TERRAIN_CLEARANCE + ' m clear of the ground (use an anchor or a pier)', nodeId: n.id });
     }
 
     // piers
@@ -201,6 +264,7 @@
       for (const r of noBuild) {
         if (segmentHitsRect(na.x, na.y, nb.x, nb.y, r)) { errors.push({ type: 'in_nobuild', msg: 'Beam crosses a no-build zone', beamIndex: i }); break; }
       }
+      if (segmentInTerrain(lv, na.x, na.y, nb.x, nb.y, 0.05)) errors.push({ type: 'in_terrain', msg: 'Beam passes through the ground', beamIndex: i });
     }
     return { ok: errors.length === 0, errors };
   }
@@ -256,6 +320,7 @@
   BG.Model = {
     emptyDesign, allNodes, nodeMap, findNode, cost, validate, clone, serialize, deserialize,
     beamLength, beamCost, pierCost, segmentHitsRect, pointInRect, inTerrain, roadAnchors,
-    nextNodeId, trafficSummary,
+    segmentInTerrain, terrainDistance, TERRAIN_CLEARANCE,
+    nextNodeId, trafficSummary, roadConnected,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

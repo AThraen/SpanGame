@@ -1,15 +1,15 @@
 {
   "id": 3,
-  "name": "River Pier",
-  "hint": "Too far for one span. Place a pier in the marked zone, then build two steel trusses that rest on it.",
-  "theme": "canyon",
+  "name": "Top Hat",
+  "hint": "No ledges to push against here. Build a wooden truss ABOVE the road: a top chord of wood, with struts hanging the deck from it.",
+  "theme": "meadow",
   "terrain": {
     "leftEdge": 0,
     "leftY": 0,
-    "rightEdge": 40,
+    "rightEdge": 16,
     "rightY": 0,
-    "floorY": -12,
-    "waterY": -8
+    "floorY": -14,
+    "waterY": null
   },
   "anchors": [
     {
@@ -17,50 +17,36 @@
       "y": 0
     },
     {
-      "x": 40,
+      "x": 16,
       "y": 0
-    },
-    {
-      "x": 0,
-      "y": -4
-    },
-    {
-      "x": 40,
-      "y": -4
     }
   ],
-  "pierZones": [
-    {
-      "x0": 17,
-      "x1": 23
-    }
-  ],
-  "maxPiers": 1,
+  "pierZones": [],
+  "maxPiers": 0,
   "noBuild": [],
   "buildArea": {
     "x0": 0,
-    "x1": 40,
-    "y0": -9,
-    "y1": 10
+    "x1": 16,
+    "y0": 0,
+    "y1": 8
   },
   "materials": [
     "road",
-    "wood",
-    "steel"
+    "wood"
   ],
-  "budget": 27000,
+  "budget": 4700,
   "traffic": [
     {
-      "type": "van",
-      "count": 2,
+      "type": "car",
+      "count": 3,
       "interval": 2.5
     },
     {
-      "type": "bus",
-      "count": 2,
-      "interval": 4
+      "type": "van",
+      "count": 1,
+      "interval": 3
     }
   ],
-  "timeLimit": 50,
-  "templates": true
+  "timeLimit": 34,
+  "templates": false
 }

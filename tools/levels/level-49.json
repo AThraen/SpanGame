@@ -1,0 +1,95 @@
+{
+  "id": 49,
+  "name": "The Long Night",
+  "theme": "night",
+  "hint": "Three towers, two shipping lanes, and the heaviest convoy of the year. Hang it all from the dark.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 145,
+    "rightY": 0,
+    "floorY": -36,
+    "waterY": -30
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 145,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 145,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 4,
+      "x1": 12
+    },
+    {
+      "x0": 68,
+      "x1": 77
+    },
+    {
+      "x0": 133,
+      "x1": 141
+    }
+  ],
+  "maxPiers": 3,
+  "noBuild": [
+    {
+      "x0": 18,
+      "x1": 62,
+      "y0": -30,
+      "y1": -3
+    },
+    {
+      "x0": 83,
+      "x1": 127,
+      "y0": -30,
+      "y1": -3
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 145,
+    "y0": -10,
+    "y1": 44
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 241000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "tanker",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "heavy",
+      "count": 3,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 85,
+  "templates": true
+}

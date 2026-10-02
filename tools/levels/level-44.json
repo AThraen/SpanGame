@@ -1,0 +1,72 @@
+{
+  "id": 44,
+  "name": "Moonlit Crescent",
+  "theme": "night",
+  "hint": "No piers tonight. Each cliff offers three bolts, one above another - spring something curved and deep between them.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 6,
+    "rightEdge": 120,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 6
+    },
+    {
+      "x": 120,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 120,
+      "y": -12
+    },
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 120,
+      "y": -6
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 120,
+    "y0": -14,
+    "y1": 40
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 245000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 8,
+      "interval": 1
+    },
+    {
+      "type": "tanker",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

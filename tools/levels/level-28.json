@@ -1,0 +1,82 @@
+{
+  "id": 28,
+  "name": "Harp Strings",
+  "theme": "tropical",
+  "hint": "One island, two shipping lanes. A single tall tower can hold the whole deck on straight cables - but no cable is longer than 40 m.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 66,
+    "rightY": 0,
+    "floorY": -8,
+    "waterY": -5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 66,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 66,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 31,
+      "x1": 35
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [
+    {
+      "x0": 4,
+      "x1": 30,
+      "y0": -5,
+      "y1": -1
+    },
+    {
+      "x0": 36,
+      "x1": 62,
+      "y0": -5,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 66,
+    "y0": -5,
+    "y1": 26
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 39000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 2.6
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

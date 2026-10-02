@@ -1,0 +1,89 @@
+{
+  "id": 32,
+  "name": "Sandstone Arch",
+  "hint": "No pier and no headroom, but the canyon is deep. Push against the cliff bolts below the road.",
+  "theme": "desert",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 72,
+    "rightY": 0,
+    "floorY": -36,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 72,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 72,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 72,
+      "y": -16
+    },
+    {
+      "x": 0,
+      "y": -24
+    },
+    {
+      "x": 72,
+      "y": -24
+    },
+    {
+      "x": 0,
+      "y": -10.75
+    },
+    {
+      "x": 0,
+      "y": -5.25
+    },
+    {
+      "x": 72,
+      "y": -10.75
+    },
+    {
+      "x": 72,
+      "y": -5.25
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -2,
+    "x1": 74,
+    "y0": -30,
+    "y1": 5
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 86500,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

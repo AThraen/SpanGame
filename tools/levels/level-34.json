@@ -1,0 +1,71 @@
+{
+  "id": 34,
+  "name": "Avalanche Run",
+  "hint": "Four trucks rolling downhill, nothing to stand on. Not every cable has to hang from above.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 8,
+    "rightEdge": 78,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 8
+    },
+    {
+      "x": 78,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 78,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 78,
+      "y": -16
+    },
+    {
+      "x": 0,
+      "y": -16
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -2,
+    "x1": 80,
+    "y0": -24,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 59000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 4,
+      "interval": 1.5
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

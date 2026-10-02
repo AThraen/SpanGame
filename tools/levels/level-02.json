@@ -1,12 +1,12 @@
 {
   "id": 2,
-  "name": "Timber Truss",
-  "hint": "Triangles are strong. Build a wooden truss above the road so the van loads flow into the banks.",
+  "name": "Three's Company",
+  "hint": "Wood reaches 6 m, so chain triangles up from the lower anchors - a triangle cannot be squashed out of shape. Road needs a supported joint about every 5 m. A strut that ends on the road joins it automatically.",
   "theme": "autumn",
   "terrain": {
     "leftEdge": 0,
     "leftY": 0,
-    "rightEdge": 20,
+    "rightEdge": 14,
     "rightY": 0,
     "floorY": -10,
     "waterY": -7
@@ -17,7 +17,7 @@
       "y": 0
     },
     {
-      "x": 20,
+      "x": 14,
       "y": 0
     },
     {
@@ -25,7 +25,7 @@
       "y": -3
     },
     {
-      "x": 20,
+      "x": 14,
       "y": -3
     }
   ],
@@ -34,22 +34,27 @@
   "noBuild": [],
   "buildArea": {
     "x0": 0,
-    "x1": 20,
-    "y0": -7,
-    "y1": 8
+    "x1": 14,
+    "y0": -6,
+    "y1": 0.25
   },
   "materials": [
     "road",
     "wood"
   ],
-  "budget": 6700,
+  "budget": 3000,
   "traffic": [
     {
-      "type": "van",
+      "type": "car",
       "count": 3,
       "interval": 2.5
+    },
+    {
+      "type": "van",
+      "count": 1,
+      "interval": 3
     }
   ],
-  "timeLimit": 35,
-  "templates": true
+  "timeLimit": 32,
+  "templates": false
 }

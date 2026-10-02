@@ -1,0 +1,86 @@
+{
+  "id": 39,
+  "name": "Glacier Gate",
+  "hint": "No cable, no pier, a long fall to the ice. Every bolt in those walls wants a job.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 96,
+    "rightY": 0,
+    "floorY": -46,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 96,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 96,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 96,
+      "y": -16
+    },
+    {
+      "x": 0,
+      "y": -24
+    },
+    {
+      "x": 96,
+      "y": -24
+    },
+    {
+      "x": 0,
+      "y": -32
+    },
+    {
+      "x": 96,
+      "y": -32
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -2,
+    "x1": 98,
+    "y0": -40,
+    "y1": 6
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 160000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

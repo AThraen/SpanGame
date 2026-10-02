@@ -1,0 +1,84 @@
+{
+  "id": 20,
+  "name": "Grand Canyon Express",
+  "theme": "canyon",
+  "hint": "Forty-five metres of nothing, and the floor is miles away. A pier all the way up is a fortune - but cable is strong and cheap in tension, and the cliffs are full of anchors.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 45,
+    "rightY": 0,
+    "floorY": -26,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 45,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 45,
+      "y": -6
+    },
+    {
+      "x": 0,
+      "y": -12
+    },
+    {
+      "x": 45,
+      "y": -12
+    },
+    {
+      "x": 0,
+      "y": -18
+    },
+    {
+      "x": 45,
+      "y": -18
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 17,
+      "x1": 28
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 45,
+    "y0": -24,
+    "y1": 10
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 18500,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 5,
+      "interval": 1.6
+    },
+    {
+      "type": "bus",
+      "count": 4,
+      "interval": 2.4
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

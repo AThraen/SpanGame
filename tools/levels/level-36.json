@@ -1,0 +1,75 @@
+{
+  "id": 36,
+  "name": "Hanging Valley",
+  "hint": "Sheer walls, no piers, nothing to lean on below. Look up - and look back along the clifftops.",
+  "theme": "canyon",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 85,
+    "rightY": 0,
+    "floorY": -40,
+    "waterY": -34
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 85,
+      "y": 0
+    },
+    {
+      "x": -5,
+      "y": 0
+    },
+    {
+      "x": 90,
+      "y": 0
+    },
+    {
+      "x": -36,
+      "y": 0
+    },
+    {
+      "x": 121,
+      "y": 0
+    },
+    {
+      "x": -10,
+      "y": 0
+    },
+    {
+      "x": 95,
+      "y": 0
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -36,
+    "x1": 121,
+    "y0": -6,
+    "y1": 30
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 98000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 4,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

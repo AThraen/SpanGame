@@ -1,0 +1,87 @@
+{
+  "id": 25,
+  "name": "Strung Along",
+  "theme": "meadow",
+  "hint": "No steel this time. Raise two piers high above the deck as towers and hang the road from cables - a draped main cable with hangers, or straight stays fanned out from the tops.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 60,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 60,
+      "y": 0
+    },
+    {
+      "x": -14,
+      "y": 0
+    },
+    {
+      "x": 74,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 60,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 6,
+      "x1": 10
+    },
+    {
+      "x0": 50,
+      "x1": 54
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 11,
+      "x1": 49,
+      "y0": -5,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": -14,
+    "x1": 74,
+    "y0": -5,
+    "y1": 22
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "rope",
+    "cable"
+  ],
+  "budget": 38500,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3.5
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 4.5
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

@@ -32,7 +32,10 @@
  *                 rot = accumulated rolling angle (distance / r).
  *   sim.events / sim.drainEvents()  {type:'break', beamIndex, x, y, m} {type:'splash', x, y, size}
  *                 {type:'vehicle_finish', i} {type:'vehicle_fall', i} {type:'creak', beamIndex, stress}
- *   sim.summary() {status, time, peakStress, vehiclesFinished, vehiclesTotal, brokenBeams, failReason}
+ *   sim.summary() {status, time, peakStress, vehiclesFinished, vehiclesTotal, brokenBeams, failReason, firstBreak}
+ *                 failReason: 'vehicle_fell' | 'vehicle_jumped' (airborne > 0.35 s over the gap) |
+ *                 'stalled' (every driving vehicle stopped for 5 s) | 'timeout' | null
+ *                 firstBreak: null | {beamIndex, m, mode:'tension'|'compression'|'bending', force, axial, bend, time, x, y}
  *   The sim keeps running after success/failure so collapses can be watched.
  * Fully deterministic: no Math.random (seeded PRNG only), fixed iteration order,
  * vehicle rotations are unit complex numbers (no sin/cos in the state update).
@@ -59,6 +62,9 @@
   const DECEL = 5.0;              // m/s^2 braking (cruise control)
   const SPAWN_GAP = 25;           // vehicles spawn with their front at leftEdge - 25
   const FINISH_GAP = 15;          // finished when rear passes rightEdge + 15
+  const AIR_MAX = 0.35;           // s: a vehicle airborne longer than this over the gap has left the road
+  const STALL_SPEED = 0.3;        // m/s: every driving vehicle slower than this ...
+  const STALL_TIME = 5;           // s: ... for this long -> the run ends early ('stalled')
 
   function mulberry32(a) {
     a = (a >>> 0) || 1;
@@ -120,6 +126,8 @@
       this.deathY = this.terrain.waterY != null ? Math.max(this.terrain.waterY, this.terrain.floorY) : this.terrain.floorY;
 
       this._buildStructure();
+      // vehicles that reach the far bank without a continuous road under them must have jumped
+      this.roadConnected = BG.Model && BG.Model.roadConnected ? BG.Model.roadConnected(this.level, this.design) : true;
       this._buildGround();
       this._buildVehicles();
       this._splashBudget = 0;
@@ -225,8 +233,15 @@
           const phi = atan2Det(ux * wy - uy * wx, ux * wx + uy * wy);
           if (Math.abs(phi) > 0.9) continue; // not a continuation of the deck
           const m1 = this.beams[b1].material, m2 = this.beams[b2].material;
+          // A joint spring k over segments of length Lseg gives the deck an effective EI of
+          // about k·Lseg, so finely cut decks would be floppy (and hang like a cable). Joints
+          // between segments shorter than bendRefLength get a proportionally stiffer spring,
+          // so the deck's bending stiffness no longer depends on how finely it is cut.
+          const lref = Math.max(num(m1.bendRefLength, 0), num(m2.bendRefLength, 0));
+          const lavg = (this.rest[b1] + this.rest[b2]) / 2;
+          const scale = lref > 0 && lavg < lref ? Math.max(0.02, lavg / lref) : 1;
           L.push({ a, j: jn, b, b1, b2, rest: phi,
-            compl: 1 / Math.min(m1.bendStiffness, m2.bendStiffness),
+            compl: scale / Math.min(m1.bendStiffness, m2.bendStiffness),
             cap: Math.min(m1.momentLimit, m2.momentLimit) });
         }
       }
@@ -333,6 +348,7 @@
           v._contacts = []; v._nc = 0;
           v._sim = false;
           v._fallT = 0;
+          v._touch = false; v._airT = 0; v._airMax = 0; v.jumped = false;
           this.vehicles.push(v);
           k++;
         }
@@ -340,6 +356,8 @@
       this._nextSpawn = 0;
       this._spawnTime = 0;
       this._finished = 0;
+      this._stallT = 0;
+      this.firstBreak = null;
     }
 
     // ------------------------------------------------------------------ public
@@ -359,7 +377,7 @@
         status: this.status, time: Math.round(this.time * 1000) / 1000,
         peakStress: Math.round(peak * 10000) / 10000,
         vehiclesFinished: fin, vehiclesTotal: this.vehicles.length, brokenBeams: broken,
-        failReason: this.failReason,
+        failReason: this.failReason, firstBreak: this.firstBreak,
       };
     }
 
@@ -372,6 +390,7 @@
       const ramp = this.rampTime > 0 ? clamp(this.time / this.rampTime, 0, 1) : 1;
       const gs = ramp * ramp * (3 - 2 * ramp);
       const extraDamp = (1 - ramp) * RAMP_DAMP;
+      for (const v of this.vehicles) v._touch = false;
       for (let s = 0; s < ns; s++) this._substep(h, gs, extraDamp, s);
       this.time += DT;
       this.stepCount++;
@@ -551,7 +570,7 @@
       // 4. vehicle contacts
       for (let k = 0; k < vs.length; k++) {
         const v = vs[k];
-        if (v._sim) this._solveVehicleContacts(v, h);
+        if (v._sim) { this._solveVehicleContacts(v, h); if (v._nc) v._touch = true; }
       }
 
       // 5. joints vs terrain
@@ -863,13 +882,24 @@
       if (!this.active[j]) return;
       this.active[j] = 0;
       const ls = this.beamLinks && this.beamLinks[j];
-      if (ls) for (const l of ls) { this.lact[l] = 0; this.lMf[l] = 0; }
+      let bend = 0;
+      if (ls) for (const l of ls) {
+        if (this.lact[l]) { const r = Math.abs(this.lMf[l]) / this.lcap[l]; if (r > bend) bend = r; }
+        this.lact[l] = 0; this.lMf[l] = 0;
+      }
       const beam = this.beams[j];
       beam.broken = true;
       const a = this.ba[j], b = this.bb[j];
       const px = this.px, py = this.py;
       const mx = (px[a] + px[b]) / 2, my = (py[a] + py[b]) / 2;
-      this.events.push({ type: 'break', beamIndex: j, x: mx, y: my, m: beam.m });
+      // why it broke: the larger of the axial and bending parts of its stress ratio
+      const f = this.fFilt[j];
+      const axial = f >= 0 ? f / this.tlim[j] : -f / this.clim[j];
+      const mode = bend > axial ? 'bending' : f >= 0 ? 'tension' : 'compression';
+      if (!this.firstBreak && j < this.nDesignBeams) {
+        this.firstBreak = { beamIndex: j, m: beam.m, mode, force: f, axial, bend, time: Math.round(this.time * 1000) / 1000, x: mx, y: my };
+      }
+      this.events.push({ type: 'break', beamIndex: j, x: mx, y: my, m: beam.m, mode });
       if (this.frag[j]) return;
       if (this.nNodes + 2 > this._capN || this.nBeams + 2 > this._capB) return;
       beam.fragmented = true; // its two halves continue as separate 'fragment' beams
@@ -960,10 +990,21 @@
             v._fallT = this.time;
             this.events.push({ type: 'vehicle_fall', i });
             if (t.waterY !== null) this.events.push({ type: 'splash', x: v._px, y: t.waterY, size: clamp(v._M / 4000, 1, 6) });
-            if (this.status === 'running') { this.status = 'failed'; this.failReason = 'vehicle_fell'; }
+            // (falling outranks a jump: a launched vehicle that then drops into the gap 'fell')
+            if (this.status === 'running' || this.failReason === 'vehicle_jumped') { this.status = 'failed'; this.failReason = 'vehicle_fell'; }
           } else if (this._rearX(v) > t.rightEdge + FINISH_GAP && v._qc > 0.5) {
             v.state = 'finished';
             this.events.push({ type: 'vehicle_finish', i });
+          } else {
+            // airborne over the gap: a ramp that launches traffic is not a bridge
+            const over = v._px > t.leftEdge && v._px < t.rightEdge;
+            if (over && !v._touch) v._airT += DT; else v._airT = 0;
+            if (v._airT > v._airMax) v._airMax = v._airT;
+            if (v._airT > AIR_MAX && !v.jumped && !this.firstBreak) {
+              v.jumped = true;
+              this.events.push({ type: 'vehicle_jump', i, x: v._px, y: v._py });
+              if (this.status === 'running') { this.status = 'failed'; this.failReason = 'vehicle_jumped'; }
+            }
           }
         }
         if (v._sim && v.state === 'finished' && this._rearX(v) > t.rightEdge + 120) v._sim = false;
@@ -974,9 +1015,21 @@
         }
         if (v.state !== 'finished') allDone = false;
       }
+      // stalled: every driving vehicle (nearly) stopped for STALL_TIME -> end early instead of waiting for the clock
+      let driving = 0, moving = 0;
+      for (const v of vs) {
+        if (!v._sim || v.state !== 'driving') continue;
+        driving++;
+        if (v._vx * v._vx + v._vy * v._vy > STALL_SPEED * STALL_SPEED) moving++;
+      }
+      if (driving > 0 && moving === 0) this._stallT += DT; else this._stallT = 0;
       if (this.status === 'running') {
-        if (vs.length === 0 && this.time >= 3) this.status = 'success';
-        else if (allDone) this.status = 'success';
+        if (this._stallT >= STALL_TIME && this.time < this.timeLimit - 1e-9) { this.status = 'failed'; this.failReason = 'stalled'; }
+        else if (vs.length === 0 && this.time >= 3) this.status = 'success';
+        else if (allDone) {
+          if (this.roadConnected) this.status = 'success';
+          else { this.status = 'failed'; this.failReason = 'vehicle_jumped'; }
+        }
         else if (this.time >= this.timeLimit - 1e-9) { this.status = 'failed'; this.failReason = 'timeout'; }
       }
     }

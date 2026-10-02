@@ -1,0 +1,56 @@
+{
+  "id": 22,
+  "name": "Black Ice",
+  "theme": "snow",
+  "hint": "Sheer ice walls - nothing to brace against below. Everything has to hang from a truss above the road.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 3,
+    "rightEdge": 48,
+    "rightY": -1,
+    "floorY": -22,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 48,
+      "y": -1
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 48,
+    "y0": -3,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 32000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 2.2
+    },
+    {
+      "type": "truck",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 35,
+  "templates": true
+}

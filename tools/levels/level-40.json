@@ -1,0 +1,88 @@
+{
+  "id": 40,
+  "name": "Century Span",
+  "hint": "Six heavyweights, one wide harbour mouth. Build the towers tall by the quays and let the cables do the rest.",
+  "theme": "city",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -16
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 100,
+      "y": -6
+    },
+    {
+      "x": -12,
+      "y": 0
+    },
+    {
+      "x": 112,
+      "y": 0
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 10,
+      "x1": 16
+    },
+    {
+      "x0": 84,
+      "x1": 90
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 18,
+      "x1": 82,
+      "y0": -16,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": -12,
+    "x1": 112,
+    "y0": -15,
+    "y1": 32
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 94500,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 2
+    },
+    {
+      "type": "semi",
+      "count": 3,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 70,
+  "templates": true
+}

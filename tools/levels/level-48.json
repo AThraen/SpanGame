@@ -1,0 +1,94 @@
+{
+  "id": 48,
+  "name": "Flight Path",
+  "theme": "city",
+  "hint": "Jets land over this river - nothing may rise into the approach. Choose your two islands wisely.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 135,
+    "rightY": 0,
+    "floorY": -20,
+    "waterY": -12
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 135,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 135,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 30,
+      "x1": 40
+    },
+    {
+      "x0": 62,
+      "x1": 73
+    },
+    {
+      "x0": 95,
+      "x1": 105
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 20,
+      "x1": 115,
+      "y0": 12,
+      "y1": 40
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 135,
+    "y0": -10,
+    "y1": 40
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 157000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 4,
+      "interval": 1.2
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "semi",
+      "count": 1,
+      "interval": 3
+    },
+    {
+      "type": "heavy",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 70,
+  "templates": true
+}

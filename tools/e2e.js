@@ -1,7 +1,8 @@
 // Headless end-to-end check for SPAN. Never opens a visible window.
 // Usage: node tools/e2e.js [outDir=%TEMP%/span-e2e] [viewportW=1440] [viewportH=900]
-// Drives the real game headless (title -> levels 1-3): mouse-built level 1, pass/fail runs, templates,
-// undo/redo, mirror, piers, frame timing, progress. Exit code 0 = all checks passed.
+// Drives the real game headless: level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
+// auto-split beginner path), pass/fail runs, templates (level 4), undo/redo, mirror + piers (level 11),
+// frame timing, progress. Exit code 0 = all checks passed.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -45,6 +46,8 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.keyboard.press('Enter');
   await page.waitForTimeout(900);
   ok('level select state', await page.evaluate(() => BG.Game.state) === 'levelSelect');
+  const ls = await page.evaluate(() => ({ tiles: document.querySelectorAll('.tile').length, soon: document.querySelectorAll('.tile.soon').length, chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), ranges: Array.from(document.querySelectorAll('.chapter .ch-text p')).map(p => p.textContent.split(' · ')[0]), levels: BG.Levels.length }));
+  ok('level select: 50 levels in 6 chapters', ls.tiles === 50 && ls.soon === 0 && ls.levels === 50 && ls.chapters.length === 6, ls);
   await shot('02-levelselect');
 
   await page.click('.tile[data-id="1"]');
@@ -57,11 +60,11 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await drag(0, 0, 5, 0);                    // road a0 -> (5,0); chain continues from n
   const b1 = await page.evaluate(() => BG.Game.getDesign().beams.length);
   ok('mouse drag builds beam', b1 === 1, b1);
-  // chain: click at a1
+  // chain: click at a1 (reaching an anchor ends the chain)
   const a1 = await W2S(10, 0);
   await page.mouse.click(a1.x, a1.y);
   await page.waitForTimeout(80);
-  await page.keyboard.press('Escape');
+  ok('chain ends at the far anchor', await page.evaluate(() => BG.Game.editor.chainFrom === null && BG.Game.state === 'edit'));
   await page.keyboard.press('2'); // wood
   await drag(0, -2.5, 5, 0);
   await page.keyboard.press('Escape');
@@ -107,15 +110,38 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   r = await runSim(60);
   await page.waitForTimeout(1500);
   ok('weak design fails', r.res && !r.res.passed && r.res.brokenBeams > 0, r.res && { title: r.res.title, reason: r.res.reason, broken: r.res.brokenBeams });
+  ok('failure explains the first break', r.res && r.res.firstBreak && /bent too far|compression|tension/.test(r.res.reasonText), r.res && r.res.reasonText);
+  ok('after a failure Edit is the main action', await page.evaluate(() => document.querySelector('[data-act=resEdit]').classList.contains('btn-primary') && !document.querySelector('[data-act=retry]').classList.contains('btn-primary')));
   await shot('09-level1-fail');
+  await page.click('[data-act=inspect]'); await page.waitForTimeout(400);
+  await shot('09b-level1-fail-inspect');
+  await page.click('[data-act=uninspect]'); await page.waitForTimeout(200);
+  await page.click('[data-act=resEdit]'); await page.waitForTimeout(400);
 
-  // ---- level 2: templates
-  await page.evaluate(() => { BG.Game.openLevel(2, { force: true }); });
+  // ---- beginner path: strut from the far-away lower-left anchor stops at 6 m on the road and joins it
+  await page.evaluate(() => { BG.Game.editor.design = { nodes: [], beams: [], piers: [] }; BG.Game.editor.setMaterial('road'); });
+  await drag(0, 0, 9, 0);                    // clamps at (6,0), chain continues
+  const a1b = await W2S(10, 0);
+  await page.mouse.click(a1b.x, a1b.y); await page.waitForTimeout(80);
+  await page.keyboard.press('2');
+  await drag(0, -2.5, 6, 0);                 // 6.5 m away: wood stops at (5,0) on the road
+  await page.keyboard.press('Escape');
+  const sp = await page.evaluate(() => { const d = BG.Game.getDesign(); return { road: d.beams.filter(b => b.m === 'road').length, wood: d.beams.filter(b => b.m === 'wood').length, v: BG.Model.validate(BG.Game.level, d).ok, connected: BG.Model.roadConnected(BG.Game.level, d) }; });
+  ok('strut landing on the road splits it (auto-join)', sp.road === 3 && sp.wood === 1 && sp.v && sp.connected, sp);
+  await page.evaluate(() => { BG.Game._lastToggle = -1e9; BG.Game.startSim(); });
+  r = await runSim(60);
+  await page.waitForTimeout(1500);
+  ok('beginner strut design passes level 1', r.res && r.res.passed, r.res && { passed: r.res.passed, stars: r.res.stars, title: r.res.title });
+  await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
+
+  // ---- level 4: templates (off on levels 1-3)
+  await page.evaluate(() => { BG.Game.openLevel(4, { force: true }); });
   await page.waitForTimeout(900);
   await page.evaluate(() => BG.Hud.hideHint());
   await page.click('[data-act=templates]'); await page.waitForTimeout(300);
-  await shot('10-level2-tplmenu');
-  const tplIds = await page.evaluate(() => BG.Templates.list.map(t => t.id));
+  await shot('10-level4-tplmenu');
+  const tplIds = await page.evaluate(() => Array.from(document.querySelectorAll('[data-tpl]')).map(b => b.dataset.tpl));
+  ok('template menu lists only templates that fit', tplIds.length > 0 && (await page.evaluate(() => BG.Templates.available(BG.Game.level).filter(t => t.ok).length)) === tplIds.length, tplIds);
   const tplRes = {};
   for (const id of tplIds) {
     await page.evaluate(() => { if (!BG.Hud.templatesOpen()) document.querySelector('[data-act=templates]').click(); });
@@ -127,7 +153,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   ok('templates apply', Object.values(tplRes).every(v => /^\d+$/.test(v) && +v > 0), tplRes);
   await page.evaluate(() => document.querySelector('[data-act=templates]').click()); await page.waitForTimeout(100);
   await page.click('[data-tpl="warren"]'); await page.waitForTimeout(300);
-  await shot('11-level2-warren');
+  await shot('11-level4-warren');
   // undo/redo
   const ur = await page.evaluate(() => {
     const g = BG.Game, n0 = g.getDesign().beams.length;
@@ -142,29 +168,35 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.keyboard.press('Control+y'); await page.waitForTimeout(80);
   const urk2 = await page.evaluate(() => BG.Game.getDesign().beams.length);
   ok('undo/redo keyboard', urk !== ur.n0 && urk2 === ur.n0, { urk, urk2 });
-  // run warren on level 2
+  // run warren on level 4 at 4x speed
   await page.evaluate(() => { BG.Game._lastToggle = -1e9; BG.Game.startSim(); });
+  await page.click('[data-speed="4"]'); await page.waitForTimeout(100);
+  ok('4x speed selectable', await page.evaluate(() => BG.Game.speed === 4 && document.querySelector('[data-speed="4"]').classList.contains('active')));
   r = await runSim(60);
-  ok('level 2 warren template run completes', r.state === 'results', r.res && { passed: r.res.passed, stars: r.res.stars, broken: r.res.brokenBeams, title: r.res.title });
+  ok('level 4 warren template run completes', r.state === 'results', r.res && { passed: r.res.passed, stars: r.res.stars, broken: r.res.brokenBeams, title: r.res.title });
+  await page.evaluate(() => BG.Game.setSpeed(1));
 
-  // ---- level 3: mirror + pier
-  await page.evaluate(() => { BG.Game.openLevel(3, { force: true }); });
+  // ---- level 11: mirror + pier
+  await page.evaluate(() => { BG.Game.openLevel(11, { force: true }); });
   await page.waitForTimeout(900);
   await page.evaluate(() => BG.Hud.hideHint());
   await page.keyboard.press('p'); await page.waitForTimeout(50);
-  const pz = await W2S(20, 0);
+  const zx = await page.evaluate(() => { const z = BG.Game.level.pierZones[0]; return (z.x0 + z.x1) / 2; });
+  const pz = await W2S(zx, 0);
   await page.mouse.move(pz.x, pz.y); await page.waitForTimeout(80);
-  await shot('12-level3-pierghost');
+  await shot('12-level11-pierghost');
   await page.mouse.click(pz.x, pz.y); await page.waitForTimeout(100);
   const piers = await page.evaluate(() => BG.Game.getDesign().piers);
-  ok('pier placed on level 3', piers.length === 1, piers);
+  ok('pier placed on level 11', piers.length === 1, piers);
+  ok('pier tool shows the pier allowance', await page.evaluate(() => /Pier 1\/\d/.test(document.querySelector('[data-tool=pier] span').textContent)));
   await page.keyboard.press('b');
   await page.keyboard.press('m');
   await page.keyboard.press('1');
   await drag(0, 0, 5, 0); await page.keyboard.press('Escape');
   const mir = await page.evaluate(() => BG.Game.getDesign().beams.map(b => b.a + '-' + b.b));
   ok('mirror builds symmetric beam', mir.length === 2, mir);
-  await shot('13-level3-mirror');
+  await shot('13-level11-mirror');
+  await page.evaluate(() => BG.Game.openLevel(3, { force: true })); await page.waitForTimeout(700);
   await page.keyboard.press('m');
 
   // ---- level 3 solution + fps

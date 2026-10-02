@@ -1,0 +1,87 @@
+{
+  "id": 45,
+  "name": "Caldera Cantilever",
+  "theme": "volcanic",
+  "hint": "Piers this tall cost a fortune. Two of them, balanced arms reaching out, and a light span hung in the middle.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 125,
+    "rightY": 0,
+    "floorY": -70,
+    "waterY": -64
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 125,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -12
+    },
+    {
+      "x": 125,
+      "y": -12
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 125,
+      "y": -4
+    },
+    {
+      "x": 125,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 26,
+      "x1": 36
+    },
+    {
+      "x0": 89,
+      "x1": 99
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 125,
+    "y0": -22,
+    "y1": 18
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 230000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "tanker",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 65,
+  "templates": true
+}

@@ -1,0 +1,82 @@
+{
+  "id": 42,
+  "name": "Twin Channels",
+  "theme": "autumn",
+  "hint": "Two shipping lanes, one island between them. Nothing may dip into the channels - so what can rise from the island?",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 105,
+    "rightY": 0,
+    "floorY": -20,
+    "waterY": -14
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 105,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 105,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 45,
+      "x1": 60
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 12,
+      "x1": 42,
+      "y0": -14,
+      "y1": -2
+    },
+    {
+      "x0": 63,
+      "x1": 93,
+      "y0": -14,
+      "y1": -2
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 105,
+    "y0": -12,
+    "y1": 22
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 107000,
+  "traffic": [
+    {
+      "type": "semi",
+      "count": 1,
+      "interval": 3
+    },
+    {
+      "type": "tanker",
+      "count": 3,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

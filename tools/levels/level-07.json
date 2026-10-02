@@ -1,0 +1,52 @@
+{
+  "id": 7,
+  "name": "Timber Giant",
+  "hint": "The longest wooden span yet. Keep every panel under 6 m and make the truss deepest in the middle, where it bends the most.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 22,
+    "rightY": 0,
+    "floorY": -14,
+    "waterY": -9
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 22,
+      "y": 0
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 22,
+    "y0": -4,
+    "y1": 9
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 5500,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 4,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

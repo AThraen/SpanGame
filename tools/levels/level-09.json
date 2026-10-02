@@ -1,0 +1,66 @@
+{
+  "id": 9,
+  "name": "Best of Both",
+  "hint": "Steel where the stress is high, cheap wood where it is low. Swap one member at a time and test again.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 26,
+    "rightY": 0,
+    "floorY": -14,
+    "waterY": -9
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 26,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 26,
+      "y": -4
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 26,
+    "y0": -7,
+    "y1": 3
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 9750,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 44,
+  "templates": true
+}

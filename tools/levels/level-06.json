@@ -1,0 +1,60 @@
+{
+  "id": 6,
+  "name": "Uphill Both Ways",
+  "hint": "The far bank is 4 m higher. Your deck has to climb, and the truss need not be symmetric - follow the slope.",
+  "theme": "meadow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 20,
+    "rightY": 4,
+    "floorY": -10,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 20,
+      "y": 4
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 20,
+      "y": 1
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 20,
+    "y0": -6,
+    "y1": 9
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 4800,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 3,
+      "interval": 2.2
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

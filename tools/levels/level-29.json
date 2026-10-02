@@ -1,0 +1,86 @@
+{
+  "id": 29,
+  "name": "Crosscurrents",
+  "theme": "city",
+  "hint": "Two shipping lanes, one shallow middle. A quick pack of cars leads the way - the trucks behind them are the real test.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 4,
+    "rightEdge": 68,
+    "rightY": 0,
+    "floorY": -9,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 4
+    },
+    {
+      "x": 68,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -2
+    },
+    {
+      "x": 68,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 20,
+      "x1": 24
+    },
+    {
+      "x0": 44,
+      "x1": 48
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 2,
+      "x1": 19,
+      "y0": -6,
+      "y1": -1
+    },
+    {
+      "x0": 49,
+      "x1": 66,
+      "y0": -6,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 68,
+    "y0": -6,
+    "y1": 20
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 40000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.2
+    },
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 42,
+  "templates": true
+}

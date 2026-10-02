@@ -1,0 +1,67 @@
+{
+  "id": 16,
+  "name": "Stay Tuned",
+  "theme": "autumn",
+  "hint": "No steel today. Raise a tall pier tower in the middle and hang the deck from it with cable - cable only pulls, but it pulls a lot.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 38,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 38,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 38,
+      "y": -3
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 15,
+      "x1": 23
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 38,
+    "y0": -6,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "wood",
+    "rope",
+    "cable"
+  ],
+  "budget": 19000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 4,
+      "interval": 2.2
+    },
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

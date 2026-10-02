@@ -1,0 +1,60 @@
+{
+  "id": 4,
+  "name": "Underbelly",
+  "hint": "There is no headroom above the road, but the cliffs hold anchors lower down. Build the truss BELOW the deck and tie it into them.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 18,
+    "rightY": 0,
+    "floorY": -12,
+    "waterY": -8
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 18,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 18,
+      "y": -5
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 18,
+    "y0": -8,
+    "y1": 1
+  },
+  "materials": [
+    "road",
+    "wood"
+  ],
+  "budget": 4500,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 4,
+      "interval": 2.2
+    },
+    {
+      "type": "van",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 36,
+  "templates": true
+}

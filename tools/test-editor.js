@@ -473,5 +473,65 @@ section('renderer state shape');
   ok(st.hoverNode === nodeAt(ed, 3, 1).id, 'hoverNode id');
 }
 
+section('chain: ends at anchors, out-of-reach click builds toward the joint');
+{
+  const { ed, game } = fresh();
+  drag(ed, 0, 0, 6, 0);
+  const n1 = nodeAt(ed, 6, 0);
+  ok(ed.chainFrom === n1.id, 'chain continues from (6,0)');
+  click(ed, 12, 0);
+  ok(hasBeam(ed, n1.id, 'a1') && ed.chainFrom === null, 'connecting to the far anchor ends the chain');
+  ed.keyDown('Escape');
+  // chain from a2 (0,-3), click the right anchor a1 (12,0) which is 12.4 m away: wood stops at 6 m
+  ed.material = 'wood';
+  click(ed, 0, -3);
+  ok(ed.chainFrom === 'a2', 'click on anchor starts a chain');
+  ed.pointerMove(12, 0, {});
+  const gx = ed.state.ghost && ed.state.ghost.x2, gy = ed.state.ghost && ed.state.ghost.y2;
+  click(ed, 12, 0);
+  const nEnd = ed.design.nodes.find((n) => near(n.x, gx) && near(n.y, gy));
+  ok(nEnd && hasBeam(ed, 'a2', nEnd.id), 'out-of-reach click places the previewed (clamped) beam');
+  ok(ed.chainFrom === (nEnd && nEnd.id) && /reaches at most 6 m/.test(game.lastToast || ''), 'chain continues from the clamped end + toast');
+}
+
+section('auto-split: a new joint landing on a beam joins it');
+{
+  const { ed } = fresh();
+  drag(ed, 0, 0, 6, 0);
+  ed.keyDown('Escape');
+  ed.material = 'wood';
+  // a2 (0,-3) -> toward (6,0) is 6.7 m: wood stops at 6 m and snaps to (5,0), on the road a0-(6,0)
+  drag(ed, 0, -3, 6, 0);
+  const j = nodeAt(ed, 5, 0);
+  const n6 = nodeAt(ed, 6, 0);
+  ok(j && hasBeam(ed, 'a2', j.id), 'clamped strut ends at (5,0)');
+  ok(j && hasBeam(ed, 'a0', j.id) && hasBeam(ed, j.id, n6.id) && !hasBeam(ed, 'a0', n6.id), 'road split at the strut joint');
+  ok(ed.design.beams.filter((b) => b.m === 'road').length === 2, 'two road pieces');
+  ed.undo();
+  ok(hasBeam(ed, 'a0', n6.id) && !nodeAt(ed, 5, 0), 'undo restores the unsplit road');
+}
+
+section('terrain clearance + beams through rock');
+{
+  const { ed } = fresh();
+  ed.material = 'steel';
+  drag(ed, 0, -3, 0.25, -6);
+  ok(!nodeAt(ed, 0.25, -6), 'no joint 0.25 m from the cliff face');
+  ed.pointerDown(0, 0, {}); ed.pointerMove(-0.75, -6, {});
+  ok(ed.state.ghost && !ed.state.ghost.valid, 'beam into the bank is invalid (' + (ed.state.ghost && ed.state.ghost.reason) + ')');
+  ed.pointerCancel();
+  ok(BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 0, y: -6 }], beams: [{ a: 'a0', b: 'n1', m: 'steel' }], piers: [] }).errors.some((e) => e.type === 'near_terrain'), 'validate: joint on the cliff face rejected');
+  ok(BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 1, y: -6 }], beams: [{ a: 'a0', b: 'n1', m: 'steel' }, { a: 'n1', b: 'a2', m: 'steel' }], piers: [] }).ok, 'validate: joint 1 m off the face is fine');
+  ok(BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 1, y: -6 }], beams: [{ a: 'n1', b: 'a0', m: 'steel' }, { a: 'n1', b: 'a2', m: 'steel' }, { a: 'n1', b: 'a0', m: 'wood' }], piers: [] }).errors.some((e) => e.type === 'duplicate_beam'), 'validate: duplicate beam still caught');
+  const v = BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 1, y: -6 }], beams: [{ a: 'n1', b: 'a0', m: 'steel' }, { a: 'n1', b: 'a0', m: 'steel' }], piers: [] });
+  ok(!v.ok, 'validate sanity');
+  const rock = BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 1, y: -6 }], beams: [{ a: 'n1', b: 'a0', m: 'steel' }, { a: 'n1', b: 'a2', m: 'steel' }], piers: [] });
+  ok(rock.ok, 'beams in the open are fine');
+  const thru = BG.Model.validate(ed._level(), { nodes: [{ id: 'n1', x: 1, y: -6 }], beams: [{ a: 'n1', b: 'a0', m: 'steel' }, { a: 'n1', b: 'a2', m: 'steel' }, { a: 'a2', b: 'a1', m: 'steel' }], piers: [] });
+  ok(thru.ok || thru.errors.every((e) => e.type !== 'in_terrain'), 'anchor-to-anchor beam over the gap is not through rock');
+  const lv36 = { terrain: { leftEdge: 0, leftY: 0, rightEdge: 20, rightY: 0, floorY: -30, waterY: null }, anchors: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: -5, y: 0 }], materials: ['steel'] };
+  ok(BG.Model.validate(lv36, { nodes: [{ id: 'n1', x: 2, y: -6 }], beams: [{ a: 'a2', b: 'n1', m: 'steel' }], piers: [] }).errors.some((e) => e.type === 'in_terrain' && e.beamIndex === 0), 'validate: beam through the bank rejected');
+}
+
 console.log(`${pass}/${pass + fail} editor checks passed`);
 process.exit(fail ? 1 : 0);

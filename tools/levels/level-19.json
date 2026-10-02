@@ -1,0 +1,76 @@
+{
+  "id": 19,
+  "name": "Highs and Lows",
+  "theme": "autumn",
+  "hint": "The west bank sits 5 m above the east, so the road must fall as it crosses. Piers are on offer, but the water is deep and concrete is dear - count the dollars before you pour.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 5,
+    "rightEdge": 44,
+    "rightY": 0,
+    "floorY": -14,
+    "waterY": -9
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 44,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 44,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -3
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 9,
+      "x1": 17
+    },
+    {
+      "x0": 27,
+      "x1": 35
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 44,
+    "y0": -8,
+    "y1": 14
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 18000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 4,
+      "interval": 1.6
+    },
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

@@ -79,9 +79,20 @@ ok(JSON.stringify(ids) === JSON.stringify(['beam', 'warren', 'pratt', 'howe', 'd
 BG.Templates.list.forEach((t) => ok(t.name && t.desc, 'template ' + t.id + ' has name/desc'));
 
 const svgParts = [];
+let skipped = 0;
 for (const level of levels) {
   const row = [];
+  const avail = BG.Templates.available ? BG.Templates.available(level) : ids.map((id) => ({ id, ok: true }));
   for (const id of ids) {
+    const av = avail.find((a) => a.id === id);
+    if (av && !av.ok) {
+      // flagged as unusable here (the HUD hides it): it must not be offered as a valid design
+      const d0 = BG.Templates.generate(id, level, {});
+      const e0 = BG.Templates.checkGeometry(level, d0).length + (BG.Model ? BG.Model.validate(level, d0).errors.length : 0);
+      ok(e0 > 0 || !d0.beams.length || /rope or cable/.test(av.reason || ''), `[${level.name}] ${id}: flagged unavailable only when it really does not fit`);
+      skipped++;
+      continue;
+    }
     const d = BG.Templates.generate(id, level, {});
     const errs = BG.Templates.checkGeometry(level, d);
     ok(errs.length === 0, `[${level.name}] ${id}: geometry errors ${JSON.stringify(errs.slice(0, 3))}`);
@@ -109,6 +120,7 @@ for (const level of levels) {
   if (svgOut) svgParts.push({ level, row });
 }
 
+console.log('  (' + skipped + ' template/level pairs flagged unavailable and hidden in the HUD)');
 // determinism
 const L = levels[4];
 ok(JSON.stringify(BG.Templates.generate('suspension', L)) === JSON.stringify(BG.Templates.generate('suspension', L)), 'deterministic output');

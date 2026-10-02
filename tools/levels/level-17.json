@@ -1,0 +1,71 @@
+{
+  "id": 17,
+  "name": "Bumper to Bumper",
+  "theme": "desert",
+  "hint": "Six vans and three buses arrive in one unbroken line, so the span has to hold all of them together. A rock ledge caps you 4 m above the road - and cable is cheap in tension.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 40,
+    "rightY": 0,
+    "floorY": -16,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 40,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 40,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 40,
+      "y": -8
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 40,
+    "y0": -9,
+    "y1": 4
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 15500,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 6,
+      "interval": 1
+    },
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 1.4
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

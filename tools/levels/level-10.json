@@ -1,0 +1,70 @@
+{
+  "id": 10,
+  "name": "Chapter Closer",
+  "hint": "Two buses close the convoy, and the right bank has fewer anchors than the left. Build deep, brace the middle, and watch what reddens first.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 28,
+    "rightY": 0,
+    "floorY": -18,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 28,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 28,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -9
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 28,
+    "y0": -9,
+    "y1": 8
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 10750,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 5
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

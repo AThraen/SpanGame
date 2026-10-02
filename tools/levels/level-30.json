@@ -1,0 +1,85 @@
+{
+  "id": 30,
+  "name": "The Long Haul",
+  "theme": "meadow",
+  "hint": "Only one island for a tower, and cables stop at 40 m. Let the tower carry what it can reach - the far cliff has to handle the rest.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 4,
+    "rightEdge": 70,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -6
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 4
+    },
+    {
+      "x": 70,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -1
+    },
+    {
+      "x": 70,
+      "y": -5
+    },
+    {
+      "x": 70,
+      "y": -10
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 5,
+      "x1": 10
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [
+    {
+      "x0": 11,
+      "x1": 48,
+      "y0": -6,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 70,
+    "y0": -10,
+    "y1": 22
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 51000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 3.5
+    },
+    {
+      "type": "bus",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

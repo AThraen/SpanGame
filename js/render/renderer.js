@@ -514,7 +514,9 @@
     const ba = L.buildArea || { x0: t.leftEdge - 2, x1: t.rightEdge + 2, y0: t.floorY, y1: top + 10 };
     const x0 = Math.min(ba.x0, t.leftEdge - 7), x1 = Math.max(ba.x1, t.rightEdge + 7);
     const lowRef = (t.waterY !== null && t.waterY !== undefined) ? t.waterY - 2.5 : t.floorY - 1;
-    const y0 = Math.min(ba.y0, Math.max(lowRef, top - 0.9 * (x1 - x0))), y1 = Math.max(ba.y1, top + 4);
+    // the floor may be cropped: show at most a few metres below the build area (and the water line)
+    const y0 = Math.min(ba.y0, Math.max(lowRef, top - 0.9 * (x1 - x0), ba.y0 - 4));
+    const y1 = Math.max(ba.y1, top + 7); // room for the tallest vehicles + a margin under the top bar
     return { x0, x1, y0, y1 };
   };
   R.fitToLevel = function (opts) {
@@ -1529,6 +1531,22 @@
     const mode = state.mode || 'edit';
     const sim = state.sim;
     const useSim = sim && sim.nodes && sim.beams && mode !== 'edit';
+    if (useSim && this._blueprint && state.design && state.design.beams) {
+      // every design beam at its built position, coloured by the peak stress it saw; broken ones in red
+      const map = this._nodeMap;
+      const design = state.design;
+      for (let i = 0; i < design.beams.length; i++) {
+        const b = design.beams[i];
+        const A = map[b.a], B = map[b.b];
+        if (!A || !B) continue;
+        const m = b.m || 'steel';
+        const sb = sim.beams[i];
+        const cracked = !!(sb && sb.broken && !sb.invalid);
+        const s = sb ? (cracked ? Math.max(1, sb.peak || 1) : (sb.peak || 0)) : 0;
+        items.push({ ax: A.x, ay: A.y, bx: B.x, by: B.y, m, st: matStyle(m), s, i, broken: false, cracked, sag: 0 });
+      }
+      return items;
+    }
     if (useSim) {
       const peak = state.peakView || (mode === 'results' && state.peakView !== false);
       const show = peak || state.showStress !== false;
@@ -1648,7 +1666,7 @@
             strokeSet(ctx, list, 0.5, bw, st.deck, true);
             strokeSet(ctx, list, 0.86, w * 0.28, st.deckLo, true);
           }
-          this._tint(ctx, tinted, 0.5, bw * 0.98, true, 0.78);
+          this._tint(ctx, tinted, 0.76, bw * 0.48, true, 0.9);
           if (broken.length) strokeSet(ctx, broken, 0.5, bw, 'rgba(30,30,30,0.35)', true);
           if (detail && w * z > 3) {
             strokeSet(ctx, list, 0.08, w * 0.16, st.kerb, true);
@@ -1750,7 +1768,14 @@
   // =====================================================================================
   R._drawAnchors = function (ctx, L, edit, used) {
     const z = this.camera.zoom, d = this.dpr;
-    const size = 1.15;
+    const size = Math.max(1.15, 13 / z); // never smaller than ~13 px: anchors are key puzzle information
+    if (z < 14) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.6 / z;
+      ctx.fillStyle = 'rgba(255,214,90,0.16)';
+      for (const a of L.anchors || []) { ctx.beginPath(); ctx.arc(a.x, a.y, size * 0.62, 0, TAU); ctx.fill(); ctx.stroke(); }
+      ctx.restore();
+    }
     const img = Sprites.raster('anchor', size * z * d);
     (L.anchors || []).forEach((a, i) => {
       ctx.save();
@@ -2075,7 +2100,15 @@
       for (const q of leftUp) ctx.lineTo(q[0], q[1]);
       ctx.closePath();
     };
-    if (th.lava) { this._drawLava(ctx, pts, sl, sr, sy, sb, surfPath, bodyPath); return; }
+    const valleyPath = function () {
+      const P = T.left.map(toS).concat(T.floor.map(toS), T.right.map(toS).reverse());
+      ctx.beginPath();
+      if (!P.length) return;
+      ctx.moveTo(P[0][0], P[0][1]);
+      for (let i = 1; i < P.length; i++) ctx.lineTo(P[i][0], P[i][1]);
+      ctx.closePath();
+    };
+    if (th.lava) { this._drawLava(ctx, pts, sl, sr, sy, sb, surfPath, bodyPath, valleyPath); return; }
     // reflection capture: region above the waterline
     const reflH = Math.max(0, Math.min(sb - sy, 340, sy));
     const rw = Math.round((sr - sl) * d), rh = Math.round(reflH * d);
@@ -2167,11 +2200,12 @@
       }
     }
   };
-  R._drawLava = function (ctx, pts, sl, sr, sy, sb, surfPath, bodyPath) {
+  R._drawLava = function (ctx, pts, sl, sr, sy, sb, surfPath, bodyPath, valleyPath) {
     const W = this.W, z = this.camera.zoom, time = this.time, camx = this.camera.x;
     this._screenXf(ctx);
-    // heat glow above
+    // heat glow above (kept inside the valley so it never paints over the cliffs)
     ctx.save();
+    if (valleyPath) { valleyPath(); ctx.clip(); }
     ctx.globalCompositeOperation = 'lighter';
     const gh = Math.max(30, 5 * z);
     const glow = ctx.createLinearGradient(0, sy - gh, 0, sy);
@@ -2229,17 +2263,23 @@
       const tilt = Math.sin(this.time * 1.1 + i) * 0.02;
       ctx.save();
       ctx.translate(x, y); ctx.rotate(tilt); ctx.scale(len, len);
-      // hull
-      ctx.fillStyle = '#1f3550';
+      // hull (lighter, rim-lit at night so it reads against dark water)
+      const nightShip = !!this.theme.night;
+      ctx.fillStyle = nightShip ? '#4f74a0' : '#1f3550';
       ctx.beginPath(); ctx.moveTo(0, 0.16); ctx.lineTo(1.0, 0.18); ctx.lineTo(0.9, -0.06); ctx.lineTo(0.08, -0.06); ctx.closePath(); ctx.fill();
+      if (nightShip) { ctx.strokeStyle = 'rgba(225,238,255,0.7)'; ctx.lineWidth = 0.012; ctx.stroke(); }
       ctx.fillStyle = '#c63b2f';
       ctx.beginPath(); ctx.moveTo(0.06, -0.01); ctx.lineTo(0.93, -0.01); ctx.lineTo(0.9, -0.06); ctx.lineTo(0.08, -0.06); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#f2f2ee'; ctx.fillRect(0.02, 0.15, 0.97, 0.025);
       // cabin
       ctx.fillStyle = '#f4f6f8'; ctx.fillRect(0.12, 0.18, 0.3, 0.12); ctx.fillRect(0.16, 0.3, 0.2, 0.08);
-      ctx.fillStyle = '#2a4a6a';
+      ctx.fillStyle = nightShip ? '#ffd27a' : '#2a4a6a';
       for (let k = 0; k < 4; k++) ctx.fillRect(0.14 + k * 0.07, 0.23, 0.045, 0.035);
       ctx.fillRect(0.18, 0.33, 0.16, 0.03);
+      // foam at the waterline
+      ctx.fillStyle = nightShip ? 'rgba(230,240,255,0.55)' : 'rgba(255,255,255,0.45)';
+      ctx.fillRect(-0.03, 0.052, 1.06, 0.014);
+      if (nightShip) { ctx.fillStyle = '#ff5a4a'; ctx.fillRect(0.005, 0.17, 0.02, 0.02); ctx.fillStyle = '#5aff8a'; ctx.fillRect(0.975, 0.19, 0.02, 0.02); }
       // funnel
       ctx.fillStyle = '#e8a33a'; ctx.fillRect(0.24, 0.38, 0.06, 0.1);
       ctx.fillStyle = '#222'; ctx.fillRect(0.24, 0.46, 0.06, 0.02);
@@ -2259,6 +2299,7 @@
   // =====================================================================================
   R._drawEditUnder = function (ctx, state) {
     const L = this.level, es = state.editorState || {};
+    this._pierLabels = [];
     const ba = L.buildArea;
     const W = this.W, H = this.H, z = this.camera.zoom;
     this._screenXf(ctx);
@@ -2325,7 +2366,10 @@
         ctx.fillStyle = '#2a2a2a';
         for (let x = a.x - bh * 2; x < b.x + bh; x += bh * 1.6) { ctx.beginPath(); ctx.moveTo(x, a.y); ctx.lineTo(x + bh * 0.8, a.y); ctx.lineTo(x + bh * 1.6, a.y - bh); ctx.lineTo(x + bh * 0.8, a.y - bh); ctx.fill(); }
         ctx.restore();
-        this._label(ctx, (a.x + b.x) / 2, a.y - bh - 12, 'PIER ZONE', 'rgba(40,32,10,0.72)', '#ffd860', 10);
+        const wy = L.terrain.waterY;
+        const ly = (wy !== null && wy !== undefined && wy > fy) ? this.worldToScreen(0, wy).y - 14 : a.y - bh - 12;
+        const taken = ((state.design && state.design.piers) || []).some(function (p) { return p.x >= pz.x0 - 0.01 && p.x <= pz.x1 + 0.01; });
+        if (!taken) (this._pierLabels || (this._pierLabels = [])).push([(a.x + b.x) / 2, ly, b.x - a.x]);
       }
     }
     // mirror axis
@@ -2567,15 +2611,24 @@
   };
 
   R._drawPeakLabels = function (ctx, items, sh) {
-    const hot = items.filter(function (it) { return !it.broken && it.s >= 0.7; }).sort(function (a, b) { return b.s - a.s; });
+    const rank = function (it) { return it.cracked || it.broken ? 2 + (it.s || 0) : it.s; };
+    const hot = items.filter(function (it) { return it.cracked || (it.broken && it.s != null) || it.s >= 0.7; }).sort(function (a, b) { return rank(b) - rank(a); });
     const seen = {};
+    const boxes = [];
     let n = 0;
     this._screenXf(ctx, sh.x, sh.y);
     for (const it of hot) {
-      if (seen[it.i] || n >= 6) continue;
-      seen[it.i] = 1; n++;
+      if (seen[it.i] || n >= 10) continue;
+      seen[it.i] = 1;
       const p = this.worldToScreen((it.ax + it.bx) / 2, (it.ay + it.by) / 2);
-      this._label(ctx, p.x, p.y - 14, Math.round(it.s * 100) + '%', it.s >= 1 ? 'rgba(200,30,24,0.92)' : 'rgba(20,24,34,0.82)', stressColor(Math.min(it.s, 1)), 10);
+      const broke = it.cracked || it.broken;
+      const txt = broke ? 'BROKE' : Math.round(it.s * 100) + '%';
+      const w = txt.length * 6.6 + 12, hgt = 18, x = p.x - w / 2, y = p.y - 14 - hgt / 2;
+      // skip labels that would collide with one already drawn
+      if (boxes.some(function (b) { return x < b[2] && x + w > b[0] && y < b[3] && y + hgt > b[1]; })) continue;
+      boxes.push([x, y, x + w, y + hgt]);
+      n++;
+      this._label(ctx, p.x, p.y - 14, txt, broke || it.s >= 1 ? 'rgba(200,30,24,0.92)' : 'rgba(20,24,34,0.82)', broke ? '#ffd0c8' : stressColor(Math.min(it.s, 1)), 10);
     }
   };
 
@@ -2619,9 +2672,11 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(this._mid, Math.round((sh.x - M) * d), Math.round((sh.y - M) * d));
 
-    // node lookup
+    // node lookup (results + undeformed: the inspect view shows peaks on the design as built)
+    const blueprint = mode === 'results' && !!state.undeformed && !!state.sim && !!state.design;
+    this._blueprint = blueprint;
     let nodes;
-    if (mode === 'edit' || !state.sim) nodes = this._designNodes(L, state.design || { nodes: [], beams: [], piers: [] });
+    if (mode === 'edit' || !state.sim || blueprint) nodes = this._designNodes(L, state.design || { nodes: [], beams: [], piers: [] });
     else nodes = state.sim.nodes || [];
     this._nodeList = nodes;
     const map = {};
@@ -2651,7 +2706,7 @@
     // joints & anchors
     const used = {};
     const jointPts = [];
-    if (mode === 'edit' || !state.sim) {
+    if (mode === 'edit' || !state.sim || blueprint) {
       for (const b of (state.design && state.design.beams) || []) { used[b.a] = 1; used[b.b] = 1; }
       for (const n of nodes) if (n && !String(n.id).startsWith('a') && (used[n.id] || !n.fixed)) jointPts.push(n);
     } else {
@@ -2666,7 +2721,18 @@
     this._drawJoints(ctx, anchorJ);
 
     // vehicles
-    this._drawVehicles(ctx, state, dt);
+    if (!blueprint) this._drawVehicles(ctx, state, dt);
+    if (blueprint) {
+      // a cross on every member that snapped
+      const z0 = this.camera.zoom, r = Math.max(0.35, 6 / z0);
+      ctx.strokeStyle = '#ff3a2a'; ctx.lineWidth = Math.max(0.08, 2.2 / z0);
+      ctx.beginPath();
+      for (const it of items) if (it.cracked) {
+        const mx = (it.ax + it.bx) / 2, my = (it.ay + it.by) / 2;
+        ctx.moveTo(mx - r, my - r); ctx.lineTo(mx + r, my + r); ctx.moveTo(mx - r, my + r); ctx.lineTo(mx + r, my - r);
+      }
+      ctx.stroke();
+    }
 
     // effects under water, water, effects above
     const z = this.camera.zoom;
@@ -2690,6 +2756,10 @@
     if (editUI) {
       this._drawNoBuild(ctx, state);
       this._drawEditOver(ctx, state, items, sh);
+      if (this._pierLabels && this._pierLabels.length) {
+        this._screenXf(ctx);
+        for (const pl of this._pierLabels) this._label(ctx, pl[0], pl[1], pl[2] > 70 ? 'PIER ZONE' : 'PIER', 'rgba(40,32,10,0.8)', '#ffd860', 10);
+      }
     } else {
       this._drawNoBuild(ctx, state);
       if (state.peakView || mode === 'results') this._drawPeakLabels(ctx, items, sh);

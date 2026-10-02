@@ -1,0 +1,69 @@
+{
+  "id": 15,
+  "name": "Keystone",
+  "theme": "canyon",
+  "hint": "The cliff faces have bolts far below the road. Push an arch up from them and hang the deck on short posts: an arch turns load into compression.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 36,
+    "rightY": 0,
+    "floorY": -22,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 36,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -9
+    },
+    {
+      "x": 36,
+      "y": -9
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 36,
+      "y": -5
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 36,
+    "y0": -12,
+    "y1": 8
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 18000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 4,
+      "interval": 2.2
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

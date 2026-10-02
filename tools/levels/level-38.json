@@ -1,0 +1,72 @@
+{
+  "id": 38,
+  "name": "Mirage Mesa",
+  "hint": "Vans sprint ahead, semis crawl uphill behind them. The mesa wall is bare - anchor to the low side.",
+  "theme": "desert",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 92,
+    "rightY": 12,
+    "floorY": -28,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 92,
+      "y": 12
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 100,
+      "y": 12
+    },
+    {
+      "x": 112,
+      "y": 12
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -2,
+    "x1": 112,
+    "y0": -22,
+    "y1": 20
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 83000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 5,
+      "interval": 0.8
+    },
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 42,
+  "templates": true
+}

@@ -1,0 +1,61 @@
+{
+  "id": 12,
+  "name": "Lopsided",
+  "theme": "desert",
+  "hint": "The west cliff is full of bolts, but the east bank is bare sand and 3 m lower. Brace from the bolts where you can, and carry the rest over the road.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 30,
+    "rightY": -3,
+    "floorY": -14,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 30,
+      "y": -3
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 0,
+      "y": -8
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 30,
+    "y0": -10,
+    "y1": 9
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 12000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 4,
+      "interval": 2.2
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}
