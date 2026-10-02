@@ -452,7 +452,6 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 .tile-train { position: absolute; right: 8px; bottom: 6px; z-index: 1; padding: 2px 4px; border-radius: 7px; background: rgba(8, 12, 22, .55); }
 .tile-train .veh { width: 34px; height: 14px; }
 .ch-rail .ch-num { border-radius: 50%; }
-.tile.soon.is-rail .soon-art span::before { content: "R"; font-size: .6em; margin-right: 1px; opacity: .8; }
 
 /* train traffic chips */
 .veh .vr { stroke: #8792a3; stroke-width: 1.2; }
@@ -460,7 +459,7 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 .tr-train { gap: 4px; }
 .tr-train em { font-style: normal; color: var(--text); font-weight: 700; white-space: nowrap; }
 .tr-train i { font-style: normal; color: var(--muted); }
-.tr-train b { color: #bfe3ff; }
+.tr-train b { color: #bfe3ff; font-weight: 600; white-space: nowrap; }
 .camp-rail .lvl-k { letter-spacing: .2em; }
 
 /* material palette: track tile gets a sleeper strip */

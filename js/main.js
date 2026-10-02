@@ -53,6 +53,13 @@
     if (BG.Storage && BG.Storage.campaignLevels) return BG.Storage.campaignLevels(levels(), campaign);
     return levels().filter(l => campaignOf(l) === campaign).sort((a, b) => a.id - b.id);
   }
+  // the campaign's declared final level (50 Roads, 120 Iron Road) - not just the last one present
+  const CAMPAIGN_FINAL = { road: 50, rail: 120 };
+  function isCampaignFinale(lv) {
+    if (!lv) return false;
+    if (BG.Storage && BG.Storage.isCampaignFinale) return !!BG.Storage.isCampaignFinale(lv);
+    return levelId(lv) === CAMPAIGN_FINAL[campaignOf(lv)];
+  }
   function gapOf(lv) { const t = lv && lv.terrain; return t ? (t.rightEdge - t.leftEdge) : 0; }
   function railMaterial(id) { const m = BG.Materials && BG.Materials[id]; return !!(m ? m.isRail : id === 'rail'); }
   // which horn a train sounds: steam whistle, diesel horn, high-speed chime, tram bell (or none)
@@ -334,8 +341,9 @@
       const list = campaignLevels(campaignOf(lv));
       const i = list.indexOf(lv);
       if (i >= 0) return list[i + 1] || null;
-      const idx = this.levelIndex(lv);
-      return levels()[idx + 1] || null;
+      const all = levels();
+      const nx = all[this.levelIndex(lv) + 1];
+      return nx && campaignOf(nx) === campaignOf(lv) ? nx : null;
     },
 
     // ---------------------------------------------------------------- state transitions
@@ -878,6 +886,8 @@
       const sim = this.sim, lv = this.level;
       if (!sim || !lv) return;
       if (BG.Audio) BG.Audio.stopEngines();
+      // the run is over: let the steam / exhaust plume dissolve instead of hanging behind the results
+      safe(() => { const E = (this.renderer && this.renderer.effects) || this.effects || BG.Effects; if (E && E.fadeSmoke) E.fadeSmoke(0.7); });
       const sum = (typeof sim.summary === 'function' ? safe(() => sim.summary(), null) : null) || {};
       const vehicles = sim.vehicles || [];
       const vt = sum.vehiclesTotal != null ? sum.vehiclesTotal : vehicles.length;
@@ -955,7 +965,7 @@
         passed, stars, cost, budget, title, reasonText: text, simOk, reason,
         time: sum.time != null ? sum.time : sim.time, peakStress: peak, vehiclesFinished: vf, vehiclesTotal: vt,
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
-        finale: passed && !next, campaign,
+        finale: passed && isCampaignFinale(lv), campaign,
         railUnlocked: !railWasOpen && railNowOpen && campaignLevels('rail').length > 0,
       };
       this.lastResult = res;

@@ -31,11 +31,12 @@
  *   highspeed        8 cars   376 t  166 m  42 m/s  2.3 t/m  max axle 17.0 t
  *   highspeed_long  14 cars   616 t  290 m  42 m/s  2.1 t/m  max axle 17.0 t
  * Spawn / finish:  trains spawn at cruise speed with the whole consist on the left bank, the lead
- *                  car's front at leftEdge - max(25, 2 s x speed) (fast trains start further back so
- *                  they meet a settled bridge). Finished when the LAST car's rear passes
- *                  rightEdge + 15. Time to clear ~ (max(25, 2 v) + gap + 15 + length) / v; a second
- *                  train waits until the first one's rear is past the spawn point, then keeps a
- *                  braking gap (count 2 at interval 4 adds ~ length / v + 4 s).
+ *                  car's front at leftEdge - max(4, 2 s x speed): every train reaches the gap ~2 s
+ *                  in, after the 1.2 s gravity ramp has settled (handcar 6 m back, steam 20 m,
+ *                  high-speed 84 m). Finished when the LAST car's rear passes rightEdge + 15.
+ *                  Time to clear ~ 2 + (gap + 15 + length) / v; a second train enters once the
+ *                  first one's rear is past its spawn point (and >= interval after it), then
+ *                  keeps a braking gap (count 2 adds ~ length / v + 4 s).
  * Rail deck:       trains ride ONLY on `rail` beams (and the bank tops); the rail must run from the
  *                  left road anchor to the right one (BG.Model.railConnected; for a rail level
  *                  BG.Model.roadConnected checks the rail). Road vehicles never touch rail, trains
@@ -93,7 +94,7 @@
  *   2-tier truss 80 m (2 x 6 m, girder chords, steel webs): freight_long 0.94 at $183k.
  *   Sample levels: 101 Pump Trolley (handcar, 10 m: ref $1.9k / best $1.6k of $2.3k),
  *   108 Stone Steps (2 x steam_local, 40 m, 3 piers: steel-braced viaduct $28.6k, wood-braced
- *   $23.4k of $33.5k - piers cost $4k each and dominate).
+ *   $23.4k of $34k - piers cost $4k each and dominate).
  * ======================================================================================
  */
 (function (root) {

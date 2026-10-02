@@ -148,7 +148,7 @@
   function trainMass(preset) { return ((preset && preset.cars) || []).reduce((a, c) => a + railCarMass(c), 0); }
   function isTrainGroup(g) { return !!g && (g.type === 'train' || !!g.train); }
   function fmtMass(kg) { const t = kg / 1000; return (t >= 100 ? Math.round(t).toLocaleString('en-US') : Math.round(t * 10) / 10) + ' t'; }
-  // one traffic chip: road vehicle (icon ×count) or train (icon, short name, ×cars)
+  // one traffic chip: road vehicle (icon ×count) or train (icon, "2 × Local Steam · 4 cars")
   function trafficChip(g) {
     const n = g.count || 1;
     if (isTrainGroup(g)) {
@@ -156,7 +156,7 @@
       const cars = (p.cars || []).length;
       const m = trainMass(p);
       const tip = n + ' × ' + (p.name || g.train) + (cars ? ' — ' + cars + ' car' + (cars === 1 ? '' : 's') : '') + (m ? ', ' + fmtMass(m) : '');
-      return `<span class="tr-item tr-train" title="${esc(tip)}">${trainSvg(trainKind(p))}${n > 1 ? '<i>' + n + '×</i>' : ''}<em>${esc(trainShortName(p))}</em>${cars > 1 ? '<b>×' + cars + '</b>' : ''}</span>`;
+      return `<span class="tr-item tr-train" title="${esc(tip)}">${trainSvg(trainKind(p))}${n > 1 ? '<i>' + n + ' ×</i>' : ''}<em>${esc(trainShortName(p))}</em>${cars > 1 ? '<b>· ' + cars + ' cars</b>' : ''}</span>`;
     }
     return `<span class="tr-item" title="${n} × ${esc(vehicleName(g.type))} (${Math.round(vehicleMass(g.type) / 100) / 10} t)">${vehSvg(g.type)}<b>×${n}</b></span>`;
   }
@@ -253,13 +253,13 @@
     const S = stor();
     try { return S && S.isCampaignUnlocked ? S.isCampaignUnlocked('rail') : true; } catch (e) { return true; }
   }
-  // what the player sees as the level number: 1-50 on the Roads, 1-20 on the Iron Road
+  // what the player sees as the level number: the real id everywhere (1-50 on the Roads,
+  // 101-120 on the Iron Road), so tiles, chapter headers and the HUD all agree
   function displayNum(level) {
     const id = levelId(level);
-    if (id == null) return '?';
-    return campaignOf(level) === 'rail' && id > 100 ? id - 100 : id;
+    return id == null ? '?' : id;
   }
-  function levelLabel(level) { return (campaignOf(level) === 'rail' ? 'Iron Road ' : 'Level ') + displayNum(level); }
+  function levelLabel(level) { return 'Level ' + displayNum(level); }
   const CHAPTERS = [
     { n: 1, name: 'First Crossings', from: 1, to: 5, desc: '10–20 m gaps · cars & vans · road, wood and triangles', theme: 'meadow' },
     { n: 2, name: 'Timber & Steel', from: 6, to: 10, desc: '20–28 m · cars, vans & buses · trusses, then steel', theme: 'autumn' },
@@ -516,7 +516,7 @@
         const tiles = [];
         for (let n = ch.from; n <= ch.to; n++) {
           const lv = levelForSlot(n);
-          const num = camp === 'rail' ? n - 100 : n;
+          const num = n;
           if (!lv) {
             tiles.push(`<div class="tile soon ${camp === 'rail' ? 'is-rail' : ''}" data-id="${n}" style="--acc:${th.accent}"><div class="tile-art soon-art"><span>${num}</span></div><div class="tile-body"><div class="tile-name">Coming soon</div><div class="tile-stars dim">${starSvg()}${starSvg()}${starSvg()}</div></div></div>`);
             continue;
@@ -535,7 +535,7 @@
               <div class="tile-stars">${[0, 1, 2].map(i => starSvg(i < st ? 'on' : '')).join('')}</div></div>
             </button>`);
         }
-        const range = camp === 'rail' ? (ch.from - 100) + '–' + (ch.to - 100) : ch.from + '–' + ch.to;
+        const range = ch.from + '–' + ch.to;
         const sec = h(`<section class="chapter ${anyOpen ? '' : 'ch-locked'} ${camp === 'rail' ? 'ch-rail' : ''}" style="--acc:${th.accent};--sky0:${th.sky[0]};--sky1:${th.sky[1]}">
             <div class="ch-head">
               <div class="ch-num">${ch.n}</div>

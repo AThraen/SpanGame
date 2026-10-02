@@ -80,6 +80,14 @@
     // ---- campaigns ----
     // Road levels (1-50) have no campaign field (or 'road'); Iron Road levels (101-120) have campaign 'rail'.
     RAIL_UNLOCK_LEVEL: 10,
+    // declared id range of each campaign; the finale screen shows only after its LAST id, never
+    // after whichever level happens to be the last one built so far
+    CAMPAIGNS: { road: { first: 1, last: 50 }, rail: { first: 101, last: 120 } },
+    campaignFinalId(campaign) { const c = Storage.CAMPAIGNS[campaign]; return c ? c.last : null; },
+    isCampaignFinale(level) {
+      if (!level || level.id == null) return false;
+      return level.id === Storage.campaignFinalId(Storage.campaignOf(level));
+    },
     campaignOf(level) { return level && level.campaign === 'rail' ? 'rail' : 'road'; },
     // the levels of one campaign, sorted by id (the order unlocking and "Next level" follow)
     campaignLevels(levels, campaign) {

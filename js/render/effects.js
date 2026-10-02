@@ -101,6 +101,12 @@
     }
     this.clear();
   };
+  // the run is over: stop the plume hanging in the air behind the results - every smoke / steam
+  // puff fades out over `sec` seconds (real time; particles keep updating in the results view)
+  P.fadeSmoke = function (sec) {
+    sec = sec > 0 ? sec : 0.6;
+    for (const p of this.particles) if (p.kind === 'soft' && (!p.fade || p.fadeLeft > sec)) { p.fade = sec; p.fadeLeft = sec; }
+  };
   P.setEnv = function (env) { if (env) Object.assign(this.env, env); };
   P.clear = P.reset = function () {
     for (const p of this.particles) this.pool.push(p);
@@ -124,6 +130,7 @@
     p.drag = o.drag === undefined ? 0.5 : o.drag; p.g = o.g === undefined ? 1 : o.g;
     p.alpha = o.alpha === undefined ? 1 : o.alpha; p.len = o.len || 0; p.wet = !!o.wet;
     p.bounce = o.bounce || 0; p.add = !!o.add;
+    p.smoke = !!o.smoke; p.fade = 0; p.fadeLeft = 0;
     this.particles.push(p);
     return p;
   };
@@ -182,21 +189,30 @@
   };
 
   // ---- railway (SPEC §9.4) ----
-  // one exhaust beat from a steam chimney: a dark coal-smoke core plus a white steam billow. The puffs
-  // leave with part of the train's speed and are braked by the air, so the plume streams back.
+  // one exhaust beat from a steam chimney: a soft billow of white steam with a light-grey smoke
+  // core. Each beat is a small cluster of puffs that start tight at the stack, swell quickly as
+  // they rise and thin out to nothing, so the plume reads as rolling clouds rather than a dark
+  // streak. The puffs leave with part of the train's speed and are braked by the air, so the
+  // plume trails back over the train.
+  const STEAM_COLORS = ['rgba(252,252,250,1)', 'rgba(240,240,238,1)', 'rgba(226,226,226,1)'];
+  const SMOKE_COLORS = ['rgba(196,196,198,1)', 'rgba(176,176,180,1)'];
   P.steamPuff = function (x, y, vx, power, speed) {
     power = clamp(power === undefined ? 1 : power, 0.1, 2);
     const fast = clamp((speed || 0) / 20, 0, 1);
-    const n = power > 0.4 ? 2 : 1;
+    const big = power > 0.4;
+    const n = big ? 3 : 1;
+    const lift = Math.sqrt(power);
     for (let k = 0; k < n; k++) {
-      this._spawn({ kind: 'soft', x: x + rand(-0.12, 0.12), y: y + 0.1 + k * 0.15, vx: (vx || 0) * (0.5 + k * 0.1) + rand(-0.35, 0.35), vy: rand(1.6, 2.8) * Math.sqrt(power) * (1 - fast * 0.4) + 0.4,
-        max: rand(2.6, 3.8) * (0.7 + power * 0.3), size: rand(0.5, 0.65) * (0.75 + power * 0.3), grow: rand(1.0, 1.5) * (0.8 + power * 0.3), drag: 1.1 + fast, g: -0.025,
-        alpha: (0.2 + 0.1 * Math.min(power, 1.4)), color: k ? 'rgba(104,100,100,1)' : 'rgba(66,62,64,1)' });
-    }
-    if (power > 0.4) {
-      this._spawn({ kind: 'soft', x: x + rand(-0.1, 0.1), y: y + 0.2, vx: (vx || 0) * 0.6 + rand(-0.4, 0.4), vy: rand(2.2, 3.4) * Math.sqrt(power) + 0.3,
-        max: rand(1.0, 1.6), size: rand(0.5, 0.7) * (0.8 + power * 0.25), grow: rand(1.5, 2.1), drag: 1.6 + fast, g: -0.04,
-        alpha: 0.5 * Math.min(1, 0.5 + power * 0.5), color: 'rgba(247,247,244,1)' });
+      const grey = big && k === 0;
+      const pal = grey ? SMOKE_COLORS : STEAM_COLORS;
+      this._spawn({ kind: 'soft', smoke: true,
+        x: x + rand(-0.15, 0.15), y: y + 0.12 + rand(0, 0.2),
+        vx: (vx || 0) * rand(0.45, 0.65) + rand(-0.45, 0.45),
+        vy: (rand(2.4, 3.8) * lift + 0.4) * (1 - fast * 0.3),
+        max: rand(2.2, 3.2) * (big ? 1 : 0.8), size: rand(0.32, 0.46) * (big ? 1 : 0.8),
+        grow: rand(1.1, 1.7) * (0.7 + power * 0.35), drag: 1.1 + fast * 0.7, g: -0.03,
+        alpha: (grey ? 0.55 : 0.68) * (big ? Math.min(1, 0.6 + power * 0.4) : 0.6),
+        color: pal[(Math.random() * pal.length) | 0] });
     }
   };
   // escaping steam from a wrecked engine
@@ -438,6 +454,7 @@
       const p = ps[i];
       p.life += dt;
       if (p.life >= p.max) { this.pool.push(p); continue; }
+      if (p.fade) { p.fadeLeft -= dt; if (p.fadeLeft <= 0) { this.pool.push(p); continue; } }
       const d = Math.exp(-p.drag * dt);
       p.vx *= d; p.vy = p.vy * d - G * p.g * dt;
       p.x += p.vx * dt; p.y += p.vy * dt;
@@ -597,7 +614,10 @@
             break;
           }
           default: { // soft
-            a *= (k < 0.15 ? k / 0.15 : 1) * (1 - k);
+            // smoke: quick fade-in, then thins out as it swells (ease-out so big puffs vanish softly)
+            if (p.smoke) a *= (k < 0.08 ? k / 0.08 : 1) * Math.pow(1 - k, 1.5);
+            else a *= (k < 0.15 ? k / 0.15 : 1) * (1 - k);
+            if (p.fade) a *= clamp(p.fadeLeft / p.fade, 0, 1);
             ctx.globalAlpha = a;
             const s = softSprite(p.color);
             const r = p.size;
@@ -645,7 +665,7 @@
   // ---- static facade: BG.Effects.method(...) acts on the shared instance ----
   Effects.shared = function () { return shared || new Effects(); };
   ['setLevel', 'setEnv', 'clear', 'reset', 'sparks', 'splinters', 'chunks', 'dust', 'exhaust', 'ring', 'splash',
-    'steamPuff', 'steamHiss', 'cylinderSteam', 'dieselExhaust', 'arc', 'wheelSparks', 'derailDust',
+    'steamPuff', 'fadeSmoke', 'steamHiss', 'cylinderSteam', 'dieselExhaust', 'arc', 'wheelSparks', 'derailDust',
     'addDebris', 'shake', 'getShake', 'shakeOffset', 'handleEvent', 'onEvent', 'handleEvents', 'processEvents',
     'onEvents', 'update', 'draw', 'drawSurface', 'drawRings', 'count'].forEach(function (k) {
     Effects[k] = function () { const s = Effects.shared(); return s[k].apply(s, arguments); };

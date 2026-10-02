@@ -2944,7 +2944,7 @@
       for (let i = 0; i < n; i++) fx.steamPuff(ch.x, ch.y, vxw, throttle, speed);
       // a continuous lighter trail between the beats (and lazy wisps at rest)
       cs.emit -= step;
-      if (cs.emit <= 0) { cs.emit = speed < 0.5 ? 0.3 + Math.random() * 0.2 : 0.045; fx.steamPuff(ch.x, ch.y, vxw, speed < 0.5 ? 0.25 : 0.3, speed); }
+      if (cs.emit <= 0) { cs.emit = speed < 0.5 ? 0.35 + Math.random() * 0.25 : 0.11 + Math.random() * 0.05; fx.steamPuff(ch.x, ch.y, vxw, speed < 0.5 ? 0.25 : 0.3, speed); }
       // cylinder drain cocks hiss while starting
       if (meta.cocks && speed > 0.2 && speed < 3.5 && n > 0) {
         const cc = rart(P, meta.cocks[0], meta.cocks[1]);

@@ -11,7 +11,7 @@
   "noBuild": [],
   "buildArea": { "x0": 0, "x1": 40, "y0": -15, "y1": 3 },
   "materials": [ "rail", "masonry", "wood", "steel" ],
-  "budget": 33500,
+  "budget": 34000,
   "traffic": [ { "type": "train", "train": "steam_local", "count": 2, "interval": 4 } ],
   "timeLimit": 45,
   "templates": true

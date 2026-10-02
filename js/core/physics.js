@@ -98,7 +98,10 @@
   const COUPLER_K = 4.0e7;        // N/m coupler stiffness outside the slack
   const LIFT_RATIO = 1.0;         // wheel held down with more than this x its static load ...
   const SCRAPE_MU = 0.45;         // friction of a derailed car scraping along
-  const TRAIN_SPAWN_T = 2.0;      // s: fast trains start far enough back to reach the gap after this
+  const TRAIN_SPAWN_T = 2.0;      // s: every train starts this far (at cruise speed) from the gap, so the
+                                  // lead car arrives ~2 s in: after the 1.2 s gravity ramp has settled,
+                                  // without minutes of empty bridge for slow trains (handcar: 6 m)
+  const TRAIN_SPAWN_MIN = 4;      // m: never closer than this to the gap
 
   function mulberry32(a) {
     a = (a >>> 0) || 1;
@@ -480,7 +483,11 @@
         const prev = this._nextSpawn > 0 ? vs[this._nextSpawn - 1] : null;
         const tReady = prev ? this._spawnTime + v._interval : 0;
         if (this.time + 1e-9 < tReady) break;
-        if (prev && prev.state === 'driving') {
+        if (prev && prev.state === 'driving' && prev.kind === 'train' && v.kind === 'train') {
+          // a following train enters once the one ahead has cleared its spawn point (then the
+          // braking-gap rule in _trainControl spaces them out)
+          if (this._rearX(prev.cars[prev.cars.length - 1]) < this._trainSpawnFront(v.def) + 3) break;
+        } else if (prev && prev.state === 'driving') {
           const spawnFront = this.terrain.leftEdge - SPAWN_GAP;
           if ((prev.kind === 'train' ? this._rearX(prev.cars[prev.cars.length - 1]) : this._rearX(prev)) < spawnFront + 3) break;
         }
@@ -1069,11 +1076,13 @@
       return c;
     }
 
+    // x of a train's lead-car front when it spawns: TRAIN_SPAWN_T seconds at cruise speed before
+    // the gap (the whole consist still starts on the left bank)
+    _trainSpawnFront(P) { return this.terrain.leftEdge - Math.max(TRAIN_SPAWN_MIN, P.speed * TRAIN_SPAWN_T); }
+
     _placeTrain(T) {
       const t = this.terrain, P = T.def, gap = this.railRules.gap;
-      // the whole consist starts on the left bank; fast trains start further back so they
-      // reach the gap after the structure has settled (gravity ramp)
-      let front = t.leftEdge - Math.max(SPAWN_GAP, P.speed * TRAIN_SPAWN_T);
+      let front = this._trainSpawnFront(P);
       for (const c of T.cars) {
         const rear = front - c.def.length;
         c._px = rear + c._xc;
