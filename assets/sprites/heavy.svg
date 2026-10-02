@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="370" viewBox="0 -370 1400 370">
+  <!-- SPAN heavy crane carrier. 1 unit = 1 cm, origin rear bumper on ground, facing right.
+       Wheels at x = 160/420/680/940/1200, r = 62. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb05a"/><stop offset="0.4" stop-color="#f07a1a"/><stop offset="0.85" stop-color="#c35a0c"/><stop offset="1" stop-color="#8e3e06"/>
+    </linearGradient>
+    <linearGradient id="boom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/><stop offset="0.45" stop-color="#f5b324"/><stop offset="1" stop-color="#b9780c"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7d8792"/><stop offset="0.4" stop-color="#f4f7fa"/><stop offset="1" stop-color="#6d7680"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/></linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <pattern id="hazard" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="28" height="28" fill="#f5c542"/><rect width="14" height="28" fill="#1c2230"/>
+    </pattern>
+    <path id="cabShape" d="M1110 -80 L1110 -270 Q1112 -290 1134 -290 L1340 -290 Q1366 -288 1372 -264 L1394 -160 L1396 -104 Q1396 -80 1376 -80 L1267.6 -80 A70 70 0 1 0 1132.4 -80 Z"/>
+    <clipPath id="cabClip"><use href="#cabShape"/></clipPath>
+  </defs>
+  <!-- chassis + fenders -->
+  <rect x="10" y="-172" width="1110" height="44" rx="6" fill="url(#body)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="10" y="-140" width="1110" height="12" fill="#000" opacity="0.2"/>
+  <g fill="#121418">
+    <path d="M86 -128 Q160 -150 234 -128 Z"/><path d="M346 -128 Q420 -150 494 -128 Z"/>
+    <path d="M606 -128 Q680 -150 754 -128 Z"/><path d="M866 -128 Q940 -150 1014 -128 Z"/>
+  </g>
+  <g fill="#2a2f37" stroke="#1c2230" stroke-width="2">
+    <rect x="80" y="-138" width="160" height="10" rx="4"/><rect x="340" y="-138" width="160" height="10" rx="4"/>
+    <rect x="600" y="-138" width="160" height="10" rx="4"/><rect x="860" y="-138" width="160" height="10" rx="4"/>
+  </g>
+  <!-- outriggers -->
+  <rect x="540" y="-166" width="50" height="34" rx="4" fill="url(#dark)"/>
+  <rect x="1040" y="-166" width="50" height="34" rx="4" fill="url(#dark)"/>
+  <rect x="540" y="-166" width="12" height="34" fill="url(#hazard)"/>
+  <rect x="1078" y="-166" width="12" height="34" fill="url(#hazard)"/>
+  <!-- rear bumper with hazard stripes -->
+  <rect x="2" y="-128" width="40" height="34" rx="4" fill="url(#hazard)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="12" y="-210" width="12" height="30" rx="3" fill="url(#tail)" stroke="#1c2230" stroke-width="2"/>
+  <!-- counterweight -->
+  <rect x="20" y="-262" width="230" height="90" rx="8" fill="url(#dark)" stroke="#1c2230" stroke-width="3"/>
+  <rect x="20" y="-196" width="230" height="20" fill="url(#hazard)"/>
+  <path d="M40 -250 H230" stroke="#6b7380" stroke-width="3"/>
+  <!-- superstructure -->
+  <rect x="300" y="-190" width="340" height="20" rx="6" fill="url(#dark)"/>
+  <path d="M240 -190 L240 -272 Q240 -280 250 -280 L640 -280 L700 -236 L700 -190 Z" fill="url(#body)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M260 -260 H620 M260 -244 H620" stroke="#8e3e06" stroke-width="3" opacity="0.6"/>
+  <g fill="#8e3e06" opacity="0.7"><rect x="280" y="-230" width="16" height="30" rx="3"/><rect x="304" y="-230" width="16" height="30" rx="3"/><rect x="328" y="-230" width="16" height="30" rx="3"/></g>
+  <!-- operator cab -->
+  <path d="M570 -276 L570 -316 Q572 -330 588 -330 L654 -330 L690 -280 L690 -204 L570 -204 Z" fill="url(#body)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M586 -320 L646 -320 L676 -278 L676 -232 L586 -232 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M600 -318 L616 -318 L604 -236 L592 -236 Z" fill="#fff" opacity="0.28"/>
+  <!-- lift cylinder -->
+  <path d="M650 -200 L780 -300" stroke="#1c2230" stroke-width="24" stroke-linecap="round"/>
+  <path d="M650 -200 L780 -300" stroke="url(#chrome)" stroke-width="16" stroke-linecap="round"/>
+  <path d="M650 -200 L712 -248" stroke="#2a2f37" stroke-width="22" stroke-linecap="round"/>
+  <!-- boom (telescopic, folded forward over the cab) -->
+  <g transform="rotate(-2.2 520 -290)">
+    <rect x="330" y="-318" width="560" height="48" rx="6" fill="url(#boom)" stroke="#1c2230" stroke-width="3.5"/>
+    <rect x="880" y="-312" width="300" height="38" rx="5" fill="url(#boom)" stroke="#1c2230" stroke-width="3.5"/>
+    <rect x="1170" y="-306" width="216" height="28" rx="4" fill="url(#boom)" stroke="#1c2230" stroke-width="3.5"/>
+    <path d="M350 -310 H870 M900 -305 H1160 M1188 -300 H1370" stroke="#fff3c4" stroke-width="3" opacity="0.7"/>
+    <rect x="340" y="-286" width="540" height="10" fill="url(#hazard)" opacity="0.85"/>
+    <circle cx="520" cy="-294" r="16" fill="url(#dark)" stroke="#1c2230" stroke-width="3"/>
+    <circle cx="520" cy="-294" r="6" fill="#c9d1da"/>
+    <circle cx="1376" cy="-292" r="14" fill="url(#dark)" stroke="#1c2230" stroke-width="2.5"/>
+  </g>
+  <!-- hook block -->
+  <path d="M1378 -340 V-248" stroke="#2a2f37" stroke-width="3"/>
+  <rect x="1364" y="-254" width="28" height="30" rx="4" fill="url(#hazard)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M1378 -224 v12 a9 9 0 1 1 -10 -4" fill="none" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <!-- boom rest on cab -->
+  <rect x="1160" y="-316" width="14" height="28" fill="url(#dark)"/>
+  <!-- cab -->
+  <path d="M1267.6 -80 A70 70 0 1 0 1132.4 -80 Z" fill="#121418"/>
+  <use href="#cabShape" fill="url(#body)"/>
+  <g clip-path="url(#cabClip)">
+    <rect x="1100" y="-120" width="300" height="40" fill="#000" opacity="0.22"/>
+    <rect x="1100" y="-170" width="300" height="10" fill="#1c2230" opacity="0.7"/>
+    <path d="M1110 -270 Q1112 -290 1134 -290 L1340 -290 L1336 -280 L1132 -280 Z" fill="#fff" opacity="0.3"/>
+  </g>
+  <path d="M1260 -276 L1340 -276 Q1352 -276 1356 -264 L1376 -176 L1260 -176 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1280 -274 L1302 -274 L1288 -180 L1270 -180 Z" fill="#fff" opacity="0.26"/>
+  <rect x="1140" y="-272" width="100" height="70" rx="6" fill="url(#glass)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M1250 -280 V-176 M1250 -176 H1390" fill="none" stroke="#8e3e06" stroke-width="3"/>
+  <rect x="1268" y="-162" width="28" height="7" rx="3" fill="#8e3e06"/>
+  <!-- beacons -->
+  <rect x="1150" y="-302" width="20" height="12" rx="4" fill="#ffa53a" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1320" y="-302" width="20" height="12" rx="4" fill="#ffa53a" stroke="#1c2230" stroke-width="2"/>
+  <!-- front -->
+  <rect x="1372" y="-138" width="24" height="24" rx="5" fill="url(#head)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1340" y="-104" width="58" height="28" rx="5" fill="url(#hazard)" stroke="#1c2230" stroke-width="2.5"/>
+  <use href="#cabShape" fill="none" stroke="#1c2230" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

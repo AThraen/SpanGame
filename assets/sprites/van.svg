@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="530" height="230" viewBox="0 -230 530 230">
+  <!-- SPAN van sprite. 1 unit = 1 cm, origin rear bumper on ground, facing right. Wheels at x = 100 / 430, r = 36. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#eeebe3"/><stop offset="0.85" stop-color="#cfcac0"/><stop offset="1" stop-color="#9f998e"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/></linearGradient>
+    <path id="shape" d="M10 -26 L6 -200 Q8 -222 30 -222 L372 -222 Q392 -221 402 -206 L452 -132 Q458 -124 470 -122 L512 -114 Q528 -110 528 -92 L528 -44 Q528 -27 514 -26 L473 -26 A44 44 0 1 0 387 -26 L143 -26 A44 44 0 1 0 57 -26 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <path d="M473 -26 A44 44 0 1 0 387 -26 Z M143 -26 A44 44 0 1 0 57 -26 Z" fill="#121418"/>
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-52" width="530" height="30" fill="#000" opacity="0.16"/>
+    <path d="M0 -112 C110 -80 220 -176 340 -142 L340 -118 C220 -150 110 -56 0 -88 Z" fill="#17a2a0"/>
+    <path d="M0 -84 C110 -52 220 -146 340 -114" fill="none" stroke="#f7932f" stroke-width="5"/>
+    <path d="M0 -112 C110 -80 220 -176 340 -142" fill="none" stroke="#7fe0dc" stroke-width="2" opacity="0.8"/>
+    <rect x="0" y="-222" width="530" height="10" fill="#fff" opacity="0.5"/>
+  </g>
+  <!-- logo: little bridge arc -->
+  <g transform="translate(150 -186)" opacity="0.85">
+    <path d="M0 18 Q40 -14 80 18" fill="none" stroke="#17a2a0" stroke-width="6" stroke-linecap="round"/>
+    <path d="M-4 20 H84" stroke="#2b3442" stroke-width="5" stroke-linecap="round"/>
+    <path d="M20 20 V6 M40 20 V2 M60 20 V6" stroke="#2b3442" stroke-width="3"/>
+  </g>
+  <!-- panel lines -->
+  <path d="M232 -212 L232 -34 M338 -214 L338 -34 M22 -214 L22 -34" fill="none" stroke="#5f5a50" stroke-width="2.5" opacity="0.7"/>
+  <path d="M150 -150 L232 -150" stroke="#5f5a50" stroke-width="3" opacity="0.6"/>
+  <rect x="244" y="-128" width="22" height="6" rx="3" fill="#5f5a50"/>
+  <rect x="350" y="-126" width="22" height="6" rx="3" fill="#5f5a50"/>
+  <!-- cab glass -->
+  <path d="M344 -206 L386 -206 Q392 -206 396 -200 L440 -134 L344 -134 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M362 -204 L380 -204 L362 -138 L348 -138 Z" fill="#fff" opacity="0.26"/>
+  <!-- mirror -->
+  <path d="M430 -156 L450 -160 Q456 -158 454 -148 L436 -144 Z" fill="#cfcac0" stroke="#1c2230" stroke-width="2"/>
+  <!-- front -->
+  <path d="M506 -116 L524 -111 L527 -96 L508 -98 Z" fill="url(#head)" stroke="#1c2230" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="512" y="-90" width="15" height="28" rx="3" fill="#2a2f37"/>
+  <path d="M514 -84 H526 M514 -77 H526 M514 -70 H526" stroke="#7b8490" stroke-width="2"/>
+  <rect x="498" y="-52" width="31" height="26" rx="7" fill="url(#trim)"/>
+  <rect x="2" y="-54" width="26" height="28" rx="7" fill="url(#trim)"/>
+  <rect x="6" y="-152" width="11" height="46" rx="3" fill="url(#tail)" stroke="#1c2230" stroke-width="2"/>
+  <rect x="2" y="-30" width="14" height="6" rx="3" fill="#9aa1aa" stroke="#1c2230" stroke-width="1.5"/>
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

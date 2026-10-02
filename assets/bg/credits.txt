@@ -1,0 +1,12 @@
+Backgrounds generated with ComfyUI (Qwen-Image 2.1), aspect 21:9, 2 MP (2208x960), converted to JPEG q0.85.
+Prompt template: "Wide 2D side-scrolling video game background, stylized painterly illustration, <scenery>, atmospheric perspective, no foreground objects, no bridge, no text, no people, clean flat color shapes, Poly Bridge style, calm simple lower area"
+Scenery per theme:
+meadow: green rolling hills, distant hazy mountains, blue sky with clouds
+autumn: warm autumn valley, distant hazy mountains with orange and red foliage forests, golden sky
+desert: distant sandstone mesas and dunes, warm peach and pale blue sky
+canyon: vast red rock canyon, layered red and orange cliffs and buttes, hazy bright sky
+snow: distant snow-capped peaks, pine forest silhouettes, pale icy blue sky
+night: deep blue night sky, big glowing moon, many stars, dark hills with a few distant lit windows
+city: distant city skyline at dusk, purple and orange sunset sky, silhouetted skyscrapers with lit windows
+tropical: distant lush green jungle hills and palm silhouettes, turquoise teal sky
+volcanic: dark red smoky sky, distant volcano with glowing lava and ash plume, black jagged rocks

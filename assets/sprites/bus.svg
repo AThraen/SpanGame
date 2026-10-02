@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 -340 1200 340">
+  <!-- SPAN city bus. 1 unit = 1 cm, origin rear bumper on ground, facing right. Wheels at x = 320 / 960, r = 50. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd35a"/><stop offset="0.5" stop-color="#f2b51d"/><stop offset="0.85" stop-color="#d6930f"/><stop offset="1" stop-color="#a86d08"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe3e8"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#cfeaff"/><stop offset="0.4" stop-color="#5f93bd"/><stop offset="1" stop-color="#22394f"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/></linearGradient>
+    <path id="shape" d="M12 -30 L6 -296 Q8 -322 36 -322 L1150 -322 Q1186 -320 1192 -288 L1198 -64 Q1198 -32 1176 -30 L1014.4 -30 A58 58 0 1 0 905.6 -30 L374.4 -30 A58 58 0 1 0 265.6 -30 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <!-- roof AC unit -->
+  <rect x="600" y="-338" width="260" height="20" rx="8" fill="url(#roof)" stroke="#1c2230" stroke-width="3"/>
+  <path d="M630 -330 H830" stroke="#9aa3ad" stroke-width="3" stroke-dasharray="14 8"/>
+  <path d="M1014.4 -30 A58 58 0 1 0 905.6 -30 Z M374.4 -30 A58 58 0 1 0 265.6 -30 Z" fill="#121418"/>
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-340" width="1200" height="42" fill="url(#roof)"/>
+    <rect x="0" y="-300" width="1200" height="4" fill="#1c2230" opacity="0.25"/>
+    <rect x="0" y="-178" width="1200" height="12" fill="#ffffff" opacity="0.9"/>
+    <rect x="0" y="-166" width="1200" height="5" fill="#2a3a66"/>
+    <rect x="0" y="-78" width="1200" height="50" fill="#1e2a48" opacity="0.9"/>
+    <rect x="0" y="-80" width="1200" height="4" fill="#ffffff" opacity="0.5"/>
+    <!-- rear engine grille -->
+    <path d="M20 -150 H90 M20 -138 H90 M20 -126 H90 M20 -114 H90" stroke="#7a5208" stroke-width="5" opacity="0.6"/>
+  </g>
+  <!-- window band -->
+  <rect x="34" y="-288" width="1010" height="100" rx="10" fill="url(#glass)" stroke="#1c2230" stroke-width="3"/>
+  <g fill="#232831">
+    <rect x="160" y="-290" width="10" height="104"/><rect x="290" y="-290" width="10" height="104"/>
+    <rect x="420" y="-290" width="10" height="104"/><rect x="550" y="-290" width="10" height="104"/>
+    <rect x="680" y="-290" width="10" height="104"/><rect x="810" y="-290" width="10" height="104"/>
+    <rect x="940" y="-290" width="10" height="104"/>
+  </g>
+  <g fill="#ffffff" opacity="0.22">
+    <path d="M60 -286 L100 -286 L70 -190 L40 -190 Z"/><path d="M190 -286 L230 -286 L200 -190 L170 -190 Z"/>
+    <path d="M320 -286 L360 -286 L330 -190 L300 -190 Z"/><path d="M450 -286 L490 -286 L460 -190 L430 -190 Z"/>
+    <path d="M580 -286 L620 -286 L590 -190 L560 -190 Z"/><path d="M710 -286 L750 -286 L720 -190 L690 -190 Z"/>
+    <path d="M840 -286 L880 -286 L850 -190 L820 -190 Z"/><path d="M968 -286 L1004 -286 L976 -190 L950 -190 Z"/>
+  </g>
+  <!-- passengers (silhouettes) -->
+  <g fill="#1a2a3c" opacity="0.45">
+    <circle cx="120" cy="-222" r="13"/><rect x="104" y="-210" width="32" height="22" rx="10"/>
+    <circle cx="370" cy="-218" r="12"/><rect x="355" y="-207" width="30" height="20" rx="10"/>
+    <circle cx="610" cy="-224" r="13"/><rect x="594" y="-212" width="32" height="24" rx="10"/>
+    <circle cx="870" cy="-220" r="12"/><rect x="855" y="-209" width="30" height="22" rx="10"/>
+  </g>
+  <!-- doors -->
+  <g stroke="#1c2230" stroke-width="3" fill="url(#glass)">
+    <rect x="1050" y="-292" width="78" height="248" rx="6"/>
+    <rect x="590" y="-178" width="80" height="134" rx="6" fill="#2b4058"/>
+  </g>
+  <path d="M1089 -292 V-44 M630 -178 V-44" stroke="#1c2230" stroke-width="3"/>
+  <path d="M1058 -284 L1080 -284 L1060 -60 Z" fill="#fff" opacity="0.18"/>
+  <!-- front windshield -->
+  <path d="M1140 -306 L1186 -298 L1192 -150 L1140 -150 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1150 -300 L1166 -298 L1158 -156 L1148 -156 Z" fill="#fff" opacity="0.3"/>
+  <!-- destination sign -->
+  <rect x="1050" y="-316" width="124" height="20" rx="4" fill="#15181d"/>
+  <g fill="#ffb02e"><rect x="1058" y="-311" width="10" height="10"/><rect x="1072" y="-311" width="26" height="10"/><rect x="1102" y="-311" width="18" height="10"/><rect x="1124" y="-311" width="40" height="10"/></g>
+  <!-- mirror -->
+  <path d="M1190 -262 Q1204 -268 1198 -232" fill="none" stroke="#1c2230" stroke-width="5" stroke-linecap="round"/>
+  <!-- lights & bumpers -->
+  <rect x="1172" y="-98" width="24" height="18" rx="5" fill="url(#head)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1176" y="-122" width="18" height="10" rx="3" fill="#ffa53a" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1150" y="-54" width="49" height="26" rx="8" fill="url(#trim)"/>
+  <rect x="6" y="-126" width="14" height="48" rx="4" fill="url(#tail)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="2" y="-56" width="44" height="28" rx="8" fill="url(#trim)"/>
+  <rect x="20" y="-34" width="18" height="7" rx="3" fill="#9aa1aa" stroke="#1c2230" stroke-width="1.5"/>
+  <!-- fleet number -->
+  <g transform="translate(160 -110)" fill="#1e2a48"><rect x="0" y="0" width="12" height="30" rx="3"/><rect x="18" y="0" width="22" height="12" rx="3"/><rect x="28" y="12" width="12" height="18" rx="3"/></g>
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="4" stroke-linejoin="round"/>
+</svg>

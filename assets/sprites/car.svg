@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="150" viewBox="0 -150 420 150">
+  <!-- SPAN car sprite. 1 unit = 1 cm. Origin = rear bumper on the ground line, facing right.
+       Wheels are drawn separately (wheel.svg) at x = 85 / 340 cm, radius 33 cm. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7d6b"/><stop offset="0.35" stop-color="#ec4c40"/><stop offset="0.75" stop-color="#c8302b"/><stop offset="1" stop-color="#8e1d1b"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/>
+    </linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/>
+    </linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/>
+    </linearGradient>
+    <path id="shape" d="M12 -22 L8 -60 Q7 -80 18 -86 L46 -124 Q54 -138 76 -140 L220 -141 Q238 -140 250 -129 L290 -98 Q298 -93 312 -92 L392 -86 Q410 -84 414 -72 L418 -44 Q419 -24 406 -22 L379.5 -22 A41 41 0 1 0 300.5 -22 L124.5 -22 A41 41 0 1 0 45.5 -22 Z"/>
+    <clipPath id="clip"><use href="#shape"/></clipPath>
+  </defs>
+  <!-- wheel-well liners -->
+  <path d="M379.5 -22 A41 41 0 1 0 300.5 -22 Z M124.5 -22 A41 41 0 1 0 45.5 -22 Z" fill="#121418"/>
+  <!-- body -->
+  <use href="#shape" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <rect x="0" y="-46" width="420" height="26" fill="#000" opacity="0.2"/>
+    <rect x="18" y="-83" width="384" height="5" fill="#ffffff" opacity="0.9"/>
+    <rect x="18" y="-77" width="384" height="2.5" fill="#2a1416" opacity="0.5"/>
+    <path d="M10 -90 L46 -124 Q54 -138 76 -140 L220 -141 L230 -135 L70 -132 Q58 -131 52 -122 L22 -88 Z" fill="#ffffff" opacity="0.18"/>
+  </g>
+  <!-- shoulder highlight -->
+  <path d="M22 -88 L290 -96 L392 -84" fill="none" stroke="#ffd2c8" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+  <!-- glass -->
+  <path d="M40 -96 L58 -122 Q64 -131 80 -132 L218 -133 Q230 -132 240 -123 L278 -96 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M112 -131 L140 -131 L114 -97 L88 -97 Z" fill="#fff" opacity="0.28"/>
+  <path d="M196 -132 L208 -132 L186 -97 L174 -97 Z" fill="#fff" opacity="0.22"/>
+  <rect x="98" y="-133" width="9" height="38" fill="#232831"/>
+  <rect x="156" y="-134" width="10" height="39" fill="#232831"/>
+  <!-- door -->
+  <path d="M128 -94 L128 -30 L290 -30 L296 -62 L292 -94" fill="none" stroke="#5e1412" stroke-width="2.5" opacity="0.75" stroke-linejoin="round"/>
+  <rect x="146" y="-90" width="24" height="6" rx="3" fill="#5e1412" opacity="0.8"/>
+  <rect x="147" y="-91" width="22" height="3" rx="1.5" fill="#ffb3a6" opacity="0.6"/>
+  <!-- mirror -->
+  <path d="M278 -100 L294 -106 Q300 -105 300 -98 L284 -94 Z" fill="#a8241f" stroke="#1c2230" stroke-width="2"/>
+  <!-- lights -->
+  <path d="M396 -85 L413 -77 L416 -66 L399 -68 Z" fill="url(#head)" stroke="#1c2230" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="404" y="-58" width="12" height="6" rx="2" fill="#ffa53a"/>
+  <path d="M8 -82 L22 -86 L22 -66 L8 -64 Z" fill="url(#tail)" stroke="#1c2230" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="11" y="-82" width="6" height="5" fill="#fff" opacity="0.5"/>
+  <!-- bumpers -->
+  <rect x="390" y="-46" width="29" height="22" rx="7" fill="url(#trim)"/>
+  <rect x="402" y="-40" width="14" height="3" rx="1.5" fill="#8a919c"/>
+  <rect x="4" y="-48" width="28" height="24" rx="7" fill="url(#trim)"/>
+  <rect x="10" y="-36" width="16" height="3" rx="1.5" fill="#8a919c"/>
+  <!-- exhaust tip -->
+  <rect x="2" y="-27" width="14" height="6" rx="3" fill="#9aa1aa" stroke="#1c2230" stroke-width="1.5"/>
+  <!-- antenna -->
+  <path d="M74 -140 L62 -149" stroke="#1c2230" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- outline -->
+  <use href="#shape" fill="none" stroke="#1c2230" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

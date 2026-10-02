@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="395" viewBox="0 -395 1700 395">
+  <!-- SPAN tanker: tractor + tank trailer in ONE sprite. 1 unit = 1 cm, origin rear bumper on ground, facing right.
+       Wheels at x = 130/260/390 (trailer), 1200/1330 (drive), 1600 (steer), r = 52. -->
+  <defs>
+    <linearGradient id="cab" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fd6a0"/><stop offset="0.4" stop-color="#1f9a6a"/><stop offset="0.85" stop-color="#16734f"/><stop offset="1" stop-color="#0e4e36"/>
+    </linearGradient>
+    <linearGradient id="tank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.12" stop-color="#e8edf2"/><stop offset="0.3" stop-color="#b8c2cc"/>
+      <stop offset="0.45" stop-color="#f6f9fb"/><stop offset="0.62" stop-color="#9aa5b1"/><stop offset="0.85" stop-color="#6e7a86"/><stop offset="1" stop-color="#4b5560"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#d9f1ff"/><stop offset="0.45" stop-color="#6ea3cc"/><stop offset="1" stop-color="#2a4664"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/><stop offset="0.4" stop-color="#b9c2cc"/><stop offset="0.6" stop-color="#8d97a3"/><stop offset="1" stop-color="#dfe5eb"/>
+    </linearGradient>
+    <linearGradient id="pipe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7d8792"/><stop offset="0.4" stop-color="#f4f7fa"/><stop offset="1" stop-color="#6d7680"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd76a"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#b3121a"/></linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a505b"/><stop offset="1" stop-color="#1e2228"/></linearGradient>
+    <path id="cabShape" d="M1470 -70 L1470 -360 Q1472 -384 1496 -384 L1660 -384 Q1686 -382 1690 -356 L1696 -104 Q1696 -70 1676 -70 L1657.2 -70 A60 60 0 1 0 1542.8 -70 Z"/>
+    <clipPath id="cabClip"><use href="#cabShape"/></clipPath>
+    <clipPath id="tankClip"><rect x="20" y="-362" width="1400" height="214" rx="96" ry="107"/></clipPath>
+  </defs>
+  <!-- tractor chassis -->
+  <rect x="1130" y="-126" width="560" height="28" rx="4" fill="url(#trim)"/>
+  <path d="M1134 -112 A64 64 0 0 1 1262 -112 Z M1266 -112 A64 64 0 0 1 1394 -112 Z" fill="#121418"/>
+  <rect x="1130" y="-134" width="274" height="12" rx="5" fill="#2a2f37" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1190" y="-146" width="170" height="14" rx="4" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1394" y="-118" width="140" height="48" rx="14" fill="url(#chrome)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M1428 -118 V-70 M1500 -118 V-70" stroke="#6d7680" stroke-width="3"/>
+  <path d="M1470 -250 C1446 -250 1450 -200 1418 -200" fill="none" stroke="#d8342b" stroke-width="4"/>
+  <path d="M1470 -236 C1450 -236 1456 -186 1418 -186" fill="none" stroke="#2f7fd0" stroke-width="4"/>
+  <rect x="1452" y="-388" width="14" height="266" rx="5" fill="url(#pipe)" stroke="#1c2230" stroke-width="2"/>
+  <!-- trailer frame -->
+  <rect x="40" y="-150" width="1380" height="24" fill="url(#trim)"/>
+  <path d="M66 -112 A64 64 0 0 1 194 -112 Z M196 -112 A64 64 0 0 1 324 -112 Z M326 -112 A64 64 0 0 1 454 -112 Z" fill="#121418"/>
+  <rect x="60" y="-132" width="400" height="12" rx="5" fill="#2a2f37" stroke="#1c2230" stroke-width="2"/>
+  <rect x="14" y="-112" width="36" height="24" rx="4" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1040" y="-128" width="14" height="72" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1028" y="-60" width="38" height="10" rx="3" fill="#1c2230"/>
+  <!-- valve box under tank -->
+  <rect x="640" y="-140" width="160" height="34" rx="6" fill="#3a3f48" stroke="#1c2230" stroke-width="2"/>
+  <circle cx="680" cy="-122" r="8" fill="#d8342b"/><circle cx="720" cy="-122" r="8" fill="#d8342b"/><circle cx="760" cy="-122" r="8" fill="#f2b51d"/>
+  <!-- tank -->
+  <rect x="20" y="-362" width="1400" height="214" rx="96" ry="107" fill="url(#tank)"/>
+  <g clip-path="url(#tankClip)">
+    <path d="M300 -362 V-148 M580 -362 V-148 M860 -362 V-148 M1140 -362 V-148" stroke="#5f6a76" stroke-width="5" opacity="0.5"/>
+    <path d="M304 -362 V-148 M584 -362 V-148 M864 -362 V-148 M1144 -362 V-148" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+    <rect x="0" y="-232" width="1440" height="16" fill="#1f9a6a" opacity="0.9"/>
+    <rect x="0" y="-214" width="1440" height="5" fill="#f2b51d"/>
+  </g>
+  <rect x="20" y="-362" width="1400" height="214" rx="96" ry="107" fill="none" stroke="#1c2230" stroke-width="4"/>
+  <!-- hazard diamond -->
+  <g transform="translate(980 -290) rotate(45)">
+    <rect x="-30" y="-30" width="60" height="60" fill="#ff8a1f" stroke="#ffffff" stroke-width="6"/>
+    <rect x="-30" y="-30" width="60" height="60" fill="none" stroke="#1c2230" stroke-width="2"/>
+  </g>
+  <path d="M968 -296 L980 -312 L992 -296 Z" fill="#1c2230"/>
+  <rect x="966" y="-288" width="28" height="6" fill="#1c2230"/>
+  <!-- walkway rail and ladder -->
+  <path d="M220 -380 H1260" stroke="#7d8792" stroke-width="4"/>
+  <path d="M240 -380 V-362 M480 -380 V-362 M720 -380 V-362 M960 -380 V-362 M1200 -380 V-362" stroke="#7d8792" stroke-width="4"/>
+  <rect x="560" y="-372" width="80" height="12" rx="4" fill="#5f6a76" stroke="#1c2230" stroke-width="2"/>
+  <rect x="900" y="-372" width="80" height="12" rx="4" fill="#5f6a76" stroke="#1c2230" stroke-width="2"/>
+  <path d="M1270 -150 V-382 M1298 -150 V-382 M1270 -180 H1298 M1270 -210 H1298 M1270 -240 H1298 M1270 -270 H1298 M1270 -300 H1298 M1270 -330 H1298 M1270 -360 H1298" stroke="#3a3f48" stroke-width="4"/>
+  <rect x="24" y="-190" width="12" height="32" rx="3" fill="url(#tail)" stroke="#1c2230" stroke-width="2"/>
+  <!-- cab -->
+  <path d="M1480 -384 L1490 -393 Q1502 -395 1530 -395 L1650 -395 Q1662 -394 1664 -384 Z" fill="url(#cab)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1657.2 -70 A60 60 0 1 0 1542.8 -70 Z" fill="#121418"/>
+  <use href="#cabShape" fill="url(#cab)"/>
+  <g clip-path="url(#cabClip)">
+    <rect x="1460" y="-112" width="250" height="42" fill="#000" opacity="0.22"/>
+    <rect x="1460" y="-206" width="250" height="10" fill="#ffffff" opacity="0.85"/>
+    <rect x="1460" y="-196" width="250" height="5" fill="#f2b51d"/>
+    <path d="M1470 -360 Q1472 -384 1496 -384 L1660 -384 L1656 -374 L1494 -374 Z" fill="#fff" opacity="0.3"/>
+  </g>
+  <path d="M1580 -366 L1668 -366 Q1680 -366 1682 -352 L1686 -252 L1580 -252 Z" fill="url(#glass)" stroke="#1c2230" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1606 -364 L1630 -364 L1610 -256 L1592 -256 Z" fill="#fff" opacity="0.26"/>
+  <rect x="1486" y="-352" width="70" height="40" rx="6" fill="url(#glass)" stroke="#1c2230" stroke-width="2.5"/>
+  <path d="M1554 -370 L1554 -134 L1690 -134" fill="none" stroke="#0e4e36" stroke-width="3" opacity="0.8"/>
+  <rect x="1566" y="-236" width="30" height="7" rx="3" fill="#0e4e36"/>
+  <rect x="1560" y="-108" width="56" height="10" rx="3" fill="#2a2f37" stroke="#1c2230" stroke-width="2"/>
+  <rect x="1672" y="-128" width="24" height="26" rx="5" fill="url(#head)" stroke="#1c2230" stroke-width="2.5"/>
+  <rect x="1648" y="-96" width="50" height="28" rx="8" fill="url(#trim)"/>
+  <use href="#cabShape" fill="none" stroke="#1c2230" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

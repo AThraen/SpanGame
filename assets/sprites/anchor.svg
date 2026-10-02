@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- SPAN anchor: concrete block with a steel bearing plate.
+       The anchor POINT (bolt centre) is at (64, 28); the block hangs below it. -->
+  <defs>
+    <linearGradient id="conc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e2e3e1"/><stop offset="0.5" stop-color="#b9bbb8"/><stop offset="1" stop-color="#8a8d8b"/>
+    </linearGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fb0c2"/><stop offset="1" stop-color="#4c5b6b"/>
+    </linearGradient>
+    <radialGradient id="pin" cx="60" cy="24" r="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#c3ccd6"/><stop offset="1" stop-color="#58636f"/>
+    </radialGradient>
+    <pattern id="hz" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="16" height="16" fill="#f5c542"/><rect width="8" height="16" fill="#23262c"/>
+    </pattern>
+  </defs>
+  <!-- block -->
+  <path d="M14 30 L114 30 L120 120 Q120 126 114 126 L14 126 Q8 126 8 120 Z" fill="url(#conc)" stroke="#2a2e33" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M14 30 L114 30 L116 42 L12 42 Z" fill="#ffffff" opacity="0.35"/>
+  <rect x="11" y="100" width="107" height="12" fill="url(#hz)" opacity="0.9"/>
+  <!-- concrete speckle -->
+  <g fill="#7b7f7d" opacity="0.5">
+    <circle cx="30" cy="70" r="2"/><circle cx="90" cy="60" r="1.6"/><circle cx="70" cy="86" r="2.2"/><circle cx="48" cy="54" r="1.4"/><circle cx="100" cy="88" r="1.8"/><circle cx="22" cy="92" r="1.5"/>
+  </g>
+  <path d="M40 60 L46 66 L44 74" fill="none" stroke="#6f7371" stroke-width="1.5" opacity="0.6"/>
+  <!-- bearing plate + gusset lugs -->
+  <path d="M40 46 L52 14 L76 14 L88 46 Z" fill="url(#plate)" stroke="#1f2730" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="30" y="44" width="68" height="12" rx="3" fill="url(#plate)" stroke="#1f2730" stroke-width="3"/>
+  <g fill="#dfe6ee" stroke="#1f2730" stroke-width="1.5"><circle cx="38" cy="50" r="3"/><circle cx="90" cy="50" r="3"/><circle cx="56" cy="50" r="2.5"/><circle cx="72" cy="50" r="2.5"/></g>
+  <!-- pin -->
+  <circle cx="64" cy="28" r="15" fill="#1f2730"/>
+  <circle cx="64" cy="28" r="12" fill="url(#pin)"/>
+  <circle cx="64" cy="28" r="4.5" fill="#3a4450"/>
+</svg>
