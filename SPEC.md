@@ -294,3 +294,64 @@ Then **Integrate**: one agent wires everything in a real browser (Playwright), f
   (headless Chrome via local Playwright). Do not use the Playwright MCP browser tools, `start`, or
   `explorer`. Write screenshots to the scratch/temp dir, not the project.
 - Node 24 available; no Python.
+
+## 9. Iron Road — railway campaign (extension)
+
+A separate 20-level campaign of railway bridges with ever larger trains. Road campaign (levels 1–50) must
+keep working unchanged: **`node tools/verify-levels.js` must stay 100% green for road levels** after any
+engine change (re-verify; if a shared change breaks a road design, fix the engine change, not the level).
+
+### 9.1 Levels & campaign
+- Rail levels use ids **101–120**, files `tools/levels/level-101.json` … with `campaign: 'rail'`
+  (road levels: `campaign` absent or `'road'`). Solutions `tools/solutions/level-101.json` / `-best.json`.
+- Unlock: level 101 unlocks when road level 10 is completed (or `?unlockall`). Inside the campaign the
+  usual rule (previous one or two completed) applies, on ids 101–120.
+- Chapters (5 levels each): 101–105 "Branch Lines" (handcar, tram, light steam; short spans, learn derail
+  limits), 106–110 "Stone & Steam" (steam + coaches, masonry viaducts over valleys), 111–115 "Freight Corridor"
+  (commuter, long freight, ore trains; whole span loaded; deep steel trusses, cantilevers),
+  116–120 "High Speed" (high-speed trains, speed impact, double-deck road + rail finale).
+- Level select gets campaign tabs: **Roads** / **Iron Road** (locked tab shows "Complete level 10").
+- New traffic entry form: `{ type: 'train', train: '<preset id>', count, interval }`. Road vehicle entries may
+  be mixed in on double-deck levels (they drive on `road` beams; trains only on `rail` beams).
+- Optional level field `rail: { maxGrade: 0.04, maxKinkDeg: 3 }` overrides derail thresholds.
+
+### 9.2 Materials (new)
+- `rail` — track deck: `isRail: true`, `isRoad: false`; ballasted deck with sleepers, heavier and stiffer
+  in bending than road. Trains ride only on rail; road vehicles only on road / reinforced_road.
+- `masonry` — stone: cheap, very heavy, enormous `compressionLimit`, near-zero `tensionLimit`, short
+  `maxLength` (≈ 5 m). Makes classic arch viaducts the efficient answer.
+- Engine owner may add one more if needed for the 2000 t ore trains (e.g. `girder` — heavy steel box
+  girder, expensive, strong, max 12 m). Allowed per level via `materials`.
+
+### 9.3 Trains (new) — `js/core/trains.js`
+- `BG.RailCars` keyed by car type: `handcar`, `tram`, `loco_steam`, `tender`, `coach`, `loco_diesel`,
+  `boxcar`, `tank_wagon`, `ore_wagon`, `hs_power`, `hs_coach`. Each `{type, name, length, height,
+  bogies:[{x, axles:[dx...], mass}], couplerHeight, color}` (bogie x from rear of car, m; sum of bogie
+  masses = car mass).
+- `BG.Trains` presets: `{id, name, cars:['loco_steam','tender','coach','coach'], speed, accel}` —
+  ids: `handcar`, `tram`, `steam_local`, `steam_express`, `commuter`, `freight_short`, `freight_long`,
+  `ore`, `highspeed`, `highspeed_long`. Masses from ~1 t (handcar) to ~2000 t (ore) — engine owner tunes
+  so the campaign is solvable at sane costs.
+- Physics: each car is a rigid body (like road vehicles) with flanged wheels (cannot leave the rail
+  laterally; in 2D: wheels are held to the rail surface — they cannot bounce off it), cars linked by
+  couplers (XPBD distance + slack). Locomotive(s) provide traction/braking toward target speed; all axle
+  loads go into the rail beams' end joints exactly like road wheel contacts.
+- **Derailment** (new fail reason `derailed`, event `{type:'derail', i, x, y}`): a car derails if, under any
+  of its wheels, the rail grade exceeds `maxGrade` for > 0.3 s, or the vertical angle between consecutive
+  rail segments under a bogie exceeds `maxKinkDeg`, or the rail is missing / broken under a wheel. A derailed
+  car tumbles physically (drags its coupled neighbours) — dramatic but stable.
+- `sim.vehicles` entries for trains: `{kind:'train', type:'train', preset, cars:[{type, def, x, y, angle,
+  wheels:[{x,y,r,rot}], state}], state, ...}`; road vehicles get `kind:'road'`. Finish = last car's rear
+  passes `rightEdge + 15`. Trains spawn so the whole consist starts on the left bank.
+
+### 9.4 Rendering, audio, UI
+- SVG sprites in `assets/sprites/rail/` per car type (wheels/bogies separate so they rotate; steam loco
+  connecting rods animated), same coordinate rules as §7. Steam loco smoke plume, diesel exhaust, sparks at
+  derailment, sleepers + rails + ballast drawn on rail beams, masonry beams drawn as stone voussoir blocks,
+  catenary masts decoration on high-speed levels, distant railway scenery details in themes.
+- Audio: horn (steam whistle / diesel horn / high-speed chime), clickety-clack per rail seam scaled by
+  speed, steam chuff, brake squeal, derail crash.
+- **Camera follow** (both campaigns): sim-controls toggle "Follow" (key F) that smoothly tracks the lead
+  vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
+- Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
+- HUD traffic chips show train icons with car count ("Ore ×24").
