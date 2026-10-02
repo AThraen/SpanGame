@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a48"/><stop offset=".55" stop-color="#101a30"/><stop offset="1" stop-color="#0b1120"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".42" r=".55"><stop offset="0" stop-color="#ffb547" stop-opacity=".22"/><stop offset="1" stop-color="#ffb547" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset=".12" stop-color="#ffffff"/><stop offset=".58" stop-color="#ffe2a8"/><stop offset="1" stop-color="#ffb547"/></linearGradient>
+    <linearGradient id="cable" x1="0" x2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#7fe0ff"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)" rx="112"/>
+  <g transform="translate(256 256) scale(0.9) translate(-256 -262)">
+    <path d="M332 176C318 148 288 134 254 134C210 134 182 160 182 196C182 236 218 250 256 260C298 271 334 286 334 328C334 366 300 390 256 390C220 390 190 374 174 346" transform="translate(0 12)" fill="none" stroke="#5a2408" stroke-opacity=".55" stroke-width="66" stroke-linecap="round"/>
+    <path d="M332 176C318 148 288 134 254 134C210 134 182 160 182 196C182 236 218 250 256 260C298 271 334 286 334 328C334 366 300 390 256 390C220 390 190 374 174 346" fill="none" stroke="url(#gold)" stroke-width="66" stroke-linecap="round"/>
+    <g fill="none" stroke-linecap="round">
+      <path d="M136 410V96M376 410V96" stroke="#ffffff" stroke-opacity=".95" stroke-width="16"/>
+      <path d="M170 188V410M205 242V410M240 266V410M272 266V410M307 242V410M342 188V410M76 384V410M104 352V410M408 352V410M436 384V410" stroke="#ffffff" stroke-opacity=".6" stroke-width="5"/>
+      <path d="M30 396Q104 384 136 100Q256 404 376 100Q408 384 482 396" stroke="#0b1120" stroke-opacity=".55" stroke-width="20"/>
+      <path d="M30 396Q104 384 136 100Q256 404 376 100Q408 384 482 396" stroke="url(#cable)" stroke-width="11"/>
+      <path d="M22 412H490" stroke="#ffffff" stroke-width="16"/>
+    </g>
+  </g>
+</svg>

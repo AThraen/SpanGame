@@ -525,7 +525,7 @@
   // ------------------------------------------------------------------- sizing / camera
   R.resize = function () {
     const c = this.canvas;
-    const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+    const dpr = Math.min((BG.Perf && BG.Perf.dprCap) || 2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1); // mobile: BG.Perf may lower the DPR cap
     let W = c.clientWidth, H = c.clientHeight;
     if (!W || !H) { W = Math.round(c.width / dpr) || 960; H = Math.round(c.height / dpr) || 540; }
     const bw = Math.round(W * dpr), bh = Math.round(H * dpr);

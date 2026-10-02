@@ -355,3 +355,81 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
+
+## 10. Mobile, PWA, History (extension)
+
+Three feature modules, each a classic script in `js/features/` (+ a stylesheet in `css/`), loaded after
+`js/main.js` in this order: `history.js`, `pwa.js`, `mobile.js` (stylesheets after `style.css`: `pwa.css`,
+`history.css`, `mobile.css`). They **hook** the core by wrapping existing methods (each wrapper calls
+through to the original, so wrappers stack) and do not edit core files; desktop with a mouse is unchanged.
+Shared-file touch points are commented `// mobile:` / `// pwa:` / `// history:`. Everything must keep
+working from `file://` and without storage.
+
+### 10.1 Touch layer — `BG.Mobile`, `BG.Perf` (`js/features/mobile.js`, `css/mobile.css`)
+- Classes on `<html>`: `m-touch` (coarse primary pointer, or `?touchui=1`; `?touchui=0` forces it off),
+  `m-phone` (touch + short side <= 520 px) / `m-tablet`, `m-portrait` / `m-landscape`, `m-lowperf`.
+  **All touch CSS is scoped under these classes.** HUD elements added by other features must work under
+  them: visible buttons >= 44 px, nothing outside the viewport (respect `env(safe-area-inset-*)`), and long
+  lists scroll inside a container the touch guard accepts (`.modal-card`, `.ls-scroll`, `.palette`,
+  `.tpl-menu`, `.results-card`, `.rail`, `.simbar`, `.m-ctx`); every other touchmove is prevented.
+- Phones: compact top bar, tool rail as 46 px floating buttons (two columns in landscape), material palette
+  as a bottom sheet behind a "current material" chip, sim controls beside the Test button, two-column
+  results card in landscape, templates as a sheet, a once-per-session rotate prompt in portrait (edit / sim).
+- Building: magnifier loupe while dragging, optional offset cursor (aim 64 px above the finger), larger
+  touch snap / pick radius (wraps `Editor.prototype._magR` / `_pickR`), long-press + lift = context menu
+  (delete joint / beam / pier, stop chain, undo, erase tool, fit view); long-press + drag still moves a joint.
+- Camera: pinch / two-finger pan in the editor; one-finger pan and pinch in the sim view.
+- Haptics via `navigator.vibrate` on snap / place / break; fullscreen button (title, top bar except phone
+  portrait, Settings); hints and toasts reworded for touch (`BG.Mobile.touchText`); Settings shows a
+  gesture guide instead of keyboard shortcuts. Settings keys: `loupe`, `offsetCursor`, `haptics`, `perfMode`.
+- `BG.Perf {mode: 'auto'|'on'|'off', low, dprCap, particleScale, maxParticles, cheapBackground, setMode(m)}`.
+  Auto = on for phones / low-end devices, or after 3 s of slow frames on a touch device. Low mode: fewer
+  particles, no ambient particles / vignette, fewer parallax layers, no glass blur, DPR cap 1.5 on slow
+  devices (else 2). `BG.Renderer.resize` reads `BG.Perf.dprCap` (the one core edit).
+
+### 10.2 PWA shell — `BG.PWA` (`js/features/pwa.js`, `sw.js`, `manifest.webmanifest`)
+- Registers `sw.js` only on http(s) (no-op on `file://`). The worker precaches a **generated** file list:
+  navigations network-first (cached copy when offline or after 3.5 s), everything else cache-first, an
+  uncached file offline -> 504. Old `span-precache-*` caches are deleted on activate.
+- **Every change to a shipped file (`index.html`, `css/`, `js/`, `assets/`) requires
+  `node tools/gen-precache.js`** (rewrites the list + content-hash version in `sw.js`; `--check` only
+  verifies). `tools/test-pwa.js` fails on a stale list. On a merge conflict in the list block, take either
+  side and re-run the generator.
+- Updates: a waiting worker shows "New version available — tap to reload"; tap -> `SKIP_WAITING` -> reload.
+- Install: Settings row "Install SPAN" once `beforeinstallprompt` fired; on iOS an "Add to Home Screen"
+  hint; "Offline play: Ready" once precached. Icons in `assets/icons/app/` (`tools/gen-icons.js`).
+- `.github/workflows/pages.yml` deploys `main` to GitHub Pages (runs physics + level checks, regenerates
+  the precache, publishes only game files). All paths are relative.
+
+### 10.3 History, bests, autosave — `BG.History` (`js/features/history.js`, `css/history.css`)
+- Storage goes through `BG.Storage` (prefix `span.v1.`; legacy keys are never rewritten);
+  `BG.Storage.SCHEMA = 2`. Keys: `hist.meta {schema, migratedAt, from}`; `hist.runs` (<= 500, newest last,
+  `{i, t, l, c, n, ok, f, s, p, d, b, k?}` = id, time, level, cost, members, passed, fail reason, stars,
+  peak stress, sim time, broken beams, snapshot key); `hist.bests {[levelId]: {cost, members, peak, time,
+  stars: {v, t, k?}, runs, passes, first, last}}`; `hist.stats`; `hist.snaps` + `hist.s.<k>` (compact
+  design snapshots: 8 latest passing + 3 latest failing per level + any holding a best, 1.2 MB budget,
+  oldest dropped on quota errors); `hist.session` (screen, level, camera, tab, scroll, follow, viewport, time).
+- Migration from schema 1 (no `hist.meta`) fills bests and run counts from `progress.levels`.
+- Data API (also runs in Node): `migrate, recordRun(info), getRuns, runsFor, getBests, getStats, summary,
+  encodeDesign / decodeDesign, loadSnapshot, hasSnapshot, getSession, saveSession, resumePlan,
+  exportSave / exportString, validateSave, importSave, resetAll`; UI: `open(tab), close(), isOpen()`.
+- Browser hooks: wraps `Game.init / _finishRun / _setState / openLevel / continueGame / resetProgress`,
+  `Editor.prototype.undo / redo / load`, `Hud.init / refreshTitle / buildLevelSelect / setCampaignTab`;
+  defines `Game.onDesignChanged` and `Game.resumeSession`.
+- Autosave 350 ms after each design change and on pagehide / hidden tab / beforeunload. On load the game
+  resumes the level (design + camera; a running sim comes back in edit mode) or level select; skipped when
+  the session is > 72 h old or the URL has `?level`, `?screen` or `?noresume`. The camera is not restored
+  if the viewport changed by > 15 % (rotation).
+- UI: results-card bests line ("First pass on this level", "New best! −$X vs your previous $Y", attempt N),
+  tile tooltips, History screen (Runs with level / result filters and a cost sparkline; Levels with
+  "Load best"; Stats); "Load" is one undo step. Settings "Save data": Export `span-save-YYYYMMDD.json`
+  (all `span.v1.*` keys); Import validates (rejects junk and newer schemas), replaces, migrates, reloads.
+  Reset progress also clears history.
+
+### 10.4 Tests
+- `tools/test-mobile.js`: phones / tablets in both orientations with touch emulation; overflow and 44 px
+  targets on every screen including History and the Install / Save data rows; level 1 built by touch;
+  loupe, context menu, pinch, history list scroll.
+- `tools/test-pwa.js`: install, precache freshness, offline reload incl. a deep link, update toast,
+  install UI, `file://` no-op.
+- `tools/test-history.js`: Node (fake storage) + browser (desktop, phones, tablet); `--node-only` skips the browser.

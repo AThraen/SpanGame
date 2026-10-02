@@ -8,6 +8,16 @@
   <title>SPAN — Bridge Builder</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1424'/%3E%3Cpath d='M8 44h48M18 44V16M46 44V16M6 40Q12 39 18 16Q32 46 46 16Q52 39 58 40' stroke='%23ffb547' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
+  <!-- pwa: manifest, app icons, iOS home-screen meta -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/app/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SPAN">
+  <link rel="stylesheet" href="css/pwa.css">
+  <link rel="stylesheet" href="css/history.css"><!-- history: run history, bests, save export -->
+  <link rel="stylesheet" href="css/mobile.css"><!-- mobile: responsive touch HUD, loupe, bottom sheet -->
 </head>
 <body data-screen="boot">
   <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
@@ -32,5 +42,8 @@
   <script src="js/ui/editor.js"></script>
   <script src="js/ui/hud.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/features/history.js"></script><!-- history: run history, personal bests, stats, autosave / resume, save export -->
+  <script src="js/features/pwa.js"></script><!-- pwa: service worker, install prompt, update toast -->
+  <script src="js/features/mobile.js"></script><!-- mobile: touch layer, BG.Mobile, BG.Perf -->
 </body>
 </html>
