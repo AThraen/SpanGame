@@ -1,0 +1,42 @@
+/* SPAN — Forces of Nature HUD (js/features/forces-fx.js): forecast chip, warning banner, sim-bar timeline. */
+.fx-forecast { display: flex; align-items: center; gap: 4px; flex: none; padding: 3px 6px; border-radius: 10px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); max-width: 30vw; overflow: hidden; }
+.fx-forecast .fx-k { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.fx-item { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px 2px 4px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
+.fx-item svg { width: 15px; height: 15px; flex: none; }
+.fx-item b { font-weight: 700; }
+.fx-item em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fx-item.fx-wind { background: rgba(73, 198, 242, .14); color: #bfeaff; }
+.fx-item.fx-quake { background: rgba(255, 122, 61, .16); color: #ffd2b8; }
+
+.fx-banner { position: absolute; top: calc(var(--gap) * 2 + var(--top-h) + 4px); left: 50%; z-index: 30; display: flex; align-items: center; gap: 12px; min-width: 280px; padding: 10px 16px 12px 12px; border-radius: 14px;
+  background: var(--glass-strong); border: 1px solid var(--line-strong); box-shadow: var(--shadow); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  transform: translate(-50%, -18px); opacity: 0; pointer-events: none; transition: transform .4s var(--spring), opacity .25s; overflow: hidden; }
+.fx-banner.show { transform: translate(-50%, 0); opacity: 1; }
+.fx-banner .fx-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.fx-banner .fx-ico svg { width: 22px; height: 22px; }
+.fx-banner .fx-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.fx-banner b { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: .01em; }
+.fx-banner small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fx-banner .fx-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .06); }
+.fx-banner .fx-meter i { display: block; height: 100%; width: 0; transition: width .2s linear; }
+.fx-banner.fx-wind { border-color: rgba(73, 198, 242, .45); }
+.fx-banner.fx-wind .fx-ico { background: rgba(73, 198, 242, .18); color: var(--blue); }
+.fx-banner.fx-wind .fx-meter i { background: linear-gradient(90deg, #49c6f2, #3a7bff); }
+.fx-banner.fx-quake { border-color: rgba(255, 122, 61, .5); }
+.fx-banner.fx-quake .fx-ico { background: rgba(255, 122, 61, .2); color: var(--primary-2); }
+.fx-banner.fx-quake .fx-meter i { background: linear-gradient(90deg, #ffb547, #ff4d5e); }
+.fx-banner.fx-warn { animation: fx-pulse 1s ease-in-out infinite; }
+.fx-banner.fx-warn b { color: var(--warn); }
+.fx-banner.fx-quake.fx-live .fx-ico { animation: fx-jitter .12s linear infinite; }
+@keyframes fx-pulse { 0%, 100% { box-shadow: var(--shadow); } 50% { box-shadow: var(--shadow), 0 0 0 3px rgba(255, 180, 41, .35); } }
+@keyframes fx-jitter { 0% { transform: translate(0, 0); } 25% { transform: translate(1px, -1px); } 50% { transform: translate(-1px, 1px); } 75% { transform: translate(1px, 1px); } 100% { transform: translate(0, 0); } }
+
+.fx-timeline { position: relative; width: 120px; height: 18px; flex: none; margin: 0 6px; align-self: center; }
+.fx-timeline .fx-track { position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .12); }
+.fx-timeline .fx-seg { position: absolute; top: -2px; height: 8px; border-radius: 3px; min-width: 3px; }
+.fx-timeline .fx-seg.fx-wind { background: linear-gradient(90deg, rgba(73, 198, 242, .55), #49c6f2); }
+.fx-timeline .fx-seg.fx-quake { background: linear-gradient(90deg, rgba(255, 122, 61, .6), #ff7a3d); }
+.fx-timeline .fx-now { position: absolute; top: 1px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px; background: #fff; box-shadow: 0 0 4px rgba(255, 255, 255, .7); transition: left .1s linear; }
+
+@media (max-width: 1280px) { .fx-forecast .fx-item em, .fx-forecast .fx-k { display: none; } }
+@media (max-width: 1100px) { .fx-forecast { display: none; } .fx-timeline { width: 80px; } }

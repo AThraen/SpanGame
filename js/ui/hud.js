@@ -336,6 +336,8 @@
       try { total = S ? S.totalStars() : 0; } catch (e) { /* */ }
       $('[data-ref=lsStars] b', el).textContent = total;
       CHAPTERS.forEach(ch => {
+        // forces: hidden bonus chapters stay out of the list until one of their levels is unlocked
+        if (ch.hidden && !levelsList().some(l => l && l.id >= ch.from && l.id <= ch.to && unlocked(l.id))) return;
         const th = theme(ch.theme);
         let chStars = 0, chMax = 0, anyOpen = false;
         const tiles = [];

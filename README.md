@@ -83,6 +83,7 @@ js/core/                 simulation core - runs in the browser AND in Node, no D
   physics.js             BG.Simulation - deterministic XPBD, fixed 1/60 s step with substeps
   levels.js              BG.Levels - level definitions
   templates.js           BG.Templates - bridge-type generators
+  events.js              BG.Forces - wind and earthquake events (level.events), plugged in via BG.SimHooks
 js/render/
   effects.js             BG.Effects - particles, debris, splashes, camera shake
   renderer.js            BG.Renderer + BG.Sprites - layered canvas renderer (parallax, water, terrain, beams, vehicles)
@@ -92,6 +93,9 @@ js/ui/
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
+js/features/
+  forces-fx.js           wind / quake visuals, warning banner + timeline, wind and rumble audio, bonus chapter
+css/forces.css           styles for the Forces of Nature HUD
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint
 assets/icons/            SVG UI icons
 assets/bg/               painterly per-theme backgrounds (<theme>.jpg)
@@ -103,7 +107,9 @@ tools/                   Node tooling (not loaded by the game)
   levels/                one JSON file per level (the source of js/core/levels.js)
   test-editor.js         editor tests (fake DOM / renderer)
   test-templates.js      template generator tests (--verbose, --svg out.html)
+  test-events.js         wind / quake physics, bit-identity of event-free levels, levels 51-53
   e2e.js                 headless-Chrome end-to-end check of the real game
+  e2e-events.js          headless-Chrome check of the Forces of Nature levels and HUD
   shot.js                headless screenshot helper
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level
 SPEC.md                  binding data contracts between modules
@@ -117,16 +123,18 @@ You need Node 18 or later (developed on Node 24). The browser checks also need t
 
 ```sh
 node tools/test-physics.js     # 20 physics tests incl. exploits, stability & >=4x realtime perf
-node tools/verify-levels.js    # all 50 levels, reference + best design each (see "Levels" below)
+node tools/verify-levels.js    # every level (50 + 3 bonus), reference + best design each (see "Levels" below)
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels
+node tools/test-events.js      # wind / quake events (add --full for the bit-identity check on all 100 road designs)
 node tools/e2e.js [outDir]     # full browser run; screenshots go to %TEMP%/span-e2e by default
+node tools/e2e-events.js [dir] # browser run of levels 51-53 (banner, timeline, rumble); %TEMP%/span-e2e-events
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```
 
 ## Levels
 
-50 levels in 6 chapters (the level select groups them the same way):
+50 levels in 6 chapters, plus a hidden bonus chapter (the level select groups them the same way):
 
 | Chapter | Levels | Gaps | Traffic | Introduces |
 |---|---|---|---|---|
@@ -149,6 +157,8 @@ node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, opt
 
 **Grand Spans:** 41 Cold Open (100 m) · 42 Twin Channels (105 m) · 43 Monsoon Stays (115 m) · 44 Moonlit Crescent (120 m) · 45 Caldera Cantilever (125 m) · 46 Avalanche Arch (130 m) · 47 Paradise Suspended (140 m) · 48 Flight Path (135 m) · 49 The Long Night (145 m) · 50 Magnum Opus (150 m)
 
+The hidden bonus chapter **7 Forces of Nature** (51–53) is described below.
+
 Every level is verified by `node tools/verify-levels.js` against two designs in `tools/solutions/`:
 
 - **`level-NN.json` (reference):** passes with peak stress ≤ 0.92 and cost ≤ budget.
@@ -156,6 +166,18 @@ Every level is verified by `node tools/verify-levels.js` against two designs in 
 - Both must be valid and buildable in the editor (joints on the 0.25 m grid, no two joints closer than the 0.6 m joint magnet) and must have no floppy parts (no joint drifting more than 1 m while nothing breaks).
 
 Budgets are set so the reference costs at most about 88% of the budget and the best design at most 70% (at most 68% on levels 41–50, leaving a little room for hand-built designs). No built-in template earns ★★★ on any level; templates are switched off on levels 1–3, and templates that break a level's rules (for example an arch through a ship channel) are hidden from the menu.
+
+### Forces of Nature (bonus chapter, levels 51–53)
+
+Finishing level 49 or 50 reveals a hidden seventh chapter where the weather fights back. A **Forecast** chip in the top bar lists what is coming, a banner counts down the last 3 seconds ("Hurricane incoming in 3 s") and then shows the live wind speed or ground shaking, and the sim bar's timeline marks each event.
+
+| Level | Event | Lesson |
+|---|---|---|
+| 51 Hurricane Alley (60 m) | 34 m/s headwind gusting to ~50 m/s, rain | Gusts lift the deck and cables can only pull: a light road on stays snaps in bending. A heavier, stiffer deck rides it out. |
+| 52 Fault Line (40 m) | M8 earthquake (0.4 g) at 8 s | The banks lurch and the far bank lags the near one. Heavy decks shake hardest; light, stiff triangles win. |
+| 53 Galloping Gertie (70 m) | 19 m/s wind that pulses every ~2.5 → 1.7 s | A slender suspension deck bounces in step with the gusts until it tears itself apart (Tacoma Narrows, 1940). Diagonal hangers, a stiffening truss or stays make it bounce faster than the wind pushes. |
+
+Any level can use weather: add an `events` list to its JSON (see SPEC.md §10).
 
 ### Adding a level
 

@@ -130,6 +130,10 @@
       this.roadConnected = BG.Model && BG.Model.roadConnected ? BG.Model.roadConnected(this.level, this.design) : true;
       this._buildGround();
       this._buildVehicles();
+      // forces: optional per-sim extensions registered in BG.SimHooks ((sim) => ext | null), e.g. js/core/events.js
+      // for level.events (wind / quake). No extension -> this._ext stays null and nothing below changes.
+      this._ext = null;
+      if (BG.SimHooks) for (const f of BG.SimHooks) { const e = f(this); if (e) (this._ext || (this._ext = [])).push(e); }
       this._splashBudget = 0;
       this._syncOut();
     }
@@ -391,10 +395,13 @@
       const gs = ramp * ramp * (3 - 2 * ramp);
       const extraDamp = (1 - ramp) * RAMP_DAMP;
       for (const v of this.vehicles) v._touch = false;
+      const ext = this._ext; // forces: extension hooks (beginStep / substep / endStep)
+      if (ext) for (const e of ext) if (e.beginStep) e.beginStep(this);
       for (let s = 0; s < ns; s++) this._substep(h, gs, extraDamp, s);
       this.time += DT;
       this.stepCount++;
       this._postStep();
+      if (ext) for (const e of ext) if (e.endStep) e.endStep(this);
       this._syncOut();
     }
 
@@ -482,6 +489,7 @@
     // ------------------------------------------------------------------ substep
     _substep(h, gs, extraDamp, s) {
       this._h = h;
+      if (this._ext) for (const e of this._ext) if (e.substep) e.substep(this, h, s); // forces: external loads / ground motion
       const nn = this.nNodes;
       const px = this.px, py = this.py, vx = this.vx, vy = this.vy, qx = this.qx, qy = this.qy, w = this.w;
       const waterY = this.terrain.waterY;

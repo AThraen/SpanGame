@@ -1,0 +1,76 @@
+{
+  "id": 52,
+  "name": "Fault Line",
+  "theme": "canyon",
+  "hint": "Seismologists expect a big one about 8 seconds after the first truck sets off. The ground itself will lurch, and anything heavy and floppy keeps swinging long after the banks stop. Build stiff, light triangles and keep the mass low.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 40,
+    "rightY": 0,
+    "floorY": -18,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 40,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 40,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 18,
+      "x1": 22
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 40,
+    "y0": -17,
+    "y1": 12
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 26500,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true,
+  "events": [
+    {
+      "type": "quake",
+      "start": 8,
+      "duration": 12,
+      "magnitude": 8,
+      "freq": 1.6
+    }
+  ]
+}
