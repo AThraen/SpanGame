@@ -92,6 +92,11 @@ js/ui/
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
+js/features/             optional modules layered on top by hooking existing objects
+  requirements.js        BG.Requirements - which modules a level needs (level.requires); also loaded headless
+  famous.js              BG.Famous - Famous Bridges campaign: tab, unlock rule, history cards
+css/famous.css           Famous Bridges tab, tiles and history card
+assets/famous/           hand-made SVG illustrations, one per famous bridge
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint
 assets/icons/            SVG UI icons
 assets/bg/               painterly per-theme backgrounds (<theme>.jpg)
@@ -104,6 +109,7 @@ tools/                   Node tooling (not loaded by the game)
   test-editor.js         editor tests (fake DOM / renderer)
   test-templates.js      template generator tests (--verbose, --svg out.html)
   e2e.js                 headless-Chrome end-to-end check of the real game
+  test-famous.js         Famous Bridges data, gating, templates + a headless browser run of the campaign
   shot.js                headless screenshot helper
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level
 SPEC.md                  binding data contracts between modules
@@ -117,10 +123,11 @@ You need Node 18 or later (developed on Node 24). The browser checks also need t
 
 ```sh
 node tools/test-physics.js     # 20 physics tests incl. exploits, stability & >=4x realtime perf
-node tools/verify-levels.js    # all 50 levels, reference + best design each (see "Levels" below)
+node tools/verify-levels.js    # every level (road + Famous Bridges), reference + best design each (see "Levels" below)
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels
 node tools/e2e.js [outDir]     # full browser run; screenshots go to %TEMP%/span-e2e by default
+node tools/test-famous.js      # Famous Bridges campaign (add --node-only to skip the browser part)
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```
 
@@ -156,6 +163,27 @@ Every level is verified by `node tools/verify-levels.js` against two designs in 
 - Both must be valid and buildable in the editor (joints on the 0.25 m grid, no two joints closer than the 0.6 m joint magnet) and must have no floppy parts (no joint drifting more than 1 m while nothing breaks).
 
 Budgets are set so the reference costs at most about 88% of the budget and the best design at most 70% (at most 68% on levels 41–50, leaving a little room for hand-built designs). No built-in template earns ★★★ on any level; templates are switched off on levels 1–3, and templates that break a level's rules (for example an arch through a ship channel) are hidden from the menu.
+
+## Famous Bridges
+
+A separate campaign of real bridges, scaled down but faithful: each crossing keeps the real bridge's proportions, pier positions, shipping channel and kind of traffic, and is set up so that the historical structural type is the natural answer. Before each level a **history card** shows when and where it was built, its engineers, span and type, three facts, and why it matters (the bridge icon in the top bar opens it again). Pick a bridge from the **Famous Bridges** tab on the level select. It opens when road level 15 is complete; after that the usual rule applies (either of the two previous famous bridges).
+
+| # | Bridge | Year | Gap | The idea |
+|---|---|---|---|---|
+| 1 | Pont du Gard | c. 50 AD | 64 m | arches on piers over the Gardon (masonry once Iron Road lands; wood/steel for now) |
+| 2 | Ponte Vecchio | 1345 | 44 m | shallow segmental arches on two low piers, nothing above the deck |
+| 3 | The Iron Bridge | 1779 | 30 m | one deck arch from the banks, no piers (river traffic) |
+| 4 | Brooklyn Bridge | 1883 | 100 m | towers in the river, suspension cables plus stays |
+| 5 | Forth Bridge | 1890 | 150 m | *needs Iron Road (trains)* - cantilevers; locked until then |
+| 6 | Tower Bridge | 1894 | 90 m | two towers, ship channel, everything carried from above |
+| 7 | Sydney Harbour Bridge | 1932 | 100 m | through arch, harbour clear below the road |
+| 8 | Golden Gate Bridge | 1937 | 140 m | long suspension span between two towers |
+| 9 | Tacoma Narrows | 1940 | 140 m | *needs the weather/wind module* - flutter; locked until then |
+| 10 | Akashi Kaikyō Bridge | 1998 | 150 m | longest span: suspension with a stiffening truss, trucks |
+| 11 | Øresund Bridge | 2000 | 140 m | cable-stayed pylons beside the shipping lane |
+| 12 | Millau Viaduct | 2004 | 150 m | seven piers in a deep valley, short masts with fans of stays |
+
+Levels use ids 201+ and `campaign: 'famous'` (`tools/levels/level-2NN.json`, solutions in `tools/solutions/` as usual). A level can list modules it needs in `requires` (`'wind'`, `'rail'`, `'masonry'`); until `BG.Requirements` sees the module, the level is shown locked with its history card and the verifiers skip it.
 
 ### Adding a level
 

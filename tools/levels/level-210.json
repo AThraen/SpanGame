@@ -1,0 +1,117 @@
+{
+  "id": 210,
+  "name": "Akashi Kaikyō Bridge",
+  "campaign": "famous",
+  "theme": "night",
+  "hint": "The strait is open water from bank to bank. Hang everything from a long main cable - and stiffen the deck with a truss so heavy trucks cannot make it ripple.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 150,
+    "rightY": 0,
+    "floorY": -34,
+    "waterY": -26
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 150,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 150,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 30,
+      "x1": 34
+    },
+    {
+      "x0": 116,
+      "x1": 120
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 4,
+      "x1": 29.5,
+      "y0": -26,
+      "y1": -2
+    },
+    {
+      "x0": 34.5,
+      "x1": 115.5,
+      "y0": -26,
+      "y1": -2
+    },
+    {
+      "x0": 120.5,
+      "x1": 146,
+      "y0": -26,
+      "y1": -2
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 150,
+    "y0": -26,
+    "y1": 44
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 165000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 80,
+  "templates": [
+    "suspension"
+  ],
+  "history": {
+    "name": "Akashi Kaikyō Bridge",
+    "art": "assets/famous/akashi-kaikyo.svg",
+    "year": "1998",
+    "built": "1988–1998",
+    "location": "Kobe – Awaji Island, Japan",
+    "crosses": "Akashi Strait",
+    "engineer": "Honshu-Shikoku Bridge Authority (designer Satoshi Kashima)",
+    "span": "Main span 1,991 m · side spans 960 m",
+    "type": "Suspension with stiffening truss",
+    "facts": [
+      "It was planned after the 1955 Shiun Maru disaster, when two ferries sank in a storm and 168 people died.",
+      "The 1995 Great Hanshin earthquake moved the towers apart while it was being built, lengthening the main span by about 1 m.",
+      "Its cables contain about 300,000 km of wire - enough to go around the Earth more than seven times."
+    ],
+    "why": "The longest suspension span in the world from 1998 to 2022, built to survive typhoons, strong tides and earthquakes."
+  }
+}

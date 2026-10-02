@@ -13,6 +13,7 @@ function load(rel) {
   try { require(f); return true; } catch (e) { console.warn('  (could not load ' + rel + ': ' + e.message + ')'); return false; }
 }
 ['js/core/materials.js', 'js/core/vehicles.js', 'js/core/model.js', 'js/core/levels.js'].forEach(load);
+load('js/features/requirements.js'); // famous: BG.Requirements (stub levels needing missing modules are skipped)
 if (!load('js/core/templates.js')) { console.error('templates.js missing'); process.exit(1); }
 const BG = global.BG;
 const verbose = process.argv.includes('--verbose');
@@ -55,7 +56,7 @@ const levels = [
   lvl({ name: 'offset anchors, shuffled order', terrain: { leftEdge: 10, rightEdge: 34, leftY: 2, rightY: 2, floorY: -10 }, materials: ['road', 'wood', 'steel', 'rope'],
     anchors: [{ x: 10, y: -2 }, { x: 34, y: -2 }, { x: 34, y: 2 }, { x: 10, y: 2 }] }),
 ];
-if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => levels.push(l));
+if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => { if (!BG.Requirements || BG.Requirements.met(l)) levels.push(l); }); // famous: skip stubs needing missing modules
 
 function geomOf(level, design) {
   const pos = {};

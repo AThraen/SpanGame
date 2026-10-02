@@ -38,6 +38,10 @@ function buildability(level, design) {
 
 const levels = (BG.Levels || []).filter(l => !only || only.has(l.id));
 if (!levels.length) { console.error('No levels found (BG.Levels empty?)'); process.exit(1); }
+// famous: stub levels whose modules (level.requires, e.g. wind/rail) are not installed have no solutions yet
+const stubs = levels.filter(l => BG.Requirements && !BG.Requirements.met(l));
+for (const l of stubs) levels.splice(levels.indexOf(l), 1);
+if (stubs.length) console.log('skipping ' + stubs.length + ' level(s) whose requirements are missing: ' + stubs.map(l => l.id + ' (' + BG.Requirements.missing(l).join(', ') + ')').join(', '));
 
 const cols = [['id', 8], ['name', 24], ['result', 7], ['time', 7], ['peak', 7], ['cost', 8], ['budget', 8], ['ratio', 6], ['veh', 6], ['brk', 4], ['wall', 7], ['problems', 0]];
 console.log(cols.map(([c, w]) => pad(c, w)).join(' '));

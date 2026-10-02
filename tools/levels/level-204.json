@@ -1,0 +1,100 @@
+{
+  "id": 204,
+  "name": "Brooklyn Bridge",
+  "campaign": "famous",
+  "theme": "night",
+  "hint": "Ships need the whole river: hang the deck from cables slung between two tall towers, and pull the cables back to both banks.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -24,
+    "waterY": -18
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 100,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 18,
+      "x1": 22
+    },
+    {
+      "x0": 78,
+      "x1": 82
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 24,
+      "x1": 76,
+      "y0": -18,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 100,
+    "y0": -18,
+    "y1": 24
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "cable"
+  ],
+  "budget": 82000,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2
+    },
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 50,
+  "templates": [
+    "suspension",
+    "cable_stayed"
+  ],
+  "history": {
+    "name": "Brooklyn Bridge",
+    "art": "assets/famous/brooklyn-bridge.svg",
+    "year": "1883",
+    "built": "1869–1883",
+    "location": "New York City, USA",
+    "crosses": "East River",
+    "engineer": "John A. Roebling, Washington Roebling, Emily Warren Roebling",
+    "span": "Main span 486.3 m",
+    "type": "Hybrid suspension / cable-stayed",
+    "facts": [
+      "John Roebling died of tetanus after an accident at the start of work; when caisson disease left his son Washington bedridden, Emily Warren Roebling carried the engineering to the site.",
+      "Each of its four main cables holds 5,282 parallel galvanized steel wires, and diagonal stays fan out from the towers for extra stiffness.",
+      "In 1884 P. T. Barnum led 21 elephants, including Jumbo, across to prove it was safe."
+    ],
+    "why": "The first steel-wire suspension bridge, and the longest suspension bridge in the world from 1883 until 1903."
+  }
+}

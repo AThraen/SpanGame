@@ -1,0 +1,108 @@
+/* SPAN — Famous Bridges campaign: level-select tab, bridge tiles, history card. (Feature stylesheet.) */
+
+/* ------------------------------------------------------------ campaign tabs (level select header) */
+.fb-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 99px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); flex: none; }
+.fb-tab { height: 34px; padding: 0 16px; border: 0; border-radius: 99px; background: transparent; color: var(--muted); font-weight: 650; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background .2s, color .2s; }
+.fb-tab:hover { color: var(--text); background: rgba(255, 255, 255, .07); }
+.fb-tab.on { color: #1a1206; background: linear-gradient(180deg, #ffd27a, var(--primary)); box-shadow: 0 2px 10px rgba(255, 181, 71, .35); }
+.fb-tab.locked { color: var(--dim); }
+.fb-tab.on.locked { color: #3a2a10; }
+.fb-tab-ico:empty { display: none; }
+.fb-tab-ico .ico { width: 14px; height: 14px; }
+
+/* the famous panel replaces the road chapters while its tab is active */
+.fb-panel { display: none; }
+#screen-levels.fb-mode .chapters { display: none; }
+#screen-levels.fb-mode .fb-panel { display: block; max-width: 1120px; margin: 0 auto; padding-top: 18px; }
+
+.fb-intro { display: flex; align-items: center; gap: 18px; padding: 16px 20px; margin-bottom: 18px; border-radius: 18px; background: linear-gradient(120deg, rgba(255, 181, 71, .12), rgba(73, 198, 242, .08)), var(--glass); }
+.fb-intro > div { flex: 1; min-width: 0; }
+.fb-intro h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 19px; font-weight: 800; }
+.fb-intro p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; max-width: 760px; }
+.fb-gate { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: var(--warn); font-weight: 600; font-size: 14px; }
+.fb-gate .ico { width: 18px; height: 18px; }
+
+.fb-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.fb-tile { position: relative; display: flex; flex-direction: column; padding: 0; text-align: left; cursor: pointer; overflow: hidden; border-radius: 16px; border: 1px solid var(--line); background: rgba(16, 23, 40, .72); box-shadow: 0 6px 20px rgba(0, 0, 0, .28); color: var(--text); animation: fb-in .5s var(--ease) both; transition: transform .25s var(--spring), border-color .2s, box-shadow .25s; }
+.fb-tile.open:hover { transform: translateY(-3px); border-color: rgba(255, 210, 122, .7); box-shadow: 0 14px 30px rgba(0, 0, 0, .38), 0 0 26px rgba(255, 181, 71, .22); }
+.fb-tile.open:active { transform: translateY(-1px) scale(.985); }
+.fb-tile.locked { cursor: not-allowed; }
+.fb-tile.locked img { filter: grayscale(.8) brightness(.62); }
+.fb-tile.stub { border-style: dashed; }
+.fb-tile.nope { animation: nope .4s var(--ease); }
+.fb-tile-art { position: relative; display: block; aspect-ratio: 2 / 1; background: #1a2238; overflow: hidden; }
+.fb-tile-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.fb-tile-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, .45)); pointer-events: none; }
+.fb-tile-year { position: absolute; left: 10px; top: 8px; z-index: 1; padding: 2px 9px; border-radius: 99px; background: rgba(8, 12, 22, .62); font: 700 12px var(--font-mono); letter-spacing: .03em; color: #ffe2a8; }
+.fb-tile-lock { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; }
+.fb-tile-lock .ico { width: 30px; height: 30px; padding: 8px; box-sizing: content-box; border-radius: 50%; background: rgba(8, 12, 22, .65); color: rgba(255, 255, 255, .85); }
+.fb-need { position: absolute; right: 8px; bottom: 8px; z-index: 3; padding: 3px 9px; border-radius: 99px; background: rgba(73, 198, 242, .2); border: 1px solid rgba(73, 198, 242, .45); color: #bfeeff; font-size: 11.5px; font-weight: 650; }
+.fb-tile.done .fb-tile-art::before { content: ""; position: absolute; top: 10px; right: 10px; z-index: 2; width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(62, 224, 143, .3); }
+.fb-tile-body { display: flex; align-items: center; gap: 10px; padding: 10px 12px 11px; }
+.fb-tile-num { flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: rgba(255, 181, 71, .16); color: #ffd27a; font: 900 14px var(--font-display); }
+.fb-tile-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fb-tile-txt b { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-tile-txt small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-tile-stars { flex: none; display: flex; gap: 2px; }
+.fb-tile-stars .star { width: 14px; height: 14px; }
+@keyframes fb-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------ history card */
+.fb-overlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; pointer-events: none; opacity: 0; visibility: hidden; background: radial-gradient(ellipse at center, rgba(6, 10, 20, .55), rgba(6, 10, 20, .78)); transition: opacity .3s, visibility 0s .3s; }
+.fb-overlay.show { pointer-events: auto; opacity: 1; visibility: visible; transition: opacity .3s, visibility 0s; }
+.fb-card { position: relative; display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr); width: min(980px, 100%); max-height: calc(100vh - 32px); overflow: hidden; border-radius: 22px; background: rgba(13, 19, 33, .9); transform: translateY(22px) scale(.96); opacity: 0; transition: transform .5s var(--spring), opacity .3s; }
+.fb-overlay.show .fb-card { transform: none; opacity: 1; }
+.fb-art { position: relative; min-height: 260px; background: #18223a; overflow: hidden; }
+.fb-art img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fb-art-bg { object-fit: cover; transform: scale(1.25); filter: blur(22px) brightness(.72) saturate(1.2); }
+.fb-art-fg { object-fit: contain; filter: drop-shadow(0 10px 28px rgba(0, 0, 0, .35)); }
+.fb-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 70%, rgba(13, 19, 33, .9)); pointer-events: none; }
+.fb-year { position: absolute; left: 18px; bottom: 16px; z-index: 1; font: 900 46px/1 var(--font-display); color: #fff; text-shadow: 0 3px 18px rgba(0, 0, 0, .55); letter-spacing: .01em; }
+.fb-body { padding: 24px 26px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; user-select: text; -webkit-user-select: text; }
+.fb-kicker { color: var(--primary); font-size: 12px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.fb-body h2 { margin: -4px 0 0; font-family: var(--font-display); font-weight: 900; font-size: 30px; line-height: 1.1; }
+.fb-rows { display: grid; gap: 5px; }
+.fb-row { display: grid; grid-template-columns: 86px 1fr; gap: 10px; font-size: 13.5px; }
+.fb-row span { color: var(--dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .08em; padding-top: 2px; }
+.fb-row b { font-weight: 600; color: var(--text); }
+.fb-facts { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.fb-facts li { position: relative; padding-left: 20px; font-size: 13.5px; line-height: 1.45; color: #d5deec; }
+.fb-facts li::before { content: ""; position: absolute; left: 4px; top: 7px; width: 7px; height: 7px; border-radius: 2px; transform: rotate(45deg); background: var(--primary); }
+.fb-why { padding: 11px 14px; border-radius: 13px; background: rgba(73, 198, 242, .09); border: 1px solid rgba(73, 198, 242, .22); }
+.fb-why span { display: block; margin-bottom: 3px; color: var(--blue); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.fb-why p { margin: 0; font-size: 13.5px; line-height: 1.45; }
+.fb-note { margin: 0; color: var(--muted); font-size: 12.5px; font-style: italic; }
+.fb-locked { margin: 0; color: var(--warn); font-weight: 600; font-size: 13.5px; }
+.fb-challenge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fb-ch-k { width: 100%; color: var(--dim); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.fb-challenge .chip { height: 28px; font-size: 12.5px; }
+.fb-stars { display: inline-flex; gap: 2px; margin-left: 4px; }
+.fb-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+body.fb-card-open .hint { visibility: hidden; }
+
+/* in-level: history button in the top bar */
+.fb-history-btn .ico { color: #ffd27a; }
+
+@media (max-width: 1100px) { .fb-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 860px) {
+  .fb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fb-card { grid-template-columns: 1fr; overflow-y: auto; }
+  .fb-art { min-height: 0; aspect-ratio: 2 / 1; }
+  .fb-art::after { background: linear-gradient(180deg, transparent 60%, rgba(13, 19, 33, .9)); }
+  .fb-body { overflow: visible; }
+  .fb-intro { flex-direction: column; align-items: flex-start; }
+  #screen-levels .ls-head { flex-wrap: wrap; height: auto; min-height: 68px; padding: 8px 12px; row-gap: 8px; }
+  .ls-head .fb-tabs { order: 10; width: 100%; }
+  .ls-head .fb-tab { flex: 1; justify-content: center; }
+  .fb-actions { position: sticky; bottom: -20px; margin: 4px -26px -20px; padding: 12px 26px 16px; background: linear-gradient(180deg, rgba(13, 19, 33, 0), rgba(13, 19, 33, .96) 30%); }
+}
+@media (max-width: 560px) {
+  .fb-body { padding: 18px 18px 20px; }
+  .fb-actions { margin: 4px -18px -20px; padding: 12px 18px 16px; }
+  .fb-row { grid-template-columns: 74px 1fr; }
+  .fb-grid { grid-template-columns: 1fr; }
+  .fb-tab { padding: 0 10px; font-size: 12.5px; }
+  .fb-year { font-size: 34px; }
+  .fb-body h2 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .fb-tile, .fb-card { animation: none; transition: none; } }

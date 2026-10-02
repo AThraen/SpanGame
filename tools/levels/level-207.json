@@ -1,0 +1,89 @@
+{
+  "id": 207,
+  "name": "Sydney Harbour Bridge",
+  "campaign": "famous",
+  "theme": "tropical",
+  "hint": "The harbour must stay clear below the road. Spring an arch from the low anchors, rise high above the deck and hang the road from it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -20,
+    "waterY": -14
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -10
+    },
+    {
+      "x": 100,
+      "y": -10
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [
+    {
+      "x0": 15,
+      "x1": 85,
+      "y0": -14,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 100,
+    "y0": -14,
+    "y1": 28
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel"
+  ],
+  "budget": 64000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.6
+    },
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 55,
+  "templates": [
+    "through_arch"
+  ],
+  "history": {
+    "name": "Sydney Harbour Bridge",
+    "art": "assets/famous/sydney-harbour-bridge.svg",
+    "year": "1932",
+    "built": "1923–1932",
+    "location": "Sydney, Australia",
+    "crosses": "Sydney Harbour",
+    "engineer": "John Bradfield; designed and built by Dorman Long & Co (Ralph Freeman)",
+    "span": "Arch span 503 m · top 134 m above the water",
+    "type": "Steel through arch",
+    "facts": [
+      "The two half-arches were built out from each shore, held back by cables anchored in tunnels, until they met on 19 August 1930.",
+      "About six million rivets, all driven by hand, hold together 52,800 tonnes of steel.",
+      "The four granite-faced pylons carry nothing - they were added for looks and to reassure the public."
+    ],
+    "why": "Nicknamed \"The Coathanger\", it carries eight road lanes, two railway tracks, a footway and a cycleway, and was the world's widest long-span bridge until 2012."
+  }
+}

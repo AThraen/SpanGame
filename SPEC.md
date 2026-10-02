@@ -355,3 +355,52 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
+
+## 10. Famous Bridges — real-world campaign (extension module)
+
+A separate campaign of real bridges, each preceded by a history card. Lives in new files only
+(`js/features/requirements.js`, `js/features/famous.js`, `css/famous.css`, `assets/famous/*.svg`,
+`tools/test-famous.js`); shared files only get small, commented (`// famous:`) hook lines.
+
+### 10.1 Levels
+- Ids **201+**, `tools/levels/level-2NN.json`, `campaign: 'famous'`, built into `BG.Levels` by `build-levels`
+  like every other level (sorted by id, after road and rail levels). Solutions `tools/solutions/level-2NN(-best).json`;
+  same verification rules as road levels (ref peak ≤ 0.92 and ≤ ≈ 88 % of budget, best ≤ 70 %, no template ★★★ —
+  checked over *all* templates, not only the offered ones, by `tools/test-famous.js`).
+- Each level is a scaled-down but faithful version of the real crossing (span ratios, pier positions, ship channel,
+  traffic) set up so the historical structural type is the efficient answer.
+- Extra level fields:
+  - `history: { name, year, built, location, crosses, engineer, span, type, facts: [2–3 strings], why, note?, art }`
+    where `art` is the SVG illustration path (`assets/famous/<slug>.svg`, 400 × 200, used on the card and the tile).
+  - `requires: ['wind' | 'rail' | 'masonry' ...]` — optional modules the level needs (see 10.3).
+  - `templates` may be an **array of template ids**: only those (history-appropriate) templates are offered.
+    `famous.js` wraps `BG.Templates.available` in the browser to flag the others `ok: false`; `true`/`false` keep
+    their old meaning.
+- Playable now: 201 Pont du Gard, 202 Ponte Vecchio, 203 Iron Bridge, 204 Brooklyn, 206 Tower Bridge, 207 Sydney
+  Harbour, 208 Golden Gate, 210 Akashi Kaikyō, 211 Øresund, 212 Millau. Stubs (history card + terrain, no solutions):
+  205 Forth Bridge (`requires: ['rail']`, traffic `{type:'train', train:'steam_express'}` in the §9.1 form) and
+  209 Tacoma Narrows (`requires: ['wind']`, plus a free-form `wind` hint object for the weather module).
+- Pont du Gard is historically masonry: once §9.2 `masonry` exists, add it to level 201's `materials`
+  and re-verify (the current solutions use wood/steel).
+
+### 10.2 Campaign rules (`BG.Famous`, js/features/famous.js)
+- Unlock: the first playable famous level opens when **road level 15** is completed (or `?unlockall`); inside the
+  campaign a level opens when either of the two previous *playable* famous levels is complete (stubs are skipped).
+  Implemented by wrapping `BG.Storage.isUnlocked` for famous ids only.
+- `BG.Game.openLevel(famousId)` shows the history card first (Build it / Back; Enter/Space = build, Esc = back);
+  `opts.skipCard` skips it. Levels with unmet requirements never open, even with `force` / `?unlockall` —
+  their card explains which module is missing.
+- `nextLevel` / results `hasNext` / finale stay inside the campaign (next playable famous id; after the last one the
+  finale card, then back to the Famous Bridges tab).
+- Level select: a self-contained **Roads | Famous Bridges** tab strip in the header (`.fb-tabs`) and a panel
+  (`.fb-panel`) that replaces the road chapters while active; tab remembered in `BG.Storage` key `famous.tab`.
+  *Integration point:* Iron Road (§9.4) adds its own campaign tabs — fold the famous tab into that system and
+  call `BG.Famous.tab.render(screen)` (or reuse its tile markup) when the famous tab is selected.
+- In a famous level the top bar badge shows the campaign number (1–12), the subtitle "Famous Bridges · year · place",
+  and a history button reopens the card.
+
+### 10.3 Requirements (`BG.Requirements`, js/features/requirements.js — browser and Node)
+- `has(req)`, `missing(level)`, `met(level)`, `label(req)`, `provide(req)`, `register(req, checkFn, label)`.
+- Default detection: `wind` → `BG.Events || BG.Weather || BG.Wind`; `rail` → `BG.Trains && BG.Materials.rail`;
+  `masonry` → `BG.Materials.masonry`. A module may also call `BG.Requirements.provide('wind')`.
+- `tools/harness.js` loads it, `verify-levels` and `test-templates` skip levels whose requirements are missing.

@@ -1,0 +1,105 @@
+{
+  "id": 208,
+  "name": "Golden Gate Bridge",
+  "campaign": "famous",
+  "theme": "city",
+  "hint": "Only two towers may stand in the strait. Drape a main cable between them and back to the banks, then hang the whole deck from it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 140,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -22
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 140,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 140,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 20,
+      "x1": 24
+    },
+    {
+      "x0": 116,
+      "x1": 120
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 26,
+      "x1": 114,
+      "y0": -22,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 140,
+    "y0": -22,
+    "y1": 40
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 90000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.5
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 75,
+  "templates": [
+    "suspension"
+  ],
+  "history": {
+    "name": "Golden Gate Bridge",
+    "art": "assets/famous/golden-gate-bridge.svg",
+    "year": "1937",
+    "built": "1933–1937",
+    "location": "San Francisco, USA",
+    "crosses": "Golden Gate strait",
+    "engineer": "Joseph Strauss (chief engineer), Charles Ellis, Leon Moisseiff, Irving Morrow (architect)",
+    "span": "Main span 1,280 m · towers 227 m above the water",
+    "type": "Suspension",
+    "facts": [
+      "Its colour, \"International Orange\", was chosen to suit the landscape and to keep the bridge visible in fog.",
+      "Each main cable is made of 27,572 individual wires.",
+      "A safety net under the deck saved 19 workers, who called themselves the \"Halfway to Hell Club\"."
+    ],
+    "why": "It held the record for the longest suspension span in the world from 1937 until 1964, across a deep, windy, foggy strait many said could not be bridged."
+  }
+}

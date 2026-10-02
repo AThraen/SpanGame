@@ -1,0 +1,108 @@
+{
+  "id": 209,
+  "name": "Tacoma Narrows",
+  "campaign": "famous",
+  "requires": [
+    "wind"
+  ],
+  "theme": "autumn",
+  "hint": "A slender deck looks elegant - until the wind starts to twist it. Stiffen the deck against flutter.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 140,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -22
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 140,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 140,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 20,
+      "x1": 24
+    },
+    {
+      "x0": 116,
+      "x1": 120
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 26,
+      "x1": 114,
+      "y0": -22,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 140,
+    "y0": -22,
+    "y1": 40
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 120000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.5
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 75,
+  "templates": [
+    "suspension"
+  ],
+  "wind": {
+    "note": "For the weather-events module: steady crosswind that excites torsional flutter of slender decks.",
+    "speed": 18
+  },
+  "history": {
+    "name": "Tacoma Narrows",
+    "art": "assets/famous/tacoma-narrows.svg",
+    "year": "1940",
+    "built": "1938–1940 (collapsed 7 Nov 1940)",
+    "location": "Tacoma, Washington, USA",
+    "crosses": "Tacoma Narrows, Puget Sound",
+    "engineer": "Leon Moisseiff",
+    "span": "Main span 853 m",
+    "type": "Suspension with a shallow plate-girder deck",
+    "facts": [
+      "Its deck girders were only 2.4 m deep, so it rippled even in light winds - drivers nicknamed it \"Galloping Gertie\".",
+      "Four months after opening, a steady 64 km/h wind set off self-exciting aeroelastic flutter that twisted the deck apart.",
+      "The only death was Tubby, a cocker spaniel left in a car on the bridge. The collapse was filmed and is studied by engineers to this day."
+    ],
+    "why": "Its failure founded bridge aerodynamics: every long-span bridge since has been tested against wind. A stiffer replacement opened in 1950.",
+    "note": "Needs wind: this crossing unlocks when the weather-events module is installed."
+  }
+}
