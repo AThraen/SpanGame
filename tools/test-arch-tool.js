@@ -4,10 +4,11 @@
 //  2. editor (Node, fake game / renderer / canvas like test-editor.js): the drag-release-rise-click gesture, magnet
 //     endpoints, segment count (+/-, wheel), Esc / right-click / two-finger-tap cancel, validity reasons (no-build,
 //     tension-only arches, hanging stone, terrain), Connect to deck (posts, hangers, deck splits, bracing), mirror,
-//     one undo step, live cost, Smooth for the select tool, the overlay renderer on a fake canvas
-//  3. headless sim (Node): level 15 (deck arch from the cliff bolts), level 106 (masonry arch under a rail deck) and
-//     level 208 (suspension main cable + side cables) built with the tool all pass
-//  4. browser (headless Chrome, never a visible window): the same three levels built with real mouse input and the
+//     one undo step, live cost, Smooth for the select tool, the overlay renderer on a fake canvas; usability fixes (fair
+//     snapping, deck crossings, cable bracing, deck-aware defaults, Place, labels clear of the HUD)
+//  3. headless sim (Node): level 15 (deck arch from the cliff bolts), level 106 (masonry arch under a rail deck),
+//     level 25 and level 208 (suspension main cable + side cables) built with the tool all pass
+//  4. browser (headless Chrome, never a visible window): the same four levels built with real mouse input and the
 //     contextual bar, then Test is pressed and the run passes; the "Try the Arch tool (A)" hint; a touch phone builds
 //     an arch with the loupe and the rise handle, the bar fits and has 44 px targets, a two-finger tap cancels.
 'use strict';
@@ -22,6 +23,7 @@ const { BG, runHeadless } = require('./harness');
 require(path.join(ROOT, 'js/ui/editor.js'));
 require(path.join(ROOT, 'js/ui/arch-tool.js'));
 const Cv = BG.Curves;
+const DEFAULT_OPT = Object.assign({}, BG.ArchTool.OPT); // before any test changes the shared options
 
 let pass = 0, fail = 0;
 function ok(c, msg, info) { if (c) pass++; else { fail++; console.log('  FAIL: ' + msg + (info !== undefined ? '  ' + JSON.stringify(info) : '')); } }
@@ -469,6 +471,132 @@ section('overlay renderer (fake canvas)');
   ok(true, 'no arch state: nothing drawn, no throw');
 }
 
+
+section('usability: fair snapping, deck crossings, defaults, place, labels');
+{
+  ok(DEFAULT_OPT.connect === true && DEFAULT_OPT.brace === true, 'Connect to deck and Brace panels are on by default', DEFAULT_OPT);
+  // snapping never makes the polyline lumpy: it keeps turning one way, like the curve
+  const turns = (pts, t) => pts.slice(1, -1).every((b, i) => { const a = pts[i], d = pts[i + 2]; return ((b.x - a.x) * (d.y - b.y) - (b.y - a.y) * (d.x - b.x)) * t >= -1e-9; });
+  const lumpy = [];
+  let cases = 0;
+  for (const sh of ['parabolic', 'circular', 'catenary']) for (const span of [12, 18, 26, 36, 40, 60, 96]) for (const rr of [-0.4, -0.2, -0.1, 0.1, 0.2, 0.3, 0.5]) for (const maxLen of [5, 6, 10, 40]) {
+    const c = Cv.make(sh, 0, -5, span, -5, span * rr), t = Cv.turnOf(c);
+    const s1 = Cv.segment(c, { maxLen, grid: 0.25 });
+    cases++; if (!turns(s1.points, t)) lumpy.push([sh, span, rr, maxLen]);
+    if (sh === 'circular' && Math.abs(rr) >= 0.5) continue; // a near semicircle is not a function of x for stations
+    const xs = []; for (let x = 6; x < span - 0.5; x += 6) xs.push(x);
+    const s2 = Cv.alignedSegment(c, xs, { maxLen, grid: 0.25 });
+    if (s2) { cases++; if (!turns(s2.points, t)) lumpy.push(['aligned', sh, span, rr, maxLen]); }
+  }
+  ok(lumpy.length === 0, 'snapped curves are never lumpy (' + cases + ' shapes / spans / rises / materials)', lumpy.slice(0, 5));
+  const sym = Cv.segment(Cv.make('parabolic', 0, -9, 36, -9, 8.5), { maxLen: 10, grid: 0.25 }).points;
+  ok(sym.every((p, i) => near(p.x, 36 - sym[sym.length - 1 - i].x) && near(p.y, sym[sym.length - 1 - i].y)), 'a symmetric arch stays symmetric after snapping', sym);
+  const al = Cv.alignedSegment(Cv.make('parabolic', 0, -6, 24, -6, 9), [{ x: 5, y: 0 }, 6, 12, 18], { maxLen: 10, grid: 0.25 });
+  ok(al && al.points.some((p) => near(p.x, 5) && p.y === 0 && p.pinY), 'a pinned station keeps its height', al && al.points);
+
+  // a through arch crossing the deck between deck joints: a joint on the road, joined to it
+  {
+    const { ed, opt } = fresh();
+    deck(ed, 0, 24, 6);
+    Object.assign(opt, { connect: true, brace: true });
+    ed.setTool('arch'); ed.setMaterial('steel');
+    const r = ed.placeArch(0, -6, 24, -6, 9, {});
+    const onDeck = r && r.ids.map((id) => ed._node(id)).filter((n) => n.kind === 'node' && near(n.y, 0) && !near(n.x % 6, 0));
+    ok(onDeck && onDeck.length === 2 && onDeck.every((n) => ed.design.beams.filter((b) => (b.a === n.id || b.b === n.id) && b.m === 'road').length === 2), 'where the arch crosses the road it joins it (deck split, both sides)', onDeck);
+    ok(valid(ed).ok, 'through arch valid', valid(ed).errors);
+    const keys = new Set();
+    let dup = 0;
+    for (const b of ed.design.beams) { const k = [b.a, b.b].sort().join('|'); if (keys.has(k)) dup++; keys.add(k); }
+    ok(dup === 0, 'no doubled members');
+  }
+  // a crown on the deck: the panels next to it are triangles already - no braces doubling the curve
+  {
+    const { ed, opt } = fresh();
+    deck(ed, 0, 24, 6);
+    Object.assign(opt, { connect: true, brace: true });
+    ed.setTool('arch'); ed.setMaterial('steel');
+    drag(ed, 0, -6, 24, -6);
+    ed.pointerMove(12, 0, M());
+    const p = ed.state.arch.plan;
+    const segKeys = new Set(p.segs.map((q) => [q.x1, q.y1, q.x2, q.y2].join(',')).concat(p.segs.map((q) => [q.x2, q.y2, q.x1, q.y1].join(','))));
+    ok(p.braces.every((b) => !segKeys.has([b.x1, b.y1, b.x2, b.y2].join(','))), 'no brace on top of a curve segment', p.braces.length);
+    const nb = ed.design.beams.length;
+    ed.pointerDown(12, 0, M()); ed.pointerUp(12, 0, M());
+    ok(ed.lastArch && ed.design.beams.length - nb === p.n + p.connectors.filter((c) => c.valid).length + p.braces.length, 'placed = previewed (curve + posts + braces)', [ed.design.beams.length - nb, p.n, p.connectors.length, p.braces.length]);
+  }
+  // under a hanging cable the panel bracing is crossed cables, never a lone strut
+  {
+    const { ed, opt } = fresh({ materials: ['road', 'wood', 'cable'] });
+    deck(ed, 0, 24, 6);
+    Object.assign(opt, { connect: true, brace: true });
+    ed.setTool('arch'); ed.setMaterial('cable');
+    const r = ed.placeArch(2, 8, 22, 8, -7, {});
+    const hang = ed.design.beams.filter((b) => b.m !== 'road');
+    ok(r && r.posts >= 3 && r.braces >= 2 && hang.every((b) => b.m === 'cable'), 'hanging cable: hangers and crossed cable braces', { r, mats: hang.map((b) => b.m) });
+  }
+  // touch release: the starting rise keeps the curve clear of the deck
+  {
+    const { ed, opt } = fresh();
+    deck(ed, 0, 24, 6);
+    Object.assign(opt, { connect: true });
+    ed.setTool('arch'); ed.setMaterial('cable');
+    const T = M({ pointerType: 'touch' });
+    drag(ed, 2, 4, 22, 4, T);
+    ok(near(ed.state.arch.rise, -3) && ed.state.arch.plan.valid, 'a cable starts hanging 1 m above the road (not on it)', ed.state.arch.rise);
+    // the connectors only show once the end is set
+    ed.archCancel();
+    ed.pointerDown(2, 4, T); ed.pointerMove(12, 4, T); ed.pointerMove(22, 4, T);
+    ok(ed.state.arch.phase === 'drag' && ed.state.arch.plan.connectors.length === 0, 'no posts / hangers while the end is still being dragged');
+    ed.pointerUp(22, 4, T);
+    // a tap on the handle is a grab, not a place; the bar's Place places
+    const h = ed.state.arch.handle;
+    ed.pointerDown(h.x, h.y, T); ed.pointerUp(h.x, h.y, T);
+    ok(ed.archActive() && ed.design.beams.filter((b) => b.m === 'cable').length === 0, 'touch: a tap on the rise handle does not place');
+    ok(ed.archPlace() && !ed.archActive() && ed.design.beams.some((b) => b.m === 'cable'), 'archPlace() (the Place button) places');
+    ok(!ed.archPlace(), 'Place with no curve: nothing');
+  }
+  // skipped connectors say why
+  {
+    const f3 = fresh({ noBuild: [{ x0: 11, x1: 13, y0: -3, y1: -0.5 }] });
+    deck(f3.ed, 0, 24, 6);
+    Object.assign(f3.opt, { connect: true, brace: false });
+    f3.ed.setTool('arch'); f3.ed.setMaterial('steel');
+    drag(f3.ed, 0, -6, 24, -6);
+    f3.ed.pointerMove(12, -3.5, M());
+    const p = f3.ed.state.arch.plan;
+    ok(p.skipped >= 1 && /no-build/.test(p.skipReason), 'preview: skipped members carry the reason', [p.skipped, p.skipReason]);
+    f3.ed.pointerDown(12, -3.5, M()); f3.ed.pointerUp(12, -3.5, M());
+    ok(f3.game.toasts.some((t) => /skipped: Crosses a no-build zone/.test(t)), 'toast names the rule', f3.game.toasts);
+  }
+  // labels stay out of the HUD: above the curve when there is room, else below it
+  {
+    const { ed, game } = fresh();
+    deck(ed, 0, 24, 6);
+    Object.assign(ed.archOptions(), { connect: true });
+    ed.setTool('arch'); ed.setMaterial('steel');
+    drag(ed, 0, -6, 24, -6);
+    ed.pointerMove(12, -1, M());
+    const ctx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+    const labels = [];
+    const r = Object.assign({}, game.renderer, { W: 1000, H: 600, camera: game.renderer.camera, _worldXf() {}, _screenXf() {}, _halo() {}, _drawBeamItems() {}, _label(c, x, y, text) { labels.push({ x, y, text }); } });
+    const deckY = r.worldToScreen(0, 0).y;
+    BG.ArchTool.drawOverlay(r, ctx, { editorState: ed.state }, { x: 0, y: 0 });
+    ok(labels.length === 2 && labels.every((l) => l.y < deckY), 'room above: labels above the curve', labels);
+    BG.ArchTool.safeRect = () => ({ top: deckY - 20, left: 120, right: 1000, bottom: 600 });
+    labels.length = 0;
+    BG.ArchTool.drawOverlay(r, ctx, { editorState: ed.state }, { x: 0, y: 0 });
+    const lowest = r.worldToScreen(0, -6).y;
+    ok(labels.length === 2 && labels.every((l) => l.y > lowest), 'a panel over the space above: labels go below the curve', { labels, lowest });
+    ok(BG.ArchTool.lastLabels.every((q) => q.x >= 120), 'and stay right of the rail', BG.ArchTool.lastLabels);
+    delete BG.ArchTool.safeRect;
+    ed.archCancel();
+    labels.length = 0;
+    BG.ArchTool.placed = 0;
+    BG.ArchTool.drawOverlay(r, ctx, { editorState: ed.state, mode: 'edit' }, { x: 0, y: 0 });
+    ok(labels.length === 1 && /drag from one support to the other/.test(labels[0].text), 'idle: a how-to hint until a first curve is placed', labels);
+  }
+}
+
 // ===================================================================== 3. headless sim
 function buildLevel(id, steps) {
   const level = levelById(id);
@@ -501,6 +629,16 @@ section('headless sim: levels built with the tool pass');
     ed.placeArch(0, 0, 22, 16, -1.5, {});
     ed.placeArch(118, 16, 140, 0, -1.5, {});
   });
+  const t25 = buildLevel(25, (ed, opt) => {
+    ed.load({ nodes: [], beams: [], piers: [{ x: 10, topY: 8 }, { x: 50, topY: 8 }] }, ed._level());
+    deck(ed, 0, 60, 5, 'road');
+    Object.assign(opt, { connect: true, brace: true });
+    ed.setTool('arch'); ed.setMaterial('cable');
+    ed.placeArch(10, 8, 50, 8, -7, {});
+    ed.placeArch(-14, 0, 10, 8, -0.5, {});
+    ed.placeArch(50, 8, 74, 0, -0.5, {});
+  });
+  ok(t25.res.valid && t25.res.status === 'success' && t25.res.budgetOk, 'level 25 (no steel): road hung from a cable between two towers, with crossed cable bracing, passes', { s: t25.res.status, peak: t25.res.peakStress, cost: t25.res.cost, f: t25.res.failReason });
   const hangers = t208.ed.design.beams.filter((b) => b.m === 'cable').length;
   ok(t208.res.valid && t208.res.status === 'success' && t208.res.budgetOk && hangers > 40, 'level 208 (suspension): catenary main cable + side cables + hangers pass', { s: t208.res.status, peak: t208.res.peakStress, cost: t208.res.cost, hangers });
 }
@@ -591,8 +729,14 @@ async function browser() {
     const bar = await page.evaluate(() => { const el = document.querySelector('.arch-bar'); const r = el.getBoundingClientRect(); return { show: el.classList.contains('show'), mat: BG.Game.editor.material, tool: BG.Game.editor.tool, r: [r.left, r.top, r.right, r.bottom], chips: el.querySelectorAll('[data-ab-shape]').length, on: (el.querySelector('.ab-chip.on') || {}).textContent }; });
     ok(bar.show && bar.tool === 'arch' && bar.mat === 'steel' && bar.chips === 3 && bar.on === 'Parabolic', 'tool button opens the contextual bar (Parabolic default, steel)', bar);
     ok(bar.r[0] >= 0 && bar.r[2] <= 1440 && bar.r[1] >= 0 && bar.r[3] < 450, 'bar on screen, over the sky', bar.r);
+    const bt = () => page.evaluate(() => ({ connect: BG.Game.editor.archOptions().connect, checked: document.querySelector('.arch-bar [data-ab=connect]').checked, brace: !document.querySelector('.arch-bar [data-ab=brace]').disabled, cmat: !document.querySelector('.arch-bar [data-ab=cmat]').disabled }));
+    let b0 = await bt();
+    ok(b0.connect && b0.checked && b0.brace && b0.cmat, 'Connect to deck is on by default (bracing + connector material enabled)', b0);
     await page.click('.arch-bar [data-ab=connect]');
-    ok(await page.evaluate(() => BG.Game.editor.archOptions().connect), 'Connect to deck switched on from the bar');
+    b0 = await bt();
+    ok(!b0.connect && !b0.brace && !b0.cmat, 'Connect off: Brace panels and the connector material are disabled', b0);
+    await page.click('.arch-bar [data-ab=connect]');
+    ok((await bt()).connect, 'Connect to deck back on from the bar');
     const pv15 = await mouseArch(0, -9, 36, -9, -0.5);
     ok(pv15 && pv15.phase === 'rise' && pv15.valid && pv15.posts >= 5 && Math.abs(pv15.rise - 8.5) < 0.3, 'preview while setting the rise', pv15);
     ok(pv15 && pv15.shown >= pv15.cost, 'cost bar includes the preview', pv15);
@@ -613,7 +757,14 @@ async function browser() {
     await page.keyboard.press('a');
     await page.evaluate(() => BG.Game.setMaterial('masonry'));
     await page.evaluate(() => { const o = BG.Game.editor.archOptions(); o.connect = true; o.brace = true; });
-    const pv106 = await mouseArch(0, -7, 26, -7, -1);
+    await mdrag(0, -7, 26, -7);
+    const c106 = await W2S(13, -1);
+    await page.mouse.move(c106.x, c106.y, { steps: 8 });
+    await wait(150);
+    const pv106 = await page.evaluate(() => { const av = BG.Game.editor.state.arch; return { n: av.plan.n, valid: av.plan.valid, placing: document.querySelector('.arch-bar').classList.contains('placing'), place: !document.querySelector('.arch-bar [data-ab=place]').disabled }; });
+    ok(pv106.placing && pv106.place, 'setting the rise: the bar shows an enabled Place button', pv106);
+    await page.click('.arch-bar [data-ab=place]');
+    await wait(150);
     ok(pv106 && pv106.valid && pv106.n >= 6, 'level 106: masonry arch preview (5 m stones)', pv106);
     const d106 = await page.evaluate(() => ({ la: BG.Game.editor.lastArch, v: BG.Model.validate(BG.Game.level, BG.Game.getDesign()).ok }));
     ok(d106.la && d106.la.m === 'masonry' && d106.v, 'level 106: placed', d106);
@@ -643,6 +794,30 @@ async function browser() {
     await page.evaluate(() => { BG.Game._lastToggle = -1e9; BG.Game.startSim(); });
     r = await runSim(70);
     ok(r.res && r.res.passed, 'level 208: Test passes', r);
+
+    // ---- level 25 (no steel): a suspension bridge by mouse - towers, road, main cable + side cables with the tool
+    await open(25);
+    await page.evaluate(() => BG.Hud.hideHint());
+    await page.click('.rail [data-tool=pier]');
+    for (const x of [10, 50]) { const p0 = await W2S(x, 1), p1 = await W2S(x, 8); await page.mouse.move(p0.x, p0.y); await page.mouse.down(); await page.mouse.move(p1.x, p1.y, { steps: 6 }); await page.mouse.up(); await wait(60); }
+    await mouseDeck(0, 60, 5, 'road');
+    await page.click('.rail [data-tool=arch]');
+    await page.click('.palette [data-mat=cable]');
+    await wait(100);
+    if (!(await page.evaluate(() => BG.Game.editor.archOptions().brace))) await page.click('.arch-bar [data-ab=brace]'); // 208 above switched it off
+    await page.click('.arch-bar [data-ab-shape=parabolic]'); // ... and picked Catenary
+    ok(await page.evaluate(() => { const o = BG.Game.editor.archOptions(); return o.connect && o.brace; }), 'level 25: Connect to deck + Brace panels on');
+    const pv25 = await mouseArch(10, 8, 50, 8, 1);
+    ok(pv25 && pv25.valid && pv25.rise === -7 && pv25.posts === 9, 'level 25: the main cable sags between the tower tops with 9 hangers', pv25);
+    await mouseArch(-14, 0, 10, 8, 3.5);
+    await mouseArch(50, 8, 74, 0, 3.5);
+    const d25 = await page.evaluate(() => ({ tool: BG.Game.editor.tool, mats: BG.Game.getDesign().beams.reduce((m, b) => { m[b.m] = (m[b.m] || 0) + 1; return m; }, {}), v: BG.Model.validate(BG.Game.level, BG.Game.getDesign()).ok }));
+    ok(d25.v && d25.tool === 'arch' && d25.mats.cable > 20 && !d25.mats.wood, 'level 25: cables, hangers and crossed cable bracing (no wood struts)', d25);
+    await shot('25-built');
+    await page.click('.test-btn');
+    await wait(400);
+    r = await runSim(60);
+    ok(r.res && r.res.passed, 'level 25: Test passes', r);
 
     // ---- Smooth in the browser + Esc / right-click
     await open(15);
@@ -730,7 +905,14 @@ async function browser() {
     for (let i = 1; i <= 10; i++) { await T.move([{ x: h2.x, y: h2.y + (top.y - h2.y) * i / 10 }]); await wait(20); }
     await T.end(); await wait(120);
     await tp.screenshot({ path: path.join(OUT, 'phone-rise.png') });
-    await T.tap(mid);
+    const lab = await tp.evaluate(() => { const c = BG.Game.canvas.getBoundingClientRect(), b = document.querySelector('.arch-bar').getBoundingClientRect(); return { labels: BG.ArchTool.lastLabels, barBottom: b.bottom - c.top, H: c.height }; });
+    ok(lab.labels && lab.labels.length === 2 && lab.labels.every((q) => q.y >= lab.barBottom && q.y + q.h <= lab.H), 'phone: the preview labels are not hidden under the bar', lab);
+    st = await tp.evaluate(() => BG.Game.editor.state.arch.handle);
+    await T.tap(await TW(st.x, st.y));
+    ok(await tp.evaluate(() => BG.Game.editor.archActive()), 'a tap on the rise handle does not place');
+    const pl = await tp.evaluate(() => { const r = document.querySelector('.arch-bar [data-ab=place]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
+    ok(pl.w >= 44 && pl.h >= 44 && pl.x > 0 && pl.x < 844, 'Place button in view, 44 px', pl);
+    await T.tap(pl);
     await wait(200);
     const td = await tp.evaluate(() => ({ la: BG.Game.editor.lastArch, v: BG.Model.validate(BG.Game.level, BG.Game.getDesign()).ok }));
     ok(td.la && td.la.posts >= 5 && td.v, 'tap places the arch with its posts', td);

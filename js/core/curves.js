@@ -149,9 +149,99 @@
     return L;
   }
 
-  /** divide into n chords and snap the interior joints to the grid */
-  function snapped(c, n, grid) {
+  /** the way the curve turns (cross product sign walking from start to end): -1 an arch, +1 a sag, 0 straight */
+  function turnOf(c) {
+    const a = c.at(0), m = c.at(0.5), b = c.at(1);
+    const cr = (m.x - a.x) * (b.y - m.y) - (m.y - a.y) * (b.x - m.x);
+    return Math.abs(cr) < 1e-6 * Math.max(1, c.chord * c.chord) ? 0 : cr < 0 ? -1 : 1;
+  }
+
+  /** Snap ideal joints to the grid without making the polyline lumpy. Rounding each joint on its own can leave a
+   *  joint a grid step off the trend of its neighbours (a kink against the curve's bend). This picks, per interior
+   *  joint, one of the nearby grid points (x and y each rounded down / up, or kept when p.fixX / p.fixY) so that the
+   *  chain still turns one way only (convex, like the curve) and every chord stays within [minSeg, limit], with the
+   *  smallest total distance from the ideal points (dynamic programming over consecutive pairs). Ends never move.
+   *  Returns null when no such choice exists. */
+  function fairSnap(c, ideal, grid, o) {
+    o = o || {};
+    const limit = o.limit > 0 ? o.limit : Infinity;
+    const minSeg = o.minSeg > 0 ? o.minSeg : 0;
+    const turn = turnOf(c);
+    const N = ideal.length;
+    if (N < 3) return ideal.map((p) => ({ x: p.x, y: p.y }));
+    // grid values around v: rounded down / up (wide: one more step either way, for a joint whose x is pinned)
+    const opts = (v, fix, wide) => {
+      if (fix || !(grid > 0)) return [v];
+      const lo = snap(Math.floor(v / grid + 1e-9) * grid, grid), hi = snap(Math.ceil(v / grid - 1e-9) * grid, grid);
+      const out = lo === hi ? [lo] : [lo, hi];
+      if (wide) { out.unshift(snap(lo - grid, grid)); out.push(snap(hi + grid, grid)); }
+      return out;
+    };
+    // a mirror-symmetric curve gets mirror-symmetric ideal points (and ties broken toward the middle), so a
+    // symmetric arch stays symmetric after snapping
+    const midX = (c.x0 + c.x1) / 2;
+    const sym = Math.abs(c.y1 - c.y0) < 1e-9;
+    const pts = ideal.map((p) => Object.assign({}, p));
+    if (sym) for (let i = 1; i < N - 1; i++) {
+      const q = ideal[N - 1 - i];
+      if (!!q.fixX !== !!ideal[i].fixX || ideal[i].fixY || q.fixY) continue;
+      if (q.fixX && Math.abs(q.x + ideal[i].x - 2 * midX) > 1e-6) continue;
+      pts[i].x = (ideal[i].x + 2 * midX - q.x) / 2;
+      pts[i].y = (ideal[i].y + q.y) / 2;
+    }
+    const cands = pts.map((p, i) => {
+      if (i === 0 || i === N - 1) return [{ x: p.x, y: p.y, cost: 0 }];
+      const out = [];
+      for (const x of opts(p.x, p.fixX)) for (const y of opts(p.y, p.fixY, p.fixX)) {
+        let cost = (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y);
+        if (c.shape !== 'circular') { const yc = yAt(c, x); if (yc != null) cost += (y - yc) * (y - yc); }
+        cost += 1e-7 * Math.abs(x - midX); // ties: toward the middle (both halves alike)
+        out.push({ x, y, cost });
+      }
+      return out;
+    });
+    const lenOk = (a, b) => { const l = hyp(b.x - a.x, b.y - a.y); return l <= limit + 1e-9 && l >= minSeg - 1e-9; };
+    const convex = (a, b, d) => {
+      if (!turn) return true;
+      const cr = (b.x - a.x) * (d.y - b.y) - (b.y - a.y) * (d.x - b.x);
+      return cr * turn >= -1e-9;
+    };
+    // state: (index of candidate at i-1, index at i) -> {cost, back}
+    let prev = new Map();
+    for (let k = 0; k < cands[1].length; k++) {
+      if (lenOk(cands[0][0], cands[1][k])) prev.set('0|' + k, { cost: cands[1][k].cost, back: null, j: 0, k });
+    }
+    const layers = [prev];
+    for (let i = 2; i < N; i++) {
+      const next = new Map();
+      for (const st of prev.values()) {
+        const A = cands[i - 2][st.j], B = cands[i - 1][st.k];
+        for (let l = 0; l < cands[i].length; l++) {
+          const D = cands[i][l];
+          if (!lenOk(B, D) || !convex(A, B, D)) continue;
+          const cost = st.cost + D.cost, key = st.k + '|' + l;
+          const cur = next.get(key);
+          if (!cur || cost < cur.cost - 1e-12) next.set(key, { cost, back: st, j: st.k, k: l });
+        }
+      }
+      if (!next.size) return null;
+      layers.push(next);
+      prev = next;
+    }
+    let best = null;
+    for (const st of prev.values()) if (!best || st.cost < best.cost) best = st;
+    const idx = [];
+    for (let s = best; s; s = s.back) idx.unshift(s.k);
+    idx.unshift(0);
+    return idx.map((k, i) => ({ x: cands[i][k].x, y: cands[i][k].y }));
+  }
+
+  /** divide into n chords and snap the interior joints to the grid (fairly: see fairSnap; plain rounding when that
+   *  finds nothing). opts: {limit, minSeg} for the chord lengths */
+  function snapped(c, n, grid, opts) {
     const pts = divide(c, n);
+    const fair = fairSnap(c, pts, grid, opts);
+    if (fair) return fair;
     for (let i = 1; i < pts.length - 1; i++) pts[i] = { x: snap(pts[i].x, grid), y: snap(pts[i].y, grid) };
     return pts;
   }
@@ -169,11 +259,12 @@
     };
     let nMin = Math.max(1, Math.ceil(c.length / limit - 1e-9));
     let pts = null;
-    for (; nMin <= maxN; nMin++) { pts = snapped(c, nMin, grid); if (good(pts)) break; }
+    const so = { limit, minSeg: Math.min(MIN_SEG, c.length / 2) };
+    for (; nMin <= maxN; nMin++) { pts = snapped(c, nMin, grid, so); if (good(pts)) break; }
     if (nMin > maxN) nMin = maxN;
     let n = nMin;
-    if (opts.n > 0) { n = Math.min(maxN, Math.max(1, Math.round(opts.n))); pts = snapped(c, n, grid); }
-    else pts = snapped(c, n, grid);
+    if (opts.n > 0) { n = Math.min(maxN, Math.max(1, Math.round(opts.n))); pts = snapped(c, n, grid, so); }
+    else pts = snapped(c, n, grid, so);
     const lengths = lengthsOf(pts);
     const maxSeg = lengths.reduce((a, b) => Math.max(a, b), 0);
     return { n, nMin, points: pts, lengths, maxSeg, limit, ok: !!good(pts) && maxSeg <= maxLen + 1e-9 };
@@ -198,7 +289,8 @@
 
   /** joints at the given x stations (the deck joints the curve connects to) plus subdivisions where a chord would
    *  be too long: {n, nMin, points (station points carry .station), lengths, maxSeg, ok, aligned} or null when the
-   *  curve is not a function of x. opts as segment(); opts.n > nMin splits the longest chords at their middle. */
+   *  curve is not a function of x. A station is an x, or {x, y} to pin that joint's height (where the curve crosses
+   *  the deck: the joint sits on the deck line). opts as segment(); opts.n > nMin splits the longest chords. */
   function alignedSegment(c, stations, opts) {
     opts = opts || {};
     const maxLen = opts.maxLen > 0 ? opts.maxLen : 6;
@@ -207,16 +299,18 @@
     const limit = maxLen * (1 - margin);
     const sg = c.x1 >= c.x0 ? 1 : -1;
     const xs = [];
-    for (const x of stations.slice().sort((a, b) => (a - b) * sg)) {
-      if ((x - c.x0) * sg < MIN_SEG || (c.x1 - x) * sg < MIN_SEG) continue;
-      if (xs.length && Math.abs(x - xs[xs.length - 1]) < MIN_SEG) continue;
-      xs.push(x);
+    const list = stations.map((q) => (typeof q === 'number' ? { x: q } : q)).sort((a, b) => (a.x - b.x) * sg);
+    for (const q of list) {
+      if ((q.x - c.x0) * sg < MIN_SEG || (c.x1 - q.x) * sg < MIN_SEG) continue;
+      const last = xs[xs.length - 1];
+      if (last && Math.abs(q.x - last.x) < MIN_SEG) { if (q.y != null && last.y == null) xs[xs.length - 1] = q; continue; }
+      xs.push(q);
     }
     const base = [{ x: c.x0, y: c.y0, end: true }];
-    for (const x of xs) {
-      const y = yAt(c, x);
+    for (const q of xs) {
+      const y = yAt(c, q.x);
       if (y == null) return null;
-      base.push({ x, y: snap(y, grid), station: true });
+      base.push(q.y != null ? { x: q.x, y: q.y, station: true, pinY: true } : { x: q.x, y: snap(y, grid), station: true });
     }
     base.push({ x: c.x1, y: c.y1, end: true });
     const ok = (a, b) => { const l = hyp(b.x - a.x, b.y - a.y); return l <= limit + 1e-9 && l >= MIN_SEG - 1e-9; };
@@ -256,6 +350,10 @@
     }
     pts[0] = { x: c.x0, y: c.y0 };
     pts[pts.length - 1] = { x: c.x1, y: c.y1 };
+    // the same fair snapping as segment(): x stays (stations, grid), y picks the grid row that keeps the chain convex
+    const ideal = pts.map((p, i) => { const y = i && i < pts.length - 1 && !p.pinY ? yAt(c, p.x) : p.y; return { x: p.x, y: y == null ? p.y : y, fixX: true, fixY: !!p.pinY, station: p.station, pinY: p.pinY }; });
+    const fair = fairSnap(c, ideal, grid, { limit, minSeg: MIN_SEG });
+    if (fair) fair.forEach((p, i) => { const q = { x: p.x, y: p.y }; if (pts[i].station) q.station = true; if (pts[i].pinY) q.pinY = true; pts[i] = q; });
     const lengths = lengthsOf(pts);
     const maxSeg = lengths.reduce((a, b) => Math.max(a, b), 0);
     return { n: pts.length - 1, nMin, points: pts, lengths, maxSeg, limit, ok: lengths.every((l) => l <= limit + 1e-9 && l >= MIN_SEG - 1e-9), aligned: true };
@@ -276,5 +374,5 @@
     return { x0: A.x, y0: A.y, x1: B.x, y1: B.y, rise: den > 1e-12 ? num / den : 0, order: s };
   }
 
-  BG.Curves = { SHAPES, make, divide, segment, snapped, alignedSegment, yAt, fitParabola, snap, catenaryK, lengthsOf, MIN_SEG };
+  BG.Curves = { SHAPES, make, divide, segment, snapped, fairSnap, turnOf, alignedSegment, yAt, fitParabola, snap, catenaryK, lengthsOf, MIN_SEG };
 })(typeof window !== 'undefined' ? window : globalThis);

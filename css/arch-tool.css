@@ -2,7 +2,7 @@
  * Desktop / tablet: two rows under the top bar, centred over the sky (the banks and their anchors stay clear; the level
  * hint, which sits there too, is hidden while the bar shows). Phones: a strip above the material chip. Touch rules are
  * scoped under .m-touch / .m-phone (css/mobile.css stays the last stylesheet). */
-.arch-bar { position: absolute; z-index: 4; top: calc(var(--gap) * 2 + var(--top-h) + 2px); left: 50%; transform: translateX(-50%); width: min(660px, calc(100% - 210px)); padding: 8px 10px; display: none; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text); }
+.arch-bar { position: absolute; z-index: 4; top: calc(var(--gap) * 2 + var(--top-h) + 2px); left: 50%; transform: translateX(-50%); width: min(780px, calc(100% - 210px)); padding: 8px 10px; display: none; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text); }
 .arch-bar.show { display: flex; animation: ab-in .28s var(--ease); }
 #screen-level.active .arch-bar.show { pointer-events: auto; }
 .mode-sim .arch-bar, .mode-results .arch-bar { display: none !important; }
@@ -29,6 +29,13 @@
 .ab-cmat select { font: inherit; font-size: 12.5px; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 9px; height: 30px; padding: 0 6px; max-width: 120px; outline: none; }
 .ab-cmat select option { background: #141b2c; }
 .ab-brace.dim, .ab-cmat.dim { opacity: .45; }
+.ab-brace.dim, .ab-brace .switch:disabled { cursor: default; }
+/* Place / Cancel: only while a curve is being set (space kept on desktop so the bar does not jump) */
+.ab-act { flex: none; gap: 4px; visibility: hidden; }
+.arch-bar.placing .ab-act { visibility: visible; }
+.ab-chip.ab-place { padding: 0 12px; background: linear-gradient(160deg, rgba(255, 196, 64, .34), rgba(255, 140, 40, .26)); border-color: rgba(255, 196, 64, .6); color: #fff3d6; }
+.ab-chip.ab-place:disabled { opacity: .45; cursor: default; }
+.ab-chip.ab-cancel { padding: 0 10px; }
 .ab-select { justify-content: center; }
 .ab-smooth { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .ab-smooth .ico { width: 18px; height: 18px; }
@@ -56,3 +63,5 @@
 .m-phone .ab-shapes::before { display: none; }
 .m-phone .ab-cmat > span { display: none; }
 .m-phone .ab-select small { white-space: nowrap; align-self: center; }
+.m-phone .ab-act { display: none; order: -1; }
+.m-phone .arch-bar.placing .ab-act { display: flex; }

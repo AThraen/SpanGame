@@ -983,19 +983,28 @@ is being placed), hud.js (rail button + `arch` icon), main.js (picking a materia
 - `segment(c, {maxLen, margin = 0.02, grid = 0.25, n})`: the fewest segments (`nMin`) with every chord ≤ maxLen × (1 − margin)
   **after** the interior joints are snapped to the 0.25 m grid (snapped joints stay within a grid step of the curve);
   `n` overrides the count.
-- `alignedSegment(c, xs, opts)`: joints at the given x stations (deck joints) plus the fewest subdivisions per interval;
-  `n > nMin` splits the longest chords. Also `yAt(c, x)`, `fitParabola(points)` (through the extreme points by x,
-  least-squares rise), `snap`, `catenaryK`.
+- **Fair snapping** (`fairSnap(c, ideal, grid, {limit, minSeg})`, used by `snapped`, `segment` and `alignedSegment`):
+  rounding each joint on its own left kinks against the bend (a lumpy arch in ~10% of curves). Each interior joint instead
+  picks one of the grid points around its ideal position (x and y rounded down / up; for a joint whose x is pinned to a
+  station, y one more step either way) by dynamic programming over consecutive pairs: the chain must keep turning one way
+  like the curve (`turnOf(c)`: −1 arch, +1 sag), every chord within [minSeg, limit], least total distance to the ideal points
+  and to the curve. A mirror-symmetric curve gets symmetric ideal points and ties go toward the middle, so a symmetric arch
+  stays symmetric. Plain rounding is the fallback when no such choice exists.
+- `alignedSegment(c, stations, opts)`: joints at the given stations (deck joints: an x, or `{x, y}` to pin the joint's
+  height onto the deck line) plus the fewest subdivisions per interval; `n > nMin` splits the longest chords. Also
+  `yAt(c, x)`, `fitParabola(points)` (through the extreme points by x, least-squares rise), `snap`, `catenaryK`.
 
 ### 18.2 Gesture (editor tool `'arch'`, key `A`, rail button "Arch")
 Press on the start (magnet: a joint, anchor or pier top within the magnet radius, else the grid point), drag, release on
 the end (phase `drag` → `rise`); a click without a drag picks the start and the next click the end (`end` phase). Mouse:
 the crown follows the pointer's height (rise on the 0.25 m grid), a click places. Touch: the release starts from a default
-rise (span / 5, downward for tension-only materials); a drag anywhere moves the crown handle relatively, a tap places; the
-loupe shows while dragging. `+`/`−` (also `=`/`_`), the wheel and the bar's −/+ chips change the segment count (never
+rise (span / 5, downward for tension-only materials, capped so the crown stays 1 m clear of a deck line it bends toward, then
+shrunk until the curve is valid and stays out of the ground); a drag anywhere moves the crown handle relatively, a tap places -
+except a tap on the handle itself (a grab that did not move); the loupe shows while dragging. The bar's **Place** / **Cancel**
+buttons (`archPlace()`, `archCancel()`) do the same with no gesture to learn. `+`/`−` (also `=`/`_`), the wheel and the bar's −/+ chips change the segment count (never
 below `nMin`). Esc, right-click, a second finger during the drag, or a quick two-finger tap cancel; changing tools, undo /
 redo, loading a design or starting a test drop the curve in progress. Editor API: `placeArch(x0, y0, x1, y1, rise, opts)`,
-`archActive()`, `archCancel()`, `archSegments(±1)`, `setArchShape / setArchConnect / setArchBrace / setArchConnector`,
+`archActive()`, `archCancel()`, `archPlace()`, `archSegments(±1)`, `setArchShape / setArchConnect / setArchBrace / setArchConnector`,
 `archOptions()` (`{shape, connect, brace, connMat}`), `smoothSelection()`, `lastArch`, `lastSmooth`.
 Entering the tool with a deck material (road / rail) selected switches to the best arch material on offer (masonry, steel,
 wood, ...); picking any material keeps the tool.
@@ -1013,20 +1022,32 @@ wood, ...); picking any material keeps the tool.
 - The preview (`ed.state.arch = {phase, plan, a, b, rise, handle, touch, ...}`; `plan = {curve, joints, segs, connectors,
   braces, mirror, n, nMin, span, rise, cost, valid, reason, reasonText}`) is drawn by `BG.ArchTool.drawOverlay`: dashed
   ideal curve, member ghosts per segment (red when invalid), joints (ringed = an existing joint), connectors and braces, the
-  crown handle, a label "Parabolic · 6 × Steel · span 36.0 m · rise 8.5 m · $11,012" and a help / reason line. While a curve
-  is being placed `BG.Game.getCost()` includes the plan's cost, so the budget bar shows the projected total.
+  crown handle, a label "Parabolic · 6 × Steel · span 36.0 m · rise 8.5 m · $11,012" ("Steel · span 18.0 m" while the end
+  is dragged) and a help / reason line (reasons say what to change; skipped connectors and their rule; a free end; no deck
+  yet). The labels stay clear of the HUD: `BG.ArchTool.safeRect()` (browser) is the canvas area not under the top bar, the
+  arch bar, the rail or the palette; they sit above the preview when there is room there, else below it, clamped sideways
+  (`BG.ArchTool.lastLabels` records where). With no curve in progress a one-line how-to pill shows at the bottom until a
+  first curve is placed. While a curve is being placed `BG.Game.getCost()` includes the plan's cost, so the budget bar
+  shows the projected total.
 
 ### 18.4 Connect to deck, Brace panels
-With **Connect to deck** on and deck beams (road / reinforced road / rail) over the span, the curve's joints are placed at the
-x of the deck joints (`alignedSegment`), so each one gets a vertical member to an existing deck joint; extra joints (where a
-chord would be too long, or `+`) get a member to a new deck joint that splits the deck beam. Per curve joint the nearest deck
+**Connect to deck** is on by default (a bare pin-jointed arch beside an unconnected road fails). With it on and deck beams
+(road / reinforced road / rail) over the span, the curve's joints are placed at the x of the user deck joints
+(`alignedSegment`; anchors and pier tops are not stations), so each one gets a vertical member to an existing deck joint; a
+station where the curve passes within 0.45 m of the deck joint is pinned onto it (joined), and where the curve crosses a deck
+beam between joints (a through arch) a pinned station puts a joint on the road that splits it. Extra joints (where a chord
+would be too long, or `+`) get a member to a new deck joint that splits the deck beam. Connectors are planned only once
+the end is set (not while dragging). Per curve joint the nearest deck
 line above (a **post**: steel, else wood, girder, masonry) or below (a **hanger**: cable, else rope, steel, wood) is used; the
 bar's material select overrides (a tension-only choice is never used for posts). A deck joint within 1 m horizontally is
-reused; joints on the deck line, fixed-to-fixed links and a cliff bolt under a road end get none. **Brace panels** (default
-on) adds a diagonal per panel between the curve and the deck, sloping toward mid-span like the deck / through arch templates
-(the structural connector material, or a crossed pair of cables where it is too long): a pin-jointed arch with only posts
-sways and fails in this physics. Connectors and braces that would break a rule are skipped (toast). Without a deck a toast
-says to build the deck first.
+reused; joints on the deck line (within 0.15 m: they split it), fixed-to-fixed links and a cliff bolt under a road end get
+none. **Brace panels** (default on) adds a diagonal per panel between the curve and the deck, sloping toward mid-span like
+the deck / through arch templates (the structural connector material, or a crossed pair of cables where it is too long; under
+a hanging cable always crossed cables / ropes, whose diagonals swap between tension and compression as the load moves - a
+lone wood strut there buckles): a pin-jointed arch with only posts sways and fails in this physics. A panel with a curve
+joint on the deck is a triangle already and gets none. Connectors and braces that would break a rule are skipped (the
+preview line and the toast name the rule). Without a deck the preview says so and a one-time tip says to build the deck
+first.
 
 ### 18.5 Smooth (select tool)
 With ≥ 3 selected user joints the contextual bar offers **Smooth**: a parabola through the end joints (by x) fitted by least
@@ -1037,8 +1058,10 @@ of it is applied ("Smoothed part of the way"). One undo step.
 
 ### 18.6 UI and hint
 The contextual bar (`.arch-bar`, inside `#screen-level`): on desktop / tablet two rows centred under the top bar (shape
-chips, −/n/+, Connect to deck, Brace panels, connector material; or the Smooth button for the select tool), on phones one
-row under the top bar right of the rail that scrolls sideways; 44 px targets on touch; hidden outside edit mode. Showing it
+chips and **Place** / **Cancel** (shown while a curve is being set, Place disabled while it is invalid); −/n/+, Connect to
+deck, Brace panels, connector material - the last two disabled while Connect is off; or the Smooth button for the select
+tool), on phones one row under the top bar right of the rail that scrolls sideways, Place / Cancel first (scrolled into view
+when a curve starts); 44 px targets on touch; hidden outside edit mode. Showing it
 hides the level hint (same place; H brings it back). Levels whose hint mentions arches (15, 18, 24, 46, 106-110, 201-203,
 207) append "Try the Arch tool (A)." to the hint ("Try the Arch tool." on touch).
 
@@ -1049,4 +1072,10 @@ reasons, joins and splits, Connect to deck + bracing + hangers, mirror, one undo
 the headless sim (15: deck arch from the cliff bolts, 106: masonry arch under the rail deck, 208: suspension with a catenary
 main cable and side cables, all with hangers / posts from the tool - all pass), and headless Chrome: 15, 106 and 208 built
 with real mouse input and the bar, Test pressed and passed; the hint; a touch phone builds 15's arch with the loupe and the
-rise handle, the bar fits the screen with 44 px targets, a two-finger tap cancels.
+rise handle, the bar fits the screen with 44 px targets, a two-finger tap cancels. Usability checks: no lumpy snapped curve
+over a sweep of shapes / spans / rises / materials (plain and deck-aligned), symmetric arches stay symmetric, a through arch
+joins the road where it crosses it, no brace doubles a curve segment, crossed cable bracing under a hanging cable, the
+deck-aware touch default, no connectors while dragging, a tap on the handle does not place, `archPlace()`, skip reasons,
+labels above / below the curve clear of the HUD, the idle hint; headless sim of level 25 (no steel: road hung from a cable
+between two towers) passing; in the browser Connect on by default with the dependent controls disabled when it is off, the
+Place button (106), level 25 built by mouse and passing, and on the phone the labels clear of the bar and the Place button.

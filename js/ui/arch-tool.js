@@ -3,14 +3,17 @@
 // Gesture (editor tool 'arch', key A): press on a start point (joint / anchor / pier top / empty grid point), drag
 // to the end point, release; then move the pointer up / down to set the rise (or the sag below the chord) and click
 // to place it. Touch: the same with the loupe; after the release a handle sits at the crown - drag (anywhere) to set
-// the rise, tap to place. Esc / right-click / a two-finger tap cancels. A click without a drag picks the start and a
-// second click the end. +/- (or the wheel, or the -/+ chips) change the number of segments while the rise is set.
+// the rise, tap to place (a tap on the handle itself does not). The bar's Place / Cancel buttons do the same; Esc /
+// right-click / a two-finger tap cancel too. A click without a drag picks the start and a second click the end. +/- (or
+// the wheel, or the -/+ chips) change the number of segments while the rise is set. The preview's labels stay clear of
+// the HUD (above the curve, else below it).
 //
 // The curve itself comes from BG.Curves (js/core/curves.js): the fewest segments, all <= the material's max length
 // (with a margin), joints on the 0.25 m grid. Endpoints reuse joints under the pointer (magnet), interior joints reuse
 // joints they land on and split beams they land on (like the build tool). Options (contextual bar): shape (parabolic,
-// circular, catenary), "Connect to deck" (vertical posts / hangers from every curve joint to the deck line above or
-// below it, splitting deck beams where needed) and the connector material. Mirror mode mirrors an arch that lies on
+// circular, catenary), "Connect to deck" (on by default: vertical posts / hangers from every curve joint to the deck line
+// above or below it, splitting deck beams where needed; a joint on the road where the curve crosses it), "Brace panels"
+// and the connector material. Mirror mode mirrors an arch that lies on
 // one side of the axis. One placement = one undo step.
 //
 // The Select tool gets "Smooth": >= 3 selected joints are moved onto a parabola (through the end joints, least
@@ -30,14 +33,19 @@
   const MIN_CHORD = 1;        // m: shortest start-end distance for a curve
   const REUSE = 0.3;          // m: an interior curve joint this close to an existing joint uses that joint
   const DECK_REUSE = 1.0;     // m (horizontal): a connector lands on an existing deck joint this close
-  const ON_DECK = 0.45;       // m: a curve joint this close to the deck line needs no connector
+  const ON_DECK = 0.45;       // m: a fixed curve end this close (vertically) to a deck joint has no brace partner
+  const ON_LINE = 0.26;       // m: a curve joint this close to the deck line is put on it (joins / splits it): no connector
+                              //    (a shorter one would be under the 0.25 m minimum member length)
+  const SNAP_DECK = 0.45;     // m: a curve joint at a deck station this close to the deck is pinned onto it
   const POS_EPS = 0.02;
   const SHAPE_NAMES = { parabolic: 'Parabolic', circular: 'Circular', catenary: 'Catenary' };
   const POST_ORDER = ['steel', 'wood', 'girder', 'masonry', 'reinforced_road'];
   const HANGER_ORDER = ['cable', 'rope', 'steel', 'wood', 'girder'];
   const ARCH_ORDER = ['masonry', 'steel', 'wood', 'girder', 'cable', 'rope'];
 
-  const OPT = { shape: 'parabolic', connect: false, brace: true, connMat: 'auto' };
+  // Connect to deck is on by default: an arch under (or a cable over) a road is meant to carry it, and a bare
+  // pin-jointed arch next to an unconnected deck fails - the most common newcomer surprise.
+  const OPT = { shape: 'parabolic', connect: true, brace: true, connMat: 'auto' };
 
   function hyp(x, y) { return Math.sqrt(x * x + y * y); }
   function r4(v) { return Math.round(v * 10000) / 10000; }
@@ -56,12 +64,12 @@
   function m1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
 
   const REASON = {
-    too_long: (p) => 'A segment is longer than ' + maxLenOf(p.m) + ' m',
+    too_long: (p) => 'A segment is longer than ' + maxLenOf(p.m) + ' m: add segments (+)',
     too_short: () => 'Too short',
-    in_nobuild: () => 'Crosses a no-build zone',
-    in_terrain: () => 'Passes through the ground',
-    near_terrain: () => 'Joints must stay 0.5 m clear of the ground',
-    outside_build_area: () => 'Outside the build area',
+    in_nobuild: () => 'Crosses a no-build zone: change the height or the end points',
+    in_terrain: () => 'Passes through the ground: change the height or the end points',
+    near_terrain: () => 'A joint is too close to the ground (keep 0.5 m clear)',
+    outside_build_area: () => 'Leaves the build area (dashed box): change the height or the end points',
     underwater: () => (BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water - use a pier",
     roadway: () => (BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear',
     material_not_allowed: (p) => ((matDef(p.m) || {}).name || p.m) + ' is not available here',
@@ -141,10 +149,37 @@
     return { id: null, x: sx, y: sy, kind: 'new' };
   };
 
+  /** the starting rise after a touch release: a fifth of the span (a sag for cables), but clear of a deck line
+   *  under the middle - a cable hangs down to 1 m above the road, an arch under a road rises to 1 m below it */
   P._archDefaultRise = function (s) {
     const span = Math.max(hyp(s.b.x - s.a.x, s.b.y - s.a.y), 1);
     const sg = tensionOnly(this._mat()) ? -1 : 1;
-    return sg * Math.max(GRID, snap(span * 0.2, GRID));
+    let r = span * 0.2;
+    const mx = (s.a.x + s.b.x) / 2, my = (s.a.y + s.b.y) / 2;
+    let deck = null; // the nearest deck line on the side the curve bends to
+    for (const b of this._design.beams) {
+      if (!isDeck(b.m)) continue;
+      const A = this._node(b.a), B = this._node(b.b);
+      if (!A || !B || Math.abs(B.x - A.x) < 1e-6 || mx < Math.min(A.x, B.x) - 1e-6 || mx > Math.max(A.x, B.x) + 1e-6) continue;
+      const y = A.y + (B.y - A.y) * (mx - A.x) / (B.x - A.x);
+      if ((y - my) * sg > 0.5 && (deck == null || Math.abs(y - my) < Math.abs(deck - my))) deck = y;
+    }
+    if (deck != null) r = Math.min(r, Math.abs(deck - my) - 1);
+    r = Math.max(GRID, snap(r, GRID));
+    // and one the rules allow, if there is one (a cable from a bank anchor up to a tower must not dip into the bank)
+    const keep = { phase: s.phase, rise: s.rise };
+    s.phase = 'rise';
+    let best = sg * r;
+    for (let k = 0; k <= 8; k++) {
+      const q = sg * Math.max(GRID, snap(r * (1 - k / 8), GRID));
+      s.rise = q;
+      const plan = this._archPlan();
+      // valid, and the ideal curve itself stays out of the ground (the handle sits on it)
+      const inGround = plan && plan.curve && plan.curve.samples.some((p, i) => i % 24 === 0 && this._pointProblem(p.x, p.y) === 'in_terrain');
+      if (plan && plan.valid && !inGround) { best = q; break; }
+    }
+    s.phase = keep.phase; s.rise = keep.rise;
+    return best;
   };
   P._archMidY = function (s) { return (s.a.y + s.b.y) / 2; };
 
@@ -160,7 +195,9 @@
       s.b = this._archEndpoint(x, y, o, s.a.id);
       s.moved = true;
     } else if (s.phase === 'rise') {
-      s.press = { sx: x, sy: y, moved: false, rise0: s.rise };
+      const h = s.plan && s.plan.crown;
+      const onHandle = !!(h && s.touch && hyp(x - h.x, y - h.y) <= this._px(30));
+      s.press = { sx: x, sy: y, moved: false, rise0: s.rise, onHandle };
     }
     return 'handled';
   };
@@ -208,7 +245,8 @@
     } else if (s.phase === 'rise') {
       const pr = s.press;
       s.press = null;
-      if (pr && !pr.moved) this._archCommit();
+      // a tap places the curve; on touch a tap on the handle itself does not (it reads as "grab", not "place")
+      if (pr && !pr.moved && !pr.onHandle) this._archCommit();
     }
   };
 
@@ -223,18 +261,43 @@
     return null;
   };
 
-  /** x positions of deck joints strictly inside [x0, x1] (Connect to deck lines the curve up under / over them) */
-  P._archStations = function (x0, x1) {
+  /** Connect to deck lines the curve up with the deck: stations strictly inside [x0, x1] at the user deck joints
+   *  (a number, or {x, y} pinning the curve joint onto the deck joint when the curve passes within SNAP_DECK of it),
+   *  plus {x, y} where the curve crosses a deck beam (a through arch: the joint sits on the road and joins it). */
+  P._archStations = function (x0, x1, curve) {
     const lo = Math.min(x0, x1), hi = Math.max(x0, x1);
-    const xs = [];
+    const out = [];
+    const taken = (x) => out.some((q) => Math.abs((q.x != null ? q.x : q) - x) < 0.5);
+    const deckBeams = [];
     for (const b of this._design.beams) {
       if (!isDeck(b.m)) continue;
-      for (const id of [b.a, b.b]) {
-        const N = this._node(id);
-        if (N && N.x > lo + 0.5 && N.x < hi - 0.5 && !xs.some((x) => Math.abs(x - N.x) < 0.3)) xs.push(N.x);
+      const A = this._node(b.a), B = this._node(b.b);
+      if (A && B) deckBeams.push([A, B]);
+    }
+    const yc = (x) => (curve ? C().yAt(curve, x) : null);
+    for (const [A, B] of deckBeams) {
+      for (const N of [A, B]) {
+        if (N.kind !== 'node' || !(N.x > lo + 0.5 && N.x < hi - 0.5) || taken(N.x)) continue;
+        const y = yc(N.x);
+        out.push(y != null && Math.abs(y - N.y) < SNAP_DECK ? { x: N.x, y: N.y } : N.x);
       }
     }
-    return xs.sort((a, b) => a - b);
+    if (curve) {
+      for (const [A, B] of deckBeams) {
+        const L = A.x <= B.x ? A : B, R = A.x <= B.x ? B : A;
+        const a = Math.max(L.x, lo + 0.5), b = Math.min(R.x, hi - 0.5);
+        if (!(b - a > 1e-6) || R.x - L.x < 1e-6) continue;
+        const dy = (x) => { const y = yc(x); return y == null ? null : y - (L.y + (R.y - L.y) * (x - L.x) / (R.x - L.x)); };
+        let fa = dy(a), fb = dy(b);
+        if (fa == null || fb == null || fa * fb > 0) continue;
+        let p = a, q = b;
+        for (let i = 0; i < 40; i++) { const m = (p + q) / 2, fm = dy(m); if (fm == null) break; if (fa * fm <= 0) { q = m; fb = fm; } else { p = m; fa = fm; } }
+        const x = snap((p + q) / 2, GRID);
+        if (x <= L.x + 0.3 || x >= R.x - 0.3 || x <= lo + 0.5 || x >= hi - 0.5 || taken(x)) continue; // at a deck joint: that station handles it
+        out.push({ x, y: r4(L.y + (R.y - L.y) * (x - L.x) / (R.x - L.x)) });
+      }
+    }
+    return out.sort((p, q) => (p.x != null ? p.x : p) - (q.x != null ? q.x : q));
   };
 
   /** joints + segments of a curve between endpoints a, b (objects {id, x, y}) */
@@ -246,16 +309,28 @@
     const so = { maxLen: maxLenOf(m), grid: GRID, n: n || 0 };
     let seg = null;
     if (OPT.connect) {
-      const st = this._archStations(L.x, R.x);
+      const st = this._archStations(L.x, R.x, curve);
       if (st.length) seg = Cv.alignedSegment(curve, st, so);
       if (seg && !seg.ok) seg = null;
     }
     if (!seg) seg = Cv.segment(curve, so);
+    // with Connect to deck, a joint that grazes the deck line goes onto it (joined, like a deck crossing)
+    const deckY = (x, y) => {
+      for (const b of this._design.beams) {
+        if (!isDeck(b.m)) continue;
+        const A = this._node(b.a), B = this._node(b.b);
+        if (!A || !B || Math.abs(B.x - A.x) < 1e-6 || x <= Math.min(A.x, B.x) + 1e-6 || x >= Math.max(A.x, B.x) - 1e-6) continue;
+        const yd = A.y + (B.y - A.y) * (x - A.x) / (B.x - A.x);
+        if (Math.abs(yd - y) < ON_LINE) return r4(yd);
+      }
+      return null;
+    };
     const joints = seg.points.map((p, i) => {
       if (i === 0) return { id: L.id, x: L.x, y: L.y, kind: L.kind, end: true };
       if (i === seg.points.length - 1) return { id: R.id, x: R.x, y: R.y, kind: R.kind, end: true };
-      const at = this._pickNode(p.x, p.y, REUSE, (q) => q.id !== L.id && q.id !== R.id);
-      return at ? { id: at.id, x: at.x, y: at.y, kind: at.kind, reused: true } : { id: null, x: p.x, y: p.y, kind: 'new', station: !!p.station };
+      if (OPT.connect && !p.pinY) { const yd = deckY(p.x, p.y); if (yd != null) p = { x: p.x, y: yd, station: p.station, pinY: true }; }
+      const at = this._pickNode(p.x, p.y, p.pinY ? POS_EPS : REUSE, (q) => q.id !== L.id && q.id !== R.id);
+      return at ? { id: at.id, x: at.x, y: at.y, kind: at.kind, reused: true } : { id: null, x: p.x, y: p.y, kind: 'new', station: !!p.station, onDeck: !!p.pinY };
     });
     return { curve, seg, joints };
   };
@@ -275,7 +350,7 @@
       if (x1 - x0 < 1e-6 || j.x < x0 - 1e-6 || j.x > x1 + 1e-6) continue;
       const yd = A.y + (B.y - A.y) * (j.x - A.x) / (B.x - A.x);
       const dy = yd - j.y;
-      if (Math.abs(dy) < ON_DECK) return { onDeck: true, target: j.id }; // on the deck line: nothing to connect
+      if (Math.abs(dy) < ON_LINE) return { onDeck: true, target: j.id }; // on the deck line (joins it): nothing to connect
       if (!best || Math.abs(dy) < Math.abs(best.dy)) best = { i, A, B, yd, dy };
     }
     if (!best) return null;
@@ -316,8 +391,10 @@
   };
 
   /** spandrel bracing between the curve joints A[i] and their deck partners D[i] (diagonals sloping toward mid-span,
-   *  like the deck / through arch templates). pairs: [{A:{id,x,y}, D:{id,x,y}|null}] */
-  P._archBraces = function (pairs) {
+   *  like the deck / through arch templates). pairs: [{A:{id,x,y}, D:{id,x,y}|null}]. Under a hanging cable the
+   *  panel diagonals swap between tension and compression as the load moves: crossed cables (tension-only pairs)
+   *  there, never a lone wood strut that buckles. */
+  P._archBraces = function (pairs, curveMat) {
     const out = [];
     const n = pairs.length - 1, mid = n / 2;
     const struct = this._archConnMat('post');
@@ -331,7 +408,8 @@
       if (seen[k]) return null;
       seen[k] = 1;
       const len = hyp(q.x - p.x, q.y - p.y);
-      let m = struct && len <= maxLenOf(struct) + 1e-6 ? struct : tens && len <= maxLenOf(tens) + 1e-6 ? tens : null;
+      const tensFits = tens && len <= maxLenOf(tens) + 1e-6;
+      let m = tensionOnly(curveMat) && tensFits ? tens : struct && len <= maxLenOf(struct) + 1e-6 ? struct : tensFits ? tens : null;
       if (!m) return null;
       let reason = this._beamProblem(p.id || '?arch', q.id || '?deck', p.x, p.y, q.x, q.y, m);
       if (reason === 'duplicate_beam') return null;
@@ -343,6 +421,7 @@
     for (let i = 0; i < n; i++) {
       const P0 = pairs[i], P1 = pairs[i + 1];
       if (!P0.D || !P1.D || same(P0.D, P1.D)) continue;
+      if (same(P0.D, P0.A) || same(P1.D, P1.A)) continue; // a curve joint on the deck: the panel is a triangle already
       const left = i + 1 <= mid, right = i >= mid;
       const d1 = [P0.D, P1.A], d2 = [P1.D, P0.A];
       const want = [];
@@ -415,13 +494,14 @@
         }
       }
     }
-    // connectors + bracing (preview): from every curve joint to the deck line above / below it
-    if (OPT.connect) {
+    // connectors + bracing (preview): from every curve joint to the deck line above / below it (not while the end
+    // is still being dragged: a flat chord's posts are only noise)
+    if (OPT.connect && s.phase === 'rise') {
       const seen = {};
       for (const js of [plan.joints].concat(plan.mirror ? [plan.mirror.joints] : [])) {
         const cp = this._archConnectPlan(js, seen);
         plan.connectors = plan.connectors.concat(cp.connectors);
-        if (OPT.brace) plan.braces = plan.braces.concat(this._archBraces(cp.pairs));
+        if (OPT.brace) plan.braces = plan.braces.concat(this._archBraces(cp.pairs, m));
       }
     }
     const segsAll = plan.segs.concat(plan.mirror ? plan.mirror.segs : []);
@@ -431,7 +511,10 @@
     plan.valid = !bad;
     plan.reason = bad ? bad.reason : null;
     plan.reasonText = bad ? reasonText(bad.reason, plan) : null;
-    plan.skipped = extra.filter((c) => !c.valid).length;
+    const skip = extra.filter((c) => !c.valid);
+    plan.skipped = skip.length;
+    plan.skipReason = skip.length ? reasonText(skip[0].reason, Object.assign({}, plan, { m: skip[0].m })) : null;
+    plan.noDeck = OPT.connect && !this._design.beams.some((b) => isDeck(b.m));
     plan.crown = cj.curve.at(0.5);
     return plan;
   };
@@ -458,7 +541,7 @@
       mids = this._archBuildJoints(plan.mirror.joints);
       for (let i = 0; i < mids.length - 1; i++) this._addBeam(mids[i], mids[i + 1], plan.m);
     }
-    let posts = 0, skipped = 0, braces = 0;
+    let posts = 0, skipped = 0, braces = 0, skipWhy = null;
     if (OPT.connect) {
       const partner = {};
       const live = (id, end) => { const N = this._node(id); return N ? { id, x: N.x, y: N.y, kind: N.kind, end } : null; };
@@ -470,7 +553,7 @@
         partner[id] = null;
         if (!c) continue;
         if (c.onDeck || c.exists) { partner[id] = c.target; continue; }
-        if (!c.valid) { skipped++; continue; }
+        if (!c.valid) { skipped++; skipWhy = skipWhy || c; continue; }
         let t = c.target;
         if (!t) { t = this._addNode(c.x2, c.y2); this._splitAt(t, id); }
         if (this._addBeam(id, t, c.m)) posts++;
@@ -485,8 +568,8 @@
             if (!D && A.end && (A.kind === 'anchor' || A.kind === 'pier')) D = this._archEndDeck(A);
             return { A, D };
           });
-          for (const b of this._archBraces(pairs)) {
-            if (!b.valid) { skipped++; continue; }
+          for (const b of this._archBraces(pairs, plan.m)) {
+            if (!b.valid) { skipped++; skipWhy = skipWhy || b; continue; }
             if (this._addBeam(b.a, b.b, b.m)) braces++;
           }
         }
@@ -495,13 +578,26 @@
     this._invalidate();
     this._commit();
     this._sfx('place', { material: plan.m, pan: this._pan(plan.crown ? plan.crown.x : plan.a.x) });
-    if (OPT.connect && !posts && !braces && !this._design.beams.some((b) => isDeck(b.m))) this._toast('Build the deck first: the curve connects to the road or track above or below it.');
-    else if (skipped) this._toast(skipped + ' connecting member' + (skipped === 1 ? '' : 's') + ' skipped (they would break the rules).');
+    if (OPT.connect && !posts && !braces && !this._design.beams.some((b) => isDeck(b.m))) {
+      if (!this._archToldNoDeck) this._toast('Tip: build the deck first - then the curve connects to the road or track above or below it.');
+      this._archToldNoDeck = true;
+    } else if (skipped) {
+      this._toast(skipped + ' connecting member' + (skipped === 1 ? '' : 's') + ' skipped: ' + reasonText(skipWhy.reason, { m: skipWhy.m }).replace(/:.*$/, '') + '.');
+    }
+    BG.ArchTool.placed = (BG.ArchTool.placed || 0) + 1;
     this.lastArch = { ids, mirror: mids, posts, braces, skipped, n: plan.n, rise: plan.rise, shape: plan.shape, m: plan.m, aligned: plan.aligned };
     this._arch = { phase: 'idle' };
     if (s) s.phase = 'idle';
     this._refresh();
     return true;
+  };
+
+  /** place the curve being set (the bar's Place button); false when there is none or it is invalid */
+  P.archPlace = function () {
+    const s = this._arch;
+    if (!s || s.phase !== 'rise') { this._sfx('error'); return false; }
+    s.press = null;
+    return this._archCommit();
   };
 
   /** Programmatic placement (tests / tools): a curve from (x0, y0) to (x1, y1) with the given rise. */
@@ -745,7 +841,8 @@
   function drawOverlay(r, ctx, state, sh) {
     const es = state && state.editorState;
     const av = es && es.arch;
-    if (!av || !av.plan || !r || !r.camera) return;
+    if (!av || !r || !r.camera) return;
+    if (!av.plan) { if (av.phase === 'idle' && state.mode !== 'sim') drawIdleHint(r, ctx, av, sh); return; }
     const plan = av.plan;
     const z = r.camera.zoom, px = 1 / z;
     const style = BG.Renderer && BG.Renderer.materialStyle;
@@ -818,30 +915,79 @@
       ctx.globalAlpha = 1;
     }
     ctx.restore();
-    // labels (screen space)
+    // labels (screen space): kept clear of the HUD (top bar, the arch bar, the rail, the palette) - above the
+    // preview when there is room, else below it, and inside the screen sideways
     r._screenXf(ctx, sh.x, sh.y);
-    const top = plan.curve ? plan.curve.samples.reduce((m, p) => (p.y > m.y ? p : m), plan.curve.samples[0]) : { x: (plan.a.x + plan.b.x) / 2, y: Math.max(plan.a.y, plan.b.y) };
-    const p = r.worldToScreen(plan.crown ? plan.crown.x : top.x, top.y);
     const name = (matDef(plan.m) || {}).name || plan.m;
-    let text;
-    if (!plan.n) text = 'span ' + m1(plan.span) + ' m';
-    else {
-      const rs = plan.rise;
-      text = SHAPE_NAMES[plan.shape] + '  ·  ' + plan.n + ' × ' + name + '  ·  span ' + m1(plan.span) + ' m  ·  ' + (rs < 0 ? 'sag ' + m1(-rs) : 'rise ' + m1(rs)) + ' m  ·  ' + money(plan.cost);
-    }
-    const yoff = h ? (av.touch ? 40 : 30) : 26;
-    r._label(ctx, p.x, p.y - yoff, text, plan.valid || !plan.n ? 'rgba(18,24,36,0.88)' : 'rgba(200,40,30,0.92)', '#ffffff', 12);
+    const lines = [];
+    const rs = plan.rise;
+    if (av.phase === 'drag' || av.phase === 'end' || !plan.n) lines.push({ text: name + '  ·  span ' + m1(plan.span) + ' m', bad: false });
+    else lines.push({ text: SHAPE_NAMES[plan.shape] + '  ·  ' + plan.n + ' × ' + name + '  ·  span ' + m1(plan.span) + ' m  ·  ' + (rs < 0 ? 'sag ' + m1(-rs) : 'rise ' + m1(rs)) + ' m  ·  ' + money(plan.cost), bad: !plan.valid });
     let sub = null, bad = false;
-    if (plan.reasonText && (plan.n || av.phase === 'rise')) { sub = plan.reasonText; bad = true; }
+    if (plan.reasonText && (av.phase === 'rise' || (plan.reason === 'span_short' && av.phase !== 'drag'))) { sub = plan.reasonText; bad = true; }
     else if (av.phase === 'rise') {
-      sub = av.touch ? 'Drag to set the ' + (plan.rise < 0 ? 'sag' : 'rise') + ' · tap to place · −/+ segments'
-        : 'Move up/down for the rise · click to place · +/− or wheel: segments · Esc cancels';
-      if (plan.connectors.length) sub = plan.connectors.filter((c) => c.valid).length + ' ' + (plan.connectors.some((c) => c.kind === 'hanger') ? 'hangers' : 'posts') + ' to the deck' + (plan.skipped ? ' (' + plan.skipped + ' skipped)' : '') + ' · ' + sub;
+      sub = av.touch ? 'Drag to set the ' + (rs < 0 ? 'sag' : 'rise') + ' · tap to place · −/+ segments'
+        : 'Move up/down for the ' + (rs < 0 ? 'sag' : 'rise') + ' · click to place · +/− or wheel: segments · Esc cancels';
+      const valid = plan.connectors.filter((c) => c.valid).length;
+      if (plan.connectors.length) {
+        sub = valid + ' ' + (plan.connectors.some((c) => c.kind === 'hanger') ? 'hanger' : 'post') + (valid === 1 ? '' : 's') + ' to the deck' + ' · ' + sub;
+      } else if (plan.noDeck) sub = 'No deck yet: build the road first to hang it on posts · ' + sub;
+      if (plan.skipped) sub = plan.skipped + ' connecting member' + (plan.skipped === 1 ? '' : 's') + ' skipped: ' + String(plan.skipReason || '').replace(/:.*$/, '') + ' · ' + sub;
+      const free = [plan.a, plan.b].filter((e) => e && !e.id).length;
+      if (free && !plan.skipped) sub = (free === 2 ? 'Both ends are' : 'One end is') + ' free: start and end on an anchor, pier top or joint · ' + sub;
     } else if (av.phase === 'end') sub = av.touch ? 'Tap the end point' : 'Click the end point';
-    if (sub) {
-      const txt = BG.Mobile && BG.Mobile.touchText ? BG.Mobile.touchText(sub) : sub;
-      r._label(ctx, p.x, p.y - yoff - 24, txt, bad ? 'rgba(90,10,6,0.88)' : 'rgba(18,24,36,0.72)', bad ? '#ffd0c8' : '#d8e4f4', 10);
-    }
+    else if (av.phase === 'drag') sub = av.touch ? 'Lift your finger on the end point' : 'Release on the end point';
+    if (sub) lines.push({ text: BG.Mobile && BG.Mobile.touchText ? BG.Mobile.touchText(sub) : sub, bad, small: true });
+    // the preview's screen extent
+    let minY = Infinity, maxY = -Infinity;
+    const ext = (x, y) => { const q = r.worldToScreen(x, y); if (q.y < minY) minY = q.y; if (q.y > maxY) maxY = q.y; };
+    if (plan.curve && plan.curve.samples) for (let i = 0; i < plan.curve.samples.length; i += 12) ext(plan.curve.samples[i].x, plan.curve.samples[i].y);
+    ext(plan.a.x, plan.a.y); ext(plan.b.x, plan.b.y);
+    for (const c of plan.connectors.concat(plan.braces || [])) { ext(c.x1, c.y1); ext(c.x2, c.y2); }
+    if (plan.mirror) for (const j of plan.mirror.joints) ext(j.x, j.y);
+    const cx = r.worldToScreen(plan.crown ? plan.crown.x : (plan.a.x + plan.b.x) / 2, 0).x;
+    placeLabels(r, ctx, lines, cx, minY - (h ? (av.touch ? 22 : 14) : 10), maxY + 14);
+  }
+
+  const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'; // = the renderer's label font
+  /** the canvas area not covered by HUD panels (CSS px, canvas coordinates); set by the browser part below */
+  function safeArea(r) {
+    const W = r.W || 800, H = r.H || 600;
+    const s = (BG.ArchTool && BG.ArchTool.safeRect && BG.ArchTool.safeRect()) || null;
+    return s ? { top: Math.max(0, s.top), left: Math.max(0, s.left), right: Math.min(W, s.right), bottom: Math.min(H, s.bottom) } : { top: 0, left: 0, right: W, bottom: H };
+  }
+  /** draw a stack of labels (first = main, nearest the preview) above yAbove, or below yBelow when there is no room */
+  function placeLabels(r, ctx, lines, cx, yAbove, yBelow) {
+    const S = safeArea(r), GAP = 5;
+    const dims = lines.map((l) => { const size = l.small ? 10 : 12; ctx.font = '700 ' + size + 'px ' + FONT; const mt = ctx.measureText ? ctx.measureText(l.text) : null; return { size, w: (mt && mt.width > 0 ? mt.width : l.text.length * size * 0.56) + size * 1.3, h: size * 1.9 }; });
+    const total = dims.reduce((t, d) => t + d.h, 0) + GAP * (dims.length - 1);
+    let y0, dir; // y0 = the main label's edge nearest the preview; dir = -1 stacks upward, +1 downward
+    if (yAbove - total >= S.top + 4) { y0 = yAbove; dir = -1; }
+    else if (yBelow + total <= S.bottom - 4) { y0 = yBelow; dir = 1; }
+    else { y0 = S.top + 4 + total; dir = -1; }
+    let y = y0;
+    const drawn = [];
+    lines.forEach((l, i) => {
+      const d = dims[i];
+      const yc = y + dir * d.h / 2;
+      const x = Math.min(Math.max(cx, S.left + d.w / 2 + 6), Math.max(S.left + d.w / 2 + 6, S.right - d.w / 2 - 6));
+      const bg = l.small ? (l.bad ? 'rgba(90,10,6,0.9)' : 'rgba(18,24,36,0.78)') : (l.bad ? 'rgba(200,40,30,0.92)' : 'rgba(18,24,36,0.88)');
+      r._label(ctx, x, yc, l.text, bg, l.small ? (l.bad ? '#ffd0c8' : '#d8e4f4') : '#ffffff', d.size);
+      drawn.push({ text: l.text, x: x - d.w / 2, y: yc - d.h / 2, w: d.w, h: d.h });
+      y += dir * (d.h + GAP);
+    });
+    BG.ArchTool.lastLabels = drawn; // (tests: where the labels went, canvas CSS px)
+  }
+  /** the idle hint (no curve in progress): a pill at the bottom of the free area until a first curve is placed */
+  function drawIdleHint(r, ctx, av, sh) {
+    if (BG.ArchTool.placed || !r._label) return;
+    r._screenXf(ctx, sh.x, sh.y);
+    const S = safeArea(r);
+    const d = root.document;
+    const touch = !!(d && d.documentElement && d.documentElement.classList && d.documentElement.classList.contains('m-touch'));
+    const text = touch ? 'Arch tool: drag from one support to the other, then drag the handle to set the height'
+      : 'Arch tool: drag from one support to the other, release, then move up or down for the height';
+    placeLabels(r, ctx, [{ text, small: true }], (S.left + S.right) / 2, S.bottom - 10, S.bottom);
   }
 
   BG.ArchTool = { OPT, SHAPE_NAMES, drawOverlay, reasonText, GRID };
@@ -870,6 +1016,10 @@
             <button type="button" class="ab-chip" data-ab-shape="circular" title="Circular: the Roman arch, at most a half circle">Circular</button>
             <button type="button" class="ab-chip" data-ab-shape="catenary" title="Catenary: a hanging cable - drag below the line to sag it, above it for a catenary arch">Catenary</button>
           </div>
+          <div class="ab-row ab-act">
+            <button type="button" class="ab-chip ab-place" data-ab="place" title="Place the curve (or click / tap the empty canvas)">✓ Place</button>
+            <button type="button" class="ab-chip ab-cancel" data-ab="cancel" title="Cancel the curve (Esc)">Cancel</button>
+          </div>
           <div class="ab-row ab-segs"><span>Segments</span>
             <button type="button" class="ab-chip ab-sq" data-ab="minus" title="Fewer segments (−)">−</button><b data-ab="n">auto</b>
             <button type="button" class="ab-chip ab-sq" data-ab="plus" title="More segments (+)">+</button></div>
@@ -894,7 +1044,9 @@
       const a = b.dataset.ab;
       if (a === 'minus' || a === 'plus') {
         if (!ed.archSegments(a === 'plus' ? 1 : -1)) { ed._sfx('error'); toast(isTouch() ? 'Drag a curve first, then change its segments.' : 'Drag a curve first, then change its segments (+/−).'); }
-      } else if (a === 'smooth') ed.smoothSelection();
+      } else if (a === 'place') ed.archPlace();
+      else if (a === 'cancel') ed.archCancel();
+      else if (a === 'smooth') ed.smoothSelection();
       if (b.blur && b.tagName === 'BUTTON') b.blur();
       UI.sig = '';
     });
@@ -907,10 +1059,37 @@
       if (el.dataset.ab === 'cmat') ed.setArchConnector(el.value);
       if (el.blur) el.blur();
       UI.sig = '';
+      updateBar(BG.Hud); // at once (the dependent controls enable / disable with Connect to deck)
     });
     UI.bar = bar;
     return bar;
   }
+  // the part of the canvas no HUD panel covers (canvas CSS px): the curve's labels stay inside it
+  const SAFE = { t: 0, rect: null };
+  BG.ArchTool.safeRect = function () {
+    const now = Date.now();
+    if (SAFE.rect && now - SAFE.t < 250) return SAFE.rect;
+    const g = game(), cv = g && g.canvas;
+    if (!cv || !cv.getBoundingClientRect) return null;
+    const c = cv.getBoundingClientRect();
+    const out = { top: 0, left: 0, right: c.width, bottom: c.height };
+    const box = (sel) => {
+      const el = doc.querySelector(sel);
+      if (!el || !el.getClientRects().length) return null;
+      const b = el.getBoundingClientRect();
+      return b.width > 0 && b.height > 0 ? { top: b.top - c.top, bottom: b.bottom - c.top, left: b.left - c.left, right: b.right - c.left } : null;
+    };
+    for (const sel of ['#screen-level .topbar', '#screen-level .arch-bar.show']) { const b = box(sel); if (b && b.top < c.height / 2) out.top = Math.max(out.top, b.bottom + 6); }
+    const rail = box('#screen-level .rail');
+    if (rail && rail.right < c.width / 3) out.left = Math.max(out.left, rail.right + 6);
+    for (const sel of ['#screen-level .palette', '#screen-level .test-btn', '.m-mat-chip']) {
+      const b = box(sel);
+      if (b && b.top > c.height / 2 && b.left < c.width * 0.75 && b.right > c.width * 0.25) out.bottom = Math.min(out.bottom, b.top - 6);
+    }
+    SAFE.t = now; SAFE.rect = out;
+    return out;
+  };
+
   function toast(msg) { try { if (BG.Hud && BG.Hud.toast) BG.Hud.toast(msg, 'info'); } catch (e) { /* */ } }
 
   function updateBar(hud) {
@@ -925,7 +1104,7 @@
     const av = ed && ed.state && ed.state.arch;
     const plan = av && av.plan;
     const allowed = ed ? ed._allowedList() : [];
-    const sig = [mode, OPT.shape, OPT.connect, OPT.brace, OPT.connMat, av ? av.phase : '', plan ? plan.n + '/' + plan.nMin + '/' + (av.n || 0) : '', allowed.join(','), selN, smoothN, isTouch(), lv && lv.id].join('|');
+    const sig = [mode, OPT.shape, OPT.connect, OPT.brace, OPT.connMat, av ? av.phase : '', plan ? plan.n + '/' + plan.nMin + '/' + (av.n || 0) + '/' + plan.valid : '', allowed.join(','), selN, smoothN, isTouch(), lv && lv.id].join('|');
     if (sig === UI.sig) return;
     UI.sig = sig;
     if (mode && !UI.shown && hud && hud.hideHint) hud.hideHint(); // the bar sits where the hint shows (H brings it back)
@@ -948,11 +1127,20 @@
     const br = bar.querySelector('[data-ab=brace]');
     if (br.checked !== OPT.brace) br.checked = OPT.brace;
     bar.querySelector('.ab-brace').classList.toggle('dim', !OPT.connect);
+    br.disabled = !OPT.connect; // bracing and the connector material only matter with Connect to deck
+    // Place / Cancel while a curve is being set (a tap on the canvas also places; Esc / two fingers also cancel)
+    const active = !!(av && av.phase && av.phase !== 'idle');
+    bar.classList.toggle('placing', active);
+    if (active && !UI.wasActive && bar.scrollLeft) bar.scrollLeft = 0; // phones: bring Place / Cancel into view
+    UI.wasActive = active;
+    const place = bar.querySelector('[data-ab=place]');
+    place.disabled = !(av && av.phase === 'rise' && plan && plan.valid);
     const sel = bar.querySelector('[data-ab=cmat]');
     const opts = ['auto'].concat(allowed.filter((m) => !isDeck(m)));
     const html = opts.map((m) => '<option value="' + esc(m) + '">' + esc(m === 'auto' ? 'Auto' : (matDef(m) || {}).name || m) + '</option>').join('');
     if (sel._html !== html) { sel.innerHTML = html; sel._html = html; }
     sel.value = opts.indexOf(OPT.connMat) >= 0 ? OPT.connMat : 'auto';
+    sel.disabled = !OPT.connect;
     bar.querySelector('.ab-cmat').classList.toggle('dim', !OPT.connect);
     const help = bar.querySelector('[data-ab=help]');
     const touch = isTouch();
