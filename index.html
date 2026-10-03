@@ -11,6 +11,8 @@
   <!-- goals: challenge badges -->
   <link rel="stylesheet" href="css/goals.css">
   <link rel="stylesheet" href="css/forces.css"><!-- forces: wind / quake HUD -->
+  <!-- daily-challenge: daily / endless panel -->
+  <link rel="stylesheet" href="css/daily.css">
 </head>
 <body data-screen="boot">
   <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
@@ -27,6 +29,8 @@
   <script src="js/core/events.js"></script><!-- forces: BG.Forces (level.events: wind / quake) -->
   <script src="js/core/levels.js"></script>
   <script src="js/core/templates.js"></script>
+  <!-- daily-challenge: procedural level generator -->
+  <script src="js/core/generator.js"></script>
   <!-- rendering -->
   <script src="js/render/effects.js"></script>
   <script src="js/render/renderer.js"></script>
@@ -44,5 +48,7 @@
   <script src="js/features/goals-data.js"></script>
   <script src="js/features/goals-ui.js"></script>
   <script src="js/features/forces-fx.js"></script><!-- forces: visuals, HUD, audio -->
+  <!-- daily-challenge: Daily Challenge + Endless mode (wraps BG.Game / BG.Hud / BG.Storage) -->
+  <script src="js/features/daily.js"></script>
 </body>
 </html>
