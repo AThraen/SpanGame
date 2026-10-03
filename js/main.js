@@ -281,6 +281,8 @@
       if (this._inited) return;
       this._inited = true;
       this.settings = BG.Storage ? BG.Storage.getSettings() : { volume: 0.7, muted: false, showStress: true, showGrid: true };
+      // unlock rules v2 (chapter finales are gates): levels a returning player already had open stay open
+      if (BG.Storage && BG.Storage.migrateUnlocks) safe(() => BG.Storage.migrateUnlocks(levels()));
       if (BG.Audio) { BG.Audio.setVolume(this.settings.volume); BG.Audio.setMuted(!!this.settings.muted); }
       this.canvas = document.getElementById('game-canvas');
       if (!this.canvas) { this.canvas = document.createElement('canvas'); this.canvas.id = 'game-canvas'; document.body.prepend(this.canvas); }
@@ -404,7 +406,8 @@
       if (!lv) { hudCall('toast', 'Level ' + id + ' is not available yet.', 'info'); return false; }
       if (!(opts && opts.force) && !this.isUnlocked(levelId(lv))) {
         sfx('error');
-        const shut = BG.Storage && BG.Storage.campaignLockText ? safe(() => BG.Storage.campaignLockText(campaignOf(lv)), null) : null;
+        const shut = BG.Storage && BG.Storage.lockText ? safe(() => BG.Storage.lockText(levelId(lv), levels()), null)
+          : BG.Storage && BG.Storage.campaignLockText ? safe(() => BG.Storage.campaignLockText(campaignOf(lv)), null) : null;
         hudCall('toast', shut || 'Complete the previous level first.', 'info');
         return false;
       }
@@ -1046,8 +1049,17 @@
       // campaigns this result opens (the Iron Road after level 10, Famous Bridges after 15)
       const wasOpen = {};
       campaignOrder().forEach(c => { wasOpen[c] = campaignOpen(c); });
+      // levels of this campaign that were locked before the run (to spot ones this result opens by skipping)
+      const campList = campaignLevels(campaignOf(lv));
+      const inCampaign = campList.indexOf(lv) >= 0;
+      const wasLocked = inCampaign && passed ? campList.filter(l => !this.isUnlocked(levelId(l))) : [];
       if (S) rec = safe(() => S.recordResult(levelId(lv), { passed, stars, cost }), rec) || rec;
       const opened = campaignOrder().filter(c => !wasOpen[c] && campaignOpen(c) && campaignLevels(c).length > 0);
+      // a level opened although the one right before it is unfinished: the player may skip one level
+      const skipOpened = wasLocked.filter(l => {
+        const i = campList.indexOf(l), prev = campList[i - 1];
+        return i > 0 && this.isUnlocked(levelId(l)) && !!S && !S.isCompleted(levelId(prev));
+      });
       const next = this.nextInCampaign(lv);
       const campaign = campaignOf(lv);
       const res = {
@@ -1055,7 +1067,7 @@
         time: sum.time != null ? sum.time : sim.time, peakStress: peak, vehiclesFinished: vf, vehiclesTotal: vt,
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
         finale: passed && !!finaleOf(lv), finaleKind: passed ? finaleOf(lv) : null, campaign,
-        railUnlocked: opened.includes('rail'), campaignsOpened: opened,
+        railUnlocked: opened.includes('rail'), campaignsOpened: opened, skipUnlocked: skipOpened.map(levelId),
         rail: BG.RailInfo && sim.ride ? safe(() => BG.RailInfo.rideCard(sim, sum), null) : null,
         derail: this._derailFx && this._derailFx.info ? this._derailFx.info : null,
       };
@@ -1071,6 +1083,20 @@
         hudCall('toast', OPEN_TOAST[c] || 'A new campaign is open on the level select.', 'good', 5200);
         if (c === 'rail') sfx('horn', { kind: 'whistle' });
       }, 1500 + i * 1800));
+      // explain the unlock rule the moment it lets the player skip ahead
+      skipOpened.forEach((l, i) => setTimeout(() => {
+        if (this.state !== 'results') return;
+        hudCall('toast', this.skipUnlockText(l), 'info', 5200);
+      }, 1500 + (opened.length + i) * 1800));
+    },
+    // "Level 13 unlocked - you can skip one level (chapter finales can't be skipped)"
+    skipUnlockText(lv) {
+      const H = BG.Hud;
+      const camp = campaignOf(lv);
+      const name = H && H.shortLabel ? safe(() => H.shortLabel(lv), null) : null;
+      const unit = camp === 'famous' ? 'bridge' : 'level';
+      const fin = camp === 'rail' ? 'line finales' : camp === 'famous' ? 'the finale' : 'chapter finales';
+      return (name || 'Level ' + levelId(lv)) + ' unlocked — you can skip one ' + unit + ' (' + fin + ' can\'t be skipped)';
     },
     nextLevel() {
       const next = this.nextInCampaign(this.level);

@@ -233,6 +233,9 @@ html, body { overscroll-behavior: none; }
 .m-phone .chapters { gap: 20px; padding-top: 12px; }
 .m-phone .ch-head { gap: 10px; }
 .m-phone .ch-num { width: 38px; height: 38px; font-size: 17px; }
+.m-touch .ch-info { width: 44px; height: 44px; margin: -4px -6px -4px 0; border-color: transparent; background: none; }
+.m-touch .ch-info .ico { width: 21px; height: 21px; }
+.m-phone .tile-skip { font-size: 10px; padding: 2px 6px; }
 .m-phone .ch-text h3 { font-size: 16.5px; }
 .m-phone .ch-text p { font-size: 12px; }
 .m-phone .tiles { gap: 8px; }
@@ -362,6 +365,35 @@ html, body { overscroll-behavior: none; }
 .m-phone.m-landscape .results-card .dly-res, .m-phone.m-landscape .results-card .hist-res { grid-column: 1 / -1; grid-row: auto; }
 .m-phone.m-landscape .results-card .res-actions { grid-column: 1 / -1; grid-row: auto; order: 10; }
 .m-phone.m-landscape .results.is-rail .res-stats { grid-template-columns: repeat(3, 1fr); }
+/* phone landscape, Iron Road: the two verdicts go under the reason (left column) and a compact ride card under the
+   budget (right column), so the whole score sits above the action footer; extras (badges, bests) scroll, with a
+   "More below" cue on the footer while there is more to see (.m-more on the card, set by js/features/mobile.js) */
+.m-phone.m-landscape .results.is-rail .results-card .res-rail:not([hidden]) { display: contents; }
+.m-phone.m-landscape .results.is-rail .res-stars { height: 40px; margin: 4px 0 0; }
+.m-phone.m-landscape .results.is-rail .res-stars .star { width: 30px; height: 30px; }
+.m-phone.m-landscape .results.is-rail .res-stars .star.mid { width: 38px; height: 38px; }
+.m-phone.m-landscape .results.is-rail .results-card h2 { font-size: 20px; margin: 2px 0 4px; }
+.m-phone.m-landscape .results.is-rail .res-reason { margin-bottom: 6px; font-size: 12.5px; line-height: 1.4; }
+.m-phone.m-landscape .results.is-rail .res-stats { gap: 5px; margin-bottom: 6px; }
+.m-phone.m-landscape .results.is-rail .rs { padding: 4px; }
+.m-phone.m-landscape .results.is-rail .res-budget { margin-bottom: 6px; }
+.m-phone.m-landscape .results.is-rail .rv-row { grid-column: 1; grid-row: 5; align-self: start; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 8px; text-align: left; }
+.m-phone.m-landscape .results.is-rail .rv { padding: 4px 8px; gap: 8px; border-radius: 10px; }
+.m-phone.m-landscape .results.is-rail .rv-ico { width: 20px; height: 20px; font-size: 11px; }
+.m-phone.m-landscape .results.is-rail .rv span { flex-direction: row; align-items: baseline; gap: 6px; }
+.m-phone.m-landscape .results.is-rail .rv b { flex: none; font-size: 12.5px; white-space: nowrap; }
+.m-phone.m-landscape .results.is-rail .rv small { display: block; min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-phone.m-landscape .results.is-rail .ride-card { grid-column: 2; grid-row: 5; align-self: start; margin: 0 0 8px; padding: 4px 6px 6px; text-align: left; }
+.m-phone.m-landscape .results.is-rail .rc-head { margin-bottom: 3px; font-size: 9.5px; }
+.m-phone.m-landscape .results.is-rail .rc-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, .8fr); gap: 4px; }
+.m-phone.m-landscape .results.is-rail .rc-t { padding: 3px 6px; }
+.m-phone.m-landscape .results.is-rail .rc-t span { font-size: 8.5px; }
+.m-phone.m-landscape .results.is-rail .rc-t b { font-size: 13px; }
+.m-phone.m-landscape .results.is-rail .rc-t small { font-size: 9.5px; }
+.m-phone.m-landscape .results.is-rail .rc-grade b { font-size: 19px; }
+.m-phone.m-landscape .results-card .res-actions { padding-top: 8px; padding-bottom: 10px; }
+.m-phone .results-card .res-actions::before { content: "More below \2193"; position: absolute; left: 50%; top: -30px; transform: translate(-50%, 6px); padding: 3px 12px; border-radius: 99px; background: rgba(73, 198, 242, .94); color: #06202c; font-size: 11.5px; font-weight: 750; letter-spacing: .02em; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+.m-phone .results-card.m-more .res-actions::before { opacity: 1; transform: translate(-50%, 0); }
 
 /* Iron Road: track strip above the sim bar (landscape) / under the top bar (portrait), derail callout docked */
 .m-phone #screen-level .track-strip { position: fixed; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--gap) + var(--sa-r)); width: auto; height: 60px;

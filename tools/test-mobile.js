@@ -15,7 +15,8 @@
 //     badge reveal; Iron Road track strip, derail callout and ride-quality results; daily panel (44 px days,
 //     selected day in view), daily share card and endless score in the results; famous tiles, the history card
 //     (scrolls with a finger) and the famous top bar; Forces of Nature forecast chip and warning banner; the
-//     results action row stays on screen; the title with Continue / Resume
+//     results action row stays on screen (Iron Road: ride card above the footer, "More below" cue); the title with
+//     Continue / Resume
 // Exit code 0 = all checks passed.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -173,7 +174,7 @@ async function runDevice(browser, dev) {
   await overflow('title'); await targets('title', '#screen-title button'); await shot('01-title');
   await tapEl('#screen-title [data-act=play]'); await page.waitForTimeout(900);
   ok('tap Play -> level select', await page.evaluate(() => BG.Game.state) === 'levelSelect');
-  await overflow('level select'); await targets('level select header', '.ls-head button'); await shot('02-levels');
+  await overflow('level select'); await targets('level select header + chapter (i)', '.ls-head button, .ch-info'); await shot('02-levels');
   await page.evaluate(() => BG.Hud.openSettings()); await page.waitForTimeout(450);
   await overflow('settings'); await targets('settings', '#settings .modal-head button, #settings .modal-foot button, #settings .m-set-row button');
   ok('settings: touch rows shown, keyboard row hidden', await page.evaluate(() => !!document.querySelector('[data-mset=loupe]') && getComputedStyle(document.querySelector('.set-row.keys')).display === 'none' && getComputedStyle(document.querySelector('.m-gestures')).display !== 'none'));
@@ -303,7 +304,7 @@ async function runDevice(browser, dev) {
 
   // ---- integration: History screen (history.js), Install + Save data rows (pwa.js / history.js) under the touch layout
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(700);
-  await overflow('level select (with History button)'); await targets('level select header', '.ls-head button');
+  await overflow('level select (with History button)'); await targets('level select header + chapter (i)', '.ls-head button, .ch-info');
   await page.evaluate(() => BG.Hud.setCampaignTab && BG.Hud.setCampaignTab('rail')); await page.waitForTimeout(400);
   await overflow('level select (rail tab)'); await shot('02b-levels-rail');
   await page.evaluate(() => BG.Hud.setCampaignTab && BG.Hud.setCampaignTab('road')); await page.waitForTimeout(300);
@@ -414,6 +415,29 @@ async function runDevice(browser, dev) {
   ok('Iron Road: 101 passes, ride-quality card shown', rr.res && rr.res.passed && ride, rr);
   await overflow('rail results'); await targets('rail results', '.res-actions button'); await reachable('rail results actions', '.res-actions button');
   await shot('17-rail-results');
+  // the ride card and both verdicts are fully visible above the action footer without scrolling (phone landscape
+  // used to hide the ride card behind it); while the card has more below, the footer says so - and not at the bottom
+  const rideVis = await page.evaluate(() => {
+    const card = document.querySelector('.results-card'), act = card.querySelector('.res-actions').getBoundingClientRect(), cr = card.getBoundingClientRect();
+    const box = s => { const r = card.querySelector(s).getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
+    const ride = box('.ride-card'), rv = box('.rv-row');
+    const vis = b => b.top >= cr.top - 1 && b.bottom <= act.top + 1 && b.left >= cr.left - 1 && b.right <= cr.right + 1;
+    return { ride, rv, footer: Math.round(act.top), scrollTop: card.scrollTop, ok: card.scrollTop === 0 && vis(ride) && vis(rv) };
+  });
+  ok('rail results: ride card + verdicts visible above the action footer without scrolling', rideVis.ok, rideVis);
+  const more = await page.evaluate(async () => {
+    const card = document.querySelector('.results-card');
+    const scrolls = card.scrollHeight - card.clientHeight > 6;
+    const before = card.classList.contains('m-more');
+    const cue = getComputedStyle(card.querySelector('.res-actions'), '::before').content;
+    card.scrollTop = card.scrollHeight; card.dispatchEvent(new Event('scroll'));
+    await new Promise(r => setTimeout(r, 120));
+    const after = card.classList.contains('m-more');
+    card.scrollTop = 0; card.dispatchEvent(new Event('scroll'));
+    await new Promise(r => setTimeout(r, 60));
+    return { scrolls, before, after, cue };
+  });
+  ok('rail results: "More below" cue while the card has more, gone at the bottom', more.before === more.scrolls && !more.after && (!dev.phone || /More below/.test(more.cue)), more);
   await page.evaluate(() => BG.Game.openLevel(102, { force: true })); await page.waitForTimeout(900); await quiet();
   await startWith({ nodes: [{ id: 'n1', x: 4, y: 0 }, { id: 'n2', x: 8, y: 0 }], beams: [{ a: 'a0', b: 'n1', m: 'rail' }, { a: 'n1', b: 'n2', m: 'rail' }, { a: 'n2', b: 'a1', m: 'rail' }], piers: [] });
   const der = await page.evaluate(() => { const g = BG.Game; for (let i = 0; i < 60 * 20 && g.state === 'sim' && !g._derailFx; i++) g._updateSim(1 / 60); return !!g._derailFx; });

@@ -40,6 +40,18 @@
     try { rawSet(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
   }
 
+  const progCache = { s: undefined, v: {} };
+  function progLevels() {
+    const s = rawGet('progress');
+    if (s !== progCache.s) {
+      progCache.s = s;
+      let p = null;
+      try { p = s == null ? null : JSON.parse(s); } catch (e) { p = null; }
+      progCache.v = p && typeof p === 'object' && p.levels && typeof p.levels === 'object' ? p.levels : {};
+    }
+    return progCache.v;
+  }
+
   const DEFAULT_SETTINGS = { volume: 0.7, muted: false, showStress: true, showGrid: true, music: true };
 
   const Storage = {
@@ -70,7 +82,8 @@
       return Object.assign({ completed: false, stars: 0, bestCost: null, attempts: 0 }, p || {});
     },
     getStars(id) { return Storage.getLevelProgress(id).stars | 0; },
-    isCompleted(id) { return !!Storage.getLevelProgress(id).completed; },
+    // unlock checks ask this a lot: the parsed progress is cached until the stored string changes
+    isCompleted(id) { const p = progLevels()[id]; return !!(p && p.completed); },
     totalStars() {
       const lv = Storage.getProgress().levels;
       let t = 0;
@@ -83,10 +96,13 @@
     // which also holds the hidden bonus chapter (51-53). `last` is the declared final id (the finale shows after
     // it, never after whichever level happens to be built last), `bonusLast` the end of the Roads' bonus chapter,
     // `unlockAfter` the road level that opens the campaign (with ?unlockall everything is open).
+    // `gates`: the chapter finales (last level of each chapter / Iron Road line). A gate can't be skipped:
+    // nothing after it unlocks until it is complete. The campaign's `last` and `bonusLast` are gates too.
+    // Famous Bridges run in date order with no chapters, so only their finale is a gate.
     CAMPAIGNS: {
-      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null },
-      rail: { id: 'rail', name: 'Iron Road', first: 101, last: 120, unlockAfter: 10 },
-      famous: { id: 'famous', name: 'Famous Bridges', first: 201, last: 212, unlockAfter: 15 },
+      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null, gates: [5, 10, 20, 30, 40, 50], gateWord: 'chapter finale' },
+      rail: { id: 'rail', name: 'Iron Road', first: 101, last: 120, unlockAfter: 10, gates: [105, 110, 115, 120], gateWord: 'line finale' },
+      famous: { id: 'famous', name: 'Famous Bridges', first: 201, last: 212, unlockAfter: 15, gates: [], gateWord: 'finale' },
     },
     CAMPAIGN_ORDER: ['road', 'rail', 'famous'],
     RAIL_UNLOCK_LEVEL: 10,
@@ -136,23 +152,101 @@
       Storage.campaignLevels(levels, campaign).forEach(l => { got += Storage.getStars(l.id); max += 3; });
       return { got, max };
     },
-    // A level is unlocked if it is the first one of its campaign (and that campaign is open), or if
-    // either of the two levels before it in the same campaign is completed. Levels that are not playable
-    // (missing module / stub) never unlock, not even with ?unlockall.
+    // a gate (chapter / line finale, or a campaign's declared finale) must be completed before anything after it opens
+    isGate(level) {
+      if (!level || level.id == null) return false;
+      const c = Storage.CAMPAIGNS[Storage.campaignOf(level)];
+      if (!c) return false;
+      return level.id === c.last || (c.bonusLast != null && level.id === c.bonusLast) || (Array.isArray(c.gates) && c.gates.indexOf(level.id) >= 0);
+    },
+    // THE unlock rule, on one campaign's ordered list: a level opens when either of the two levels before it is
+    // complete (one hard crossing never blocks progress - skip it and come back later), but never past an
+    // unfinished gate. `done(k)` says whether list[k] is complete; legacy = the pre-gate rule (for the migration).
+    _ruleOpen(list, idx, done, legacy) {
+      if (idx <= 0) return idx === 0;
+      if (!legacy) for (let k = 0; k < idx; k++) if (Storage.isGate(list[k]) && !done(k)) return false;
+      return done(idx - 1) || done(idx - 2);
+    },
+    _campaignListOf(id, levels) {
+      const lv = levels && levels.length ? levels.find(l => l && l.id === id) : null;
+      const campaign = lv ? Storage.campaignOf(lv) : (id > 200 ? 'famous' : id > 100 ? 'rail' : 'road');
+      const list = lv ? Storage.campaignLevels(levels, campaign) : (levels || []);
+      return { lv, campaign, list, idx: list.findIndex(l => (l.id != null ? l.id : -1) === id) };
+    },
+    // A level is unlocked if it is the first one of its campaign (and that campaign is open), or by the rule
+    // above, or if the player already had it open before the gates existed (`unlocks.keep`, see migrateUnlocks).
+    // Levels that are not playable (missing module / stub) never unlock, not even with ?unlockall.
     isUnlocked(id, levels) {
       const lv = levels && levels.length ? levels.find(l => l && l.id === id) : null;
       if (lv && !Storage.isPlayable(lv)) return false;
       if (Storage.get('unlockAll', false)) return true;
       if (!levels || !levels.length) return id === 1;
-      const campaign = lv ? Storage.campaignOf(lv) : (id > 200 ? 'famous' : id > 100 ? 'rail' : 'road');
+      const { campaign, list, idx } = Storage._campaignListOf(id, levels);
       if (!Storage.isCampaignUnlocked(campaign)) return false;
-      const list = lv ? Storage.campaignLevels(levels, campaign) : levels;
-      const idx = list.findIndex(l => (l.id != null ? l.id : -1) === id);
       if (idx <= 0) return idx === 0 || id === 1;
-      // a level opens when either of the two levels before it is complete, so one hard
-      // crossing never blocks progress: it can be skipped and come back to later
+      if (Storage.keptUnlocks().indexOf(id) >= 0) return true;
       const done = (k) => k >= 0 && Storage.isCompleted(list[k].id != null ? list[k].id : k + 1);
-      return done(idx - 1) || done(idx - 2);
+      return Storage._ruleOpen(list, idx, done, false);
+    },
+    // open, not complete, and the player has already completed a later level of the campaign: "Skipped - come back later"
+    isSkipped(id, levels) {
+      if (Storage.isCompleted(id) || !Storage.isUnlocked(id, levels)) return false;
+      const { list, idx } = Storage._campaignListOf(id, levels);
+      if (idx < 0) return false;
+      for (let k = idx + 1; k < list.length; k++) if (Storage.isCompleted(list[k].id)) return true;
+      return false;
+    },
+    // why a level is still locked ("Complete level 20 first - chapter finales can't be skipped."), null when open
+    lockText(id, levels) {
+      if (Storage.isUnlocked(id, levels)) return null;
+      const { lv, campaign, list, idx } = Storage._campaignListOf(id, levels);
+      if (lv && !Storage.isPlayable(lv)) return 'This crossing is not available yet.';
+      const shut = Storage.campaignLockText(campaign);
+      if (shut) return shut;
+      const c = Storage.CAMPAIGNS[campaign] || {};
+      const name = l => (campaign === 'famous' && l.name ? l.name : 'level ' + l.id);
+      for (let k = 0; k < idx; k++) {
+        if (Storage.isGate(list[k]) && !Storage.isCompleted(list[k].id))
+          return 'Complete ' + name(list[k]) + ' first - ' + (c.gateWord || 'chapter finale') + "s can't be skipped.";
+      }
+      const prev = list.slice(Math.max(0, idx - 2), idx).map(name);
+      return prev.length ? 'Complete ' + prev.join(' or ') + ' to unlock this one.' : 'Complete the previous level first.';
+    },
+    // the rule in one sentence, for the level-select info tooltips
+    unlockRuleText(campaign) {
+      const unit = campaign === 'famous' ? 'bridge' : 'level';
+      const fin = campaign === 'famous' ? "The finale can't be skipped."
+        : (campaign === 'rail' ? 'Line finales (the last level of each line)' : 'Chapter finales (the last level of each chapter)') +
+          " can't be skipped: finish one to go on.";
+      return 'A ' + unit + ' opens when either of the two ' + unit + 's before it is complete, so you can skip one ' + unit +
+        ' and come back later. ' + fin;
+    },
+    // the levels kept open by the unlock migration (players who had levels open past an unfinished gate keep them)
+    keptUnlocks() {
+      const u = get('unlocks', null);
+      return u && Array.isArray(u.keep) ? u.keep : [];
+    },
+    // One-time migration to the gate rule (BG.Game.init runs it with every level): each level the old rule
+    // (either of the two before it) had open, or that was ever played, but that the gate rule would lock, stays
+    // open - the gates only affect levels that were not open yet. Idempotent; returns the kept ids.
+    UNLOCK_RULES: 2,
+    migrateUnlocks(levels) {
+      const u = get('unlocks', null);
+      if (u && (u.v | 0) >= Storage.UNLOCK_RULES) return Storage.keptUnlocks();
+      const keep = [];
+      const prog = Storage.getProgress().levels || {};
+      Storage.CAMPAIGN_ORDER.forEach(camp => {
+        const list = Storage.campaignLevels(levels || [], camp);
+        const done = (k) => k >= 0 && Storage.isCompleted(list[k].id);
+        for (let i = 1; i < list.length; i++) {
+          if (Storage._ruleOpen(list, i, done, false)) continue;
+          const p = prog[list[i].id];
+          const played = !!(p && ((p.attempts | 0) > 0 || p.completed));
+          if (played || Storage._ruleOpen(list, i, done, true)) keep.push(list[i].id);
+        }
+      });
+      set('unlocks', { v: Storage.UNLOCK_RULES, keep });
+      return keep;
     },
     // result: { passed, stars, cost }
     recordResult(id, result) {
@@ -176,7 +270,7 @@
       p.lastLevel = id;
       set('progress', p);
     },
-    resetProgress() { rawDel('progress'); },
+    resetProgress() { rawDel('progress'); set('unlocks', { v: Storage.UNLOCK_RULES, keep: [] }); },
 
     // ---- designs ----
     saveDesign(id, design) {

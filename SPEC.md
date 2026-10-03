@@ -5,7 +5,8 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 
 ## 1. Player experience
 
-1. Pick a level (50 in 6 chapters, 0–3 stars each). A level unlocks when either of the two levels before it is complete.
+1. Pick a level (50 in 6 chapters, 0–3 stars each). A level unlocks when either of the two levels before it is complete,
+   but a chapter finale (the last level of a chapter) can't be skipped: nothing after it opens until it is complete (§15).
 2. See the gap: two banks, anchors (fixed bolts), maybe a valley floor with pier zones, water, a ship
    clearance zone. Budget bar at top, traffic preview ("3 cars, 1 bus").
 3. Build with drag-and-drop: pick a material from the bottom palette, drag from any joint/anchor to
@@ -319,7 +320,7 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
 - Rail levels use ids **101–120**, files `tools/levels/level-101.json` … with `campaign: 'rail'`
   (road levels: `campaign` absent or `'road'`). Solutions `tools/solutions/level-101.json` / `-best.json`.
 - Unlock: level 101 unlocks when road level 10 is completed (or `?unlockall`). Inside the campaign the
-  usual rule (previous one or two completed) applies, on ids 101–120.
+  usual rule (previous one or two completed; each line's last level 105 / 110 / 115 / 120 is a gate, §15) applies, on ids 101–120.
 - Chapters (5 levels each): 101–105 "Branch Lines" (handcar, tram, light steam; short spans, learn derail
   limits), 106–110 "Stone & Steam" (steam + coaches, masonry viaducts over valleys), 111–115 "Freight Corridor"
   (commuter, long freight, ore trains; whole span loaded; deep steel trusses, cantilevers),
@@ -535,7 +536,7 @@ HUD: forecast chip, warning banner 3 s before an event, live banner, event timel
 wind howl + whistle, quake rumble, thunder, warning chirp (own WebAudio nodes on `BG.Audio.context`).
 
 ### 12.4 Bonus chapter "Forces of Nature" (levels 51–53)
-Hidden in level select until one of its levels is unlocked (finish 49 or 50); chapter entry
+Hidden in level select until one of its levels is unlocked (finish 50, the Roads finale - a gate, §15); chapter entry
 `{n: 7, from: 51, to: 53, hidden: true}` is pushed onto `BG.Hud.CHAPTERS` by forces-fx.js. 51 Hurricane Alley
 (wind 34 m/s headwind + gusts: plain-road stayed decks fail by uplift/bending), 52 Fault Line (M8 quake),
 53 Galloping Gertie (swept resonant wind: slender suspension decks gallop to failure, stiffened ones pass).
@@ -646,6 +647,7 @@ is never part of the Roads (unlocking, "next level", continue, star totals).
 ### 14.2 Campaign rules (`BG.Storage.CAMPAIGNS.famous` + `BG.Famous`, js/features/famous.js)
 - Unlock: the first playable famous level opens when **road level 15** is completed (or `?unlockall`); inside the
   campaign a level opens when either of the two previous *playable* famous levels is complete (stubs are skipped).
+  The bridges run in date order with no chapters, so only the finale (212) is a gate.
   This is the shared rule of §15 (`unlockAfter: 15`); `BG.Famous.isUnlocked` just asks `BG.Storage`.
 - `BG.Game.openLevel(famousId)` shows the history card first (Build it / Back; Enter/Space = build, Esc = back);
   `opts.skipCard` skips it. Levels with unmet requirements never open, even with `force` / `?unlockall` —
@@ -680,6 +682,22 @@ campaign logic that each feature had grown separately was folded into one system
   order), `isCampaignUnlocked(c)`, `campaignLockText(c)`, `campaignStars`, `isUnlocked(id, levels)` (unplayable
   levels never open, not even with `?unlockall`), `finaleOf(level)` → `'road' | 'bonus' | 'rail' | 'famous' | null`.
   `js/main.js` and `js/ui/hud.js` delegate `campaignOf` to it; no other file decides unlocking.
+- **Unlock rule** (`BG.Storage.isUnlocked`, tested by `tools/test-unlock.js`): a level opens when either of the two
+  levels before it in its campaign is complete (skip one hard crossing, come back later), **but never past an
+  unfinished gate**. Gates (`isGate(level)`) = each campaign's `gates` (the chapter / line ends: road 5, 10, 20, 30, 40,
+  50; rail 105, 110, 115, 120; famous none) plus its `last` and `bonusLast`; so 21 needs 20 and the bonus chapter needs
+  50. Daily / endless levels are not in any campaign list and are unaffected. Helpers: `isSkipped(id, levels)` (open,
+  unfinished, a later level of the campaign done), `lockText(id, levels)` ("Complete level 20 first - chapter finales
+  can't be skipped."), `unlockRuleText(campaign)`.
+- **Migration** (`migrateUnlocks(levels)`, run once by `BG.Game.init`; key `unlocks {v: 2, keep: [ids]}`): every level
+  the old rule had open, or that was ever played, but that the gates would now lock stays open (`keep`); the gates
+  only affect levels that were not open yet. Reset progress empties `keep`; a save import without the key migrates
+  again on reload.
+- **Explained in the UI**: level tiles of skipped-but-open levels carry "Skipped — come back later" (`.tile-skip`, also
+  on Famous Bridges tiles); gate tiles a small flag (`.tile-gate`); every chapter header (and the Famous Bridges intro)
+  an (i) button (`.ch-info`, hover / focus tooltip on desktop, a tap toasts the rule); a pass that opens a level whose
+  predecessor is unfinished toasts "Level N unlocked — you can skip one level (chapter finales can't be skipped)"
+  (results carry `skipUnlocked`); a locked tile toasts `lockText`.
 - **Looks: `BG.Hud.registerCampaign(id, ui)`** - Roads and Iron Road are built in; Famous Bridges registers itself.
   `ui = { name, sub, icon(), cls, levelK, levelNum(level), levelSub(level, gap), allLabel, maxDefault, chapters() |
   render(panel, info) + panelClass + modeClass, locked(), continueLabel(level), finale: {banner, title, text(starLine)} }`.
@@ -702,8 +720,9 @@ campaign logic that each feature had grown separately was folded into one system
   toasts (z 40), the famous history card (`.fb-overlay`, z 40; from a famous result's **Next** it opens over the
   results and Esc / Back returns to them), the daily panel and the settings modal (`.modal`, z 45). Each overlay owns
   the keyboard while open (capture-phase listeners), so Enter / Esc never reach the game underneath.
-- Tests: `tools/e2e.js` (campaign tabs, unlock gates, Next / finale per campaign, Continue across campaigns, title
-  entry points, results layering), `tools/test-famous.js`, `tools/e2e-goals.js`, `tools/test-daily.js`.
+- Tests: `tools/e2e.js` (campaign tabs, unlock gates incl. chapter finales, skipped markers, the (i), the skip toast and
+  the migration, Next / finale per campaign, Continue across campaigns, title entry points, results layering),
+  `tools/test-unlock.js` (the rule in Node), `tools/test-famous.js`, `tools/e2e-goals.js`, `tools/test-daily.js`.
 
 ## 16. Mobile, PWA, History (extension)
 
@@ -745,7 +764,9 @@ working from `file://` and without storage.
   panel starts closed (`BG.GoalsUI.setOpen(open, noSave)`), is a sheet under the top bar and closes when the canvas
   is touched; results card on phones: rail verdicts / ride card, badge reveal, daily share card / endless score and
   bests line stack full width (landscape: title column + stats column above them) and the action row is sticky at
-  the bottom of the scrolling card; Iron Road track strip docked above the sim bar (landscape) or under the top bar
+  the bottom of the scrolling card, with a "More below" cue (`.m-more`) while the card has more under it; Iron Road
+  results in phone landscape put the verdicts under the reason and a compact ride card under the budget, so both sit
+  above the footer without scrolling; Iron Road track strip docked above the sim bar (landscape) or under the top bar
   (portrait, `--m-strip` pushes toasts / callouts / the forces banner down), derail callout docked under the top bar
   without its stem; daily panel days >= 44 px (a sideways strip on phones that keeps the selected day in view,
   one 14-day row on tablets), endless / copy buttons 44 px; famous history card within the safe area, art and story

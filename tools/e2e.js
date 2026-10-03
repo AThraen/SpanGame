@@ -5,7 +5,9 @@
 // frame timing, progress; Iron Road: campaign tab gating, mouse-built 101, a derail callout (102), 108, the
 // follow-camera scenery cache, and the finale (120 only); the shared campaign system: one tab bar (Roads | Iron Road |
 // Famous Bridges), unlock gates, Next / finale per campaign (bonus 53 too), Continue across campaigns, the title's
-// Daily + Endless entry points, and results-modal layering (badges, history card over the results). Exit code 0 = all passed.
+// Daily + Endless entry points, and results-modal layering (badges, history card over the results); the unlock rule
+// explained (chapter-finale gates, skipped markers, the (i) tooltip, the skip toast, the migration) and the hint only
+// auto-showing on an empty design or a level never passed. Exit code 0 = all passed.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -397,7 +399,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   });
   ok('Continue after the whole Iron Road moves on to another campaign', cross.id != null && cross.camp !== 'rail', cross);
   // the bonus chapter finale (53) in the browser: hidden chapter revealed, its own finale text, 'All levels'
-  await page.evaluate(() => { BG.Storage.recordResult(50, { passed: true, stars: 1, cost: 1 }); BG.Game.openLevel(53, { force: true }); }); await page.waitForTimeout(800);
+  await page.evaluate(() => { [5, 10, 20, 30, 40, 50].forEach(id => BG.Storage.recordResult(id, { passed: true, stars: 1, cost: 1 })); BG.Game.openLevel(53, { force: true }); }); // every chapter finale up to 50 (gates) await page.waitForTimeout(800);
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('53-best'));
   r = await runSim(90); await page.waitForTimeout(1800);
   const b53 = await page.evaluate(() => ({ banner: document.querySelector('[data-ref=resBanner]').textContent, cls: document.querySelector('[data-ref=results]').classList.contains('finale-bonus'), next: document.querySelector('[data-act=next] span').textContent }));
@@ -406,6 +408,65 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.click('[data-act=next]'); await page.waitForTimeout(700);
   const back = await page.evaluate(() => ({ state: BG.Game.state, tab: BG.Hud.tab, bonus: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent).includes('Forces of Nature') }));
   ok('after the bonus finale: back on the Roads tab with the Forces of Nature chapter', back.state === 'levelSelect' && back.tab === 'road' && back.bonus, back);
+
+  // ================================================================ unlock rule explained: gates on chapter finales
+  const toasts = () => page.evaluate(() => Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | '));
+  const seed = (ids) => page.evaluate((ids) => {
+    const S = BG.Storage; S.resetProgress(); S.set('unlockAll', false);
+    ids.forEach(id => S.recordResult(id, { passed: true, stars: 1, cost: 1 }));
+    BG.Game.goLevelSelect(); BG.Hud.setCampaignTab('road');
+  }, ids);
+  const r19 = []; for (let i = 1; i <= 19; i++) r19.push(i);
+  await seed(r19); await page.waitForTimeout(500);
+  const gate = await page.evaluate(() => {
+    const t = id => document.querySelector('.tile[data-id="' + id + '"]');
+    return { t20: t(20).classList.contains('open'), gate20: t(20).classList.contains('gate') && !!t(20).querySelector('.tile-gate'), t21: t(21).classList.contains('open'),
+      gates: Array.from(document.querySelectorAll('.tile.gate')).map(e => +e.dataset.id), ends: BG.Hud.CHAPTERS.filter(c => !c.hidden).map(c => c.to) };
+  });
+  ok('unlock: 19 done -> chapter finale 20 open, 21 locked (finales can\'t be skipped); every chapter end is a gate', gate.t20 && gate.gate20 && !gate.t21 && gate.ends.every(id => gate.gates.includes(id)), gate);
+  await page.evaluate(() => document.querySelector('.tile[data-id="21"]').click()); await page.waitForTimeout(300); // aria-disabled: no Playwright click
+  const lock21 = await toasts();
+  ok('unlock: tapping locked 21 names level 20 as the finale to finish', /level 20 first/.test(lock21) && /can't be skipped/.test(lock21) && await page.evaluate(() => BG.Game.state === 'levelSelect'), lock21);
+  const info = await page.evaluate(() => { const b = document.querySelector('.chapter .ch-head .ch-info'); return b && { tip: b.dataset.tip, n: document.querySelectorAll('.chapter .ch-info').length, ch: document.querySelectorAll('.chapter').length }; });
+  ok('unlock: every chapter header has an (i) with the rule', info && info.n === info.ch && /either of the two levels/.test(info.tip) && /Chapter finales/.test(info.tip), info);
+  await page.click('.chapter .ch-info'); await page.waitForTimeout(300);
+  ok('unlock: the (i) also shows the rule as a toast', /either of the two levels/.test(await toasts()));
+  await seed(r19.slice(0, 18).concat([20])); await page.waitForTimeout(500);
+  const skip = await page.evaluate(() => { const t = document.querySelector('.tile[data-id="19"]'); return { skipped: t.classList.contains('skipped'), text: (t.querySelector('.tile-skip') || {}).textContent, others: Array.from(document.querySelectorAll('.tile.skipped')).map(e => +e.dataset.id), open21: document.querySelector('.tile[data-id="21"]').classList.contains('open') }; });
+  ok('unlock: skipped-but-open level 19 shows "Skipped — come back later" (finale 20 done -> 21 open)', skip.skipped && /Skipped — come back later/.test(skip.text) && skip.others.join() === '19' && skip.open21, skip);
+  await shot('32-unlock-skipped');
+  // a pass that opens a level by skipping explains the rule
+  await seed([]); await page.evaluate(() => BG.Game.openLevel(1)); await page.waitForTimeout(800);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(1));
+  r = await runSim(60); await page.waitForTimeout(2000);
+  const skipToast = await toasts();
+  ok('unlock: passing 1 opens 3 by skipping -> toast "Level 3 unlocked — you can skip one level (chapter finales can\'t be skipped)"',
+    r.res && r.res.passed && (r.res.skipUnlocked || []).join() === '3' && /Level 3 unlocked — you can skip one level \(chapter finales can't be skipped\)/.test(skipToast), { skip: r.res && r.res.skipUnlocked, skipToast });
+  // migration: a player who already had levels open past an unbeaten finale keeps them, nothing new opens
+  await page.evaluate(() => {
+    const lv = {}; for (let i = 1; i <= 19; i++) lv[i] = { completed: true, stars: 1, bestCost: 1, attempts: 1 };
+    lv[21] = { completed: true, stars: 1, bestCost: 1, attempts: 1 }; lv[22] = { completed: true, stars: 1, bestCost: 1, attempts: 1 };
+    localStorage.setItem('span.v1.progress', JSON.stringify({ levels: lv, lastLevel: 22 }));
+    localStorage.removeItem('span.v1.unlocks'); localStorage.removeItem('span.v1.hist.session');
+  });
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?screen=levels'); await page.waitForTimeout(1500);
+  const mig = await page.evaluate(() => ({ open: [20, 21, 22, 23, 24, 25].filter(id => BG.Game.isUnlocked(id)), keep: BG.Storage.keptUnlocks() }));
+  ok('unlock migration: 21-24 (open before the gates) stay open, 25 stays locked until 20 is done', mig.open.join() === '20,21,22,23,24', mig);
+  // hint: auto-shown on an empty design or a level never passed; not on a built, passed level after a reload
+  const hintAt = async (id, prep) => {
+    await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(200); // leave (and autosave) first
+    await page.evaluate(prep, sol(1));
+    await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?level=' + id); await page.waitForTimeout(1400);
+    return page.evaluate(() => ({ show: document.querySelector('[data-ref=hint]').classList.contains('show'), btn: !document.querySelector('[data-act=hint]').hidden, beams: BG.Game.getDesign().beams.length }));
+  };
+  const hBuilt = await hintAt(1, (d) => { const S = BG.Storage; S.resetProgress(); S.recordResult(1, { passed: true, stars: 3, cost: 1 }); S.saveDesign(1, d); });
+  ok('hint: not auto-shown on reload of a built, passed level (hint button still there)', !hBuilt.show && hBuilt.btn && hBuilt.beams > 0, hBuilt);
+  await page.click('[data-act=hint]'); await page.waitForTimeout(250);
+  ok('hint: the hint button still opens it', await page.evaluate(() => document.querySelector('[data-ref=hint]').classList.contains('show')));
+  const hEmpty = await hintAt(1, () => { BG.Storage.clearDesign(1); });
+  ok('hint: auto-shown on a passed level with an empty design', hEmpty.show && hEmpty.beams === 0, hEmpty);
+  const hNew = await hintAt(1, (d) => { const S = BG.Storage; S.resetProgress(); S.saveDesign(1, d); });
+  ok('hint: auto-shown on a built level that was never passed', hNew.show && hNew.beams > 0, hNew);
 
   ok('no console errors', errors.length === 0, errors.slice(0, 15));
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} e2e checks passed`);

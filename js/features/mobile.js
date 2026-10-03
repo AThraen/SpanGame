@@ -765,6 +765,14 @@
         if (Env.tablet) safe(clampDerail);
         return r;
       });
+      // results card: a "More below" cue on the sticky action footer while the card has more content under it
+      // (badges, bests, a ride card that does not fit); features add blocks after showResults, so re-check a few times
+      wrap(H, 'showResults', (orig) => function () {
+        const r = orig.apply(this, arguments);
+        if (Env.touch) bindResultsMore();
+        if (Env.touch) [0, 120, 700, 1600, 2600].forEach((ms) => setTimeout(() => safe(updateResultsMore), ms));
+        return r;
+      });
       // phones: the goals panel starts closed in every level (goals-ui also checks this on enterLevel)
       wrap(H, 'enterLevel', (orig) => function () {
         const r = orig.apply(this, arguments);
@@ -794,6 +802,19 @@
       });
       wrap(Gm, 'startSim', (orig) => function () { hideLoupe(); hideCtx(); return orig.apply(this, arguments); });
     }
+  }
+
+  function updateResultsMore() {
+    const card = doc.querySelector('#screen-level .results-card');
+    if (!card) return;
+    card.classList.toggle('m-more', card.scrollHeight - card.scrollTop - card.clientHeight > 6);
+  }
+  let moreBound = false;
+  function bindResultsMore() {
+    if (moreBound) return;
+    moreBound = true;
+    doc.addEventListener('scroll', (e) => { if (e.target && e.target.classList && e.target.classList.contains('results-card')) safe(updateResultsMore); }, true);
+    root.addEventListener('resize', () => safe(updateResultsMore));
   }
 
   function clampDerail() {

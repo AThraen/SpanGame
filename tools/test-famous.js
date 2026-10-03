@@ -122,7 +122,7 @@ async function browser() {
   const un = await E(([a, b2]) => ({ a: BG.Game.isUnlocked(a), b: BG.Game.isUnlocked(b2), open: Array.from(document.querySelectorAll('.fb-tile.open')).map(t => +t.dataset.fbid) }), [first, second]);
   ok('road level 15 opens the first famous bridge only', un.a && !un.b && un.open.length === 1 && un.open[0] === first, un);
   ok('famous levels are their own campaign (not in the Roads list or road stars)', await E(() => BG.Storage.campaignLevels(BG.Levels, 'road').every(l => l.campaign !== 'famous') && BG.Storage.campaignLevels(BG.Levels, 'famous').length === BG.Famous.levels().length && BG.Game.campaignOf(BG.Famous.levels()[0]) === 'famous'));
-  ok('road campaign unlocking unchanged', await E(() => BG.Storage.isUnlocked(16, BG.Levels) && !BG.Storage.isUnlocked(18, BG.Levels) && BG.Storage.isUnlocked(1, BG.Levels)));
+  ok('road campaign unlocking unchanged (chapter finales 5 + 10 done, then either of the two before)', await E(() => { const S = BG.Storage; [5, 10].forEach(id => S.recordResult(id, { passed: true, stars: 1, cost: 1 })); return S.isUnlocked(16, BG.Levels) && S.isUnlocked(17, BG.Levels) && !S.isUnlocked(18, BG.Levels) && S.isUnlocked(1, BG.Levels); }));
 
   // history card, then build
   await page.click('.fb-tile[data-fbid="' + first + '"]');

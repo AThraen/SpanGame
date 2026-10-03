@@ -22,7 +22,7 @@ The top bar of a level states only facts about that level: chapter number (or th
 
 ## How to play
 
-1. **Pick a crossing** on the level select screen. A level opens once either of the two levels before it is complete, so one hard crossing can be skipped and revisited. Each level awards 0–3 stars.
+1. **Pick a crossing** on the level select screen. A level opens once either of the two levels before it is complete, so one hard crossing can be skipped and revisited (its tile says "Skipped — come back later"). Chapter finales, the last level of each chapter, can't be skipped: nothing after one opens until it is complete. The (i) on each chapter header explains the rule. Each level awards 0–3 stars.
 2. **Read the gap.** The top bar shows the cost/budget bar (with ★★★ and ★★ thresholds) and the traffic waiting to cross. The dashed rectangle is the build area. Hatched zones are no-build areas, such as ship clearance. Yellow-striped floor bands are pier zones. Nothing but piers and anchors may go under the water (or lava): joints must stay at or above the waterline. Where the build area reaches below the water, the waterline is drawn as a dashed limit over a hatched "piers only" band.
 3. **Build.**
    - Pick a material in the bottom palette.
@@ -236,6 +236,7 @@ node tools/test-physics.js     # 31 physics tests incl. exploits, stability, rai
 node tools/verify-levels.js    # every level (50 road + 3 bonus + 20 rail + 12 Famous Bridges), reference + best design each (see "Levels" below)
                                #   --campaign road|rail|famous, --only 101-120, --ref-only
 node tools/test-editor.js      # editor behaviour (140 checks)
+node tools/test-unlock.js      # campaign unlock rule: skip one level, chapter-finale gates, skipped markers, migration
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
 node tools/test-terrain-fix.js # underwater rule, editor feedback, drawn cliffs vs model (--no-browser: Node only)
@@ -294,7 +295,7 @@ Budgets are set so the reference costs at most about 88% of the budget and the b
 
 ### Iron Road (levels 101–120)
 
-The railway campaign opens when road level 10 is complete (the **Iron Road** tab on the level select says so while it is locked; `?unlockall` opens it too). Inside it the usual rule applies: a level opens when either of the two before it is complete.
+The railway campaign opens when road level 10 is complete (the **Iron Road** tab on the level select says so while it is locked; `?unlockall` opens it too). Inside it the usual rule applies: a level opens when either of the two before it is complete, and the last level of each line (105, 110, 115, 120) can't be skipped.
 
 | Chapter | Levels | Gaps | Trains | Introduces |
 |---|---|---|---|---|
@@ -320,7 +321,7 @@ Rail levels are verified like road levels, plus a ride margin: the reference des
 
 ### Forces of Nature (bonus chapter, levels 51–53)
 
-Finishing level 49 or 50 reveals a hidden seventh chapter where the weather fights back. A **Forecast** chip in the top bar lists what is coming, a banner counts down the last 3 seconds ("Hurricane incoming in 3 s") and then shows the live wind speed or ground shaking, and the sim bar's timeline marks each event.
+Finishing level 50 reveals a hidden seventh chapter where the weather fights back. A **Forecast** chip in the top bar lists what is coming, a banner counts down the last 3 seconds ("Hurricane incoming in 3 s") and then shows the live wind speed or ground shaking, and the sim bar's timeline marks each event.
 
 | Level | Event | Lesson |
 |---|---|---|
@@ -332,7 +333,7 @@ Any level can use weather: add an `events` list to its JSON (see SPEC.md §12).
 
 ### Famous Bridges (levels 201–212)
 
-A separate campaign of real bridges, scaled down but faithful: each crossing keeps the real bridge's proportions, pier positions, shipping channel and kind of traffic, and is set up so that the historical structural type is the natural answer. Before each level a **history card** shows when and where it was built, its engineers, span and type, three facts, and why it matters (the bridge icon in the top bar opens it again). Pick a bridge from the **Famous Bridges** tab on the level select (the third campaign tab, after Roads and Iron Road). It opens when road level 15 is complete; after that the usual rule applies (either of the two previous famous bridges).
+A separate campaign of real bridges, scaled down but faithful: each crossing keeps the real bridge's proportions, pier positions, shipping channel and kind of traffic, and is set up so that the historical structural type is the natural answer. Before each level a **history card** shows when and where it was built, its engineers, span and type, three facts, and why it matters (the bridge icon in the top bar opens it again). Pick a bridge from the **Famous Bridges** tab on the level select (the third campaign tab, after Roads and Iron Road). It opens when road level 15 is complete; after that the usual rule applies (either of the two previous famous bridges; only the last one, the finale, can't be skipped).
 
 | # | Bridge | Year | Gap | The idea |
 |---|---|---|---|---|
@@ -353,7 +354,7 @@ Levels use ids 201+ and `campaign: 'famous'` (`tools/levels/level-2NN.json`, sol
 
 ### Campaigns, tabs and the title screen
 
-The level select has one tab per campaign: **Roads** (1–50, plus the hidden *Forces of Nature* chapter 51–53 once 49 or 50 is done), **Iron Road** (101–120, opens after road level 10) and **Famous Bridges** (201–212, opens after road level 15). The rules live in one table, `BG.Storage.CAMPAIGNS` (unlock level, final id, the bonus chapter's end), and every campaign follows them the same way: a level opens when either of the two playable levels before it in its campaign is complete, **Next** stays inside the campaign, and each campaign has its own finale (after 50, after the bonus level 53, after 120 and after 212). `BG.Hud` draws the tabs from its own table of looks; a feature adds a campaign with `BG.Hud.registerCampaign(id, {...})` (Famous Bridges does). **Continue** on the title screen resumes the last level played in any campaign, or the next open level of that campaign (then of the others). The title screen also has the **Daily Challenge** and **Endless** buttons; both keep their results apart from the campaigns.
+The level select has one tab per campaign: **Roads** (1–50, plus the hidden *Forces of Nature* chapter 51–53 once 50 is done), **Iron Road** (101–120, opens after road level 10) and **Famous Bridges** (201–212, opens after road level 15). The rules live in one table, `BG.Storage.CAMPAIGNS` (unlock level, final id, the bonus chapter's end), and every campaign follows them the same way: a level opens when either of the two playable levels before it in its campaign is complete, but never past an unfinished chapter finale (the `gates`: road 5, 10, 20, 30, 40, 50, rail 105, 110, 115, 120, and each campaign's last level; players who already had levels open past one keep them), **Next** stays inside the campaign, and each campaign has its own finale (after 50, after the bonus level 53, after 120 and after 212). `BG.Hud` draws the tabs from its own table of looks; a feature adds a campaign with `BG.Hud.registerCampaign(id, {...})` (Famous Bridges does). **Continue** on the title screen resumes the last level played in any campaign, or the next open level of that campaign (then of the others). The title screen also has the **Daily Challenge** and **Endless** buttons; both keep their results apart from the campaigns.
 
 ### Adding a level
 

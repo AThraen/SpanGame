@@ -60,6 +60,7 @@
     home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
     next: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
     chevDown: '<path d="M6 9l6 6 6-6"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.6v.2"/>',
     trophy: '<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M17 5h3a3 3 0 01-3 4M7 5H4a3 3 0 003 4"/>',
     save: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/>',
     coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.6 0-2.7.8-2.7 2s1.1 1.6 2.7 2 2.7.9 2.7 2.1-1.1 1.9-2.7 1.9c-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5"/>',
@@ -369,6 +370,30 @@
     const S = stor();
     try { return S ? S.isUnlocked(id, levelsList()) : id === 1; } catch (e) { return id === 1; }
   }
+  // unlock rule helpers (BG.Storage decides; the level select explains): skipped-but-open levels, chapter finales
+  function skipped(id) {
+    const S = stor();
+    try { return !!(S && S.isSkipped && S.isSkipped(id, levelsList())); } catch (e) { return false; }
+  }
+  function isGateLevel(level) {
+    const S = stor();
+    try { return !!(S && S.isGate && S.isGate(level)); } catch (e) { return false; }
+  }
+  function unlockRuleText(campaign) {
+    const S = stor();
+    try { if (S && S.unlockRuleText) return S.unlockRuleText(campaign); } catch (e) { /* */ }
+    return 'A level opens when either of the two levels before it is complete.';
+  }
+  function lockTextFor(id) {
+    const S = stor();
+    try { if (S && S.lockText) return S.lockText(id, levelsList()); } catch (e) { /* */ }
+    return null;
+  }
+  // the small (i) button on chapter headers: hover / focus shows the rule (desktop), a tap toasts it (touch)
+  function unlockInfoBtn(campaign) {
+    const t = esc(unlockRuleText(campaign));
+    return '<button class="ch-info" type="button" data-act="unlockInfo" data-camp-info="' + esc(campaign) + '" aria-label="How levels unlock: ' + t + '" data-tip="' + t + '">' + icon('info') + '</button>';
+  }
   // forces: ids of levels in hidden bonus chapters ({hidden: true}) that are not revealed yet (none of their
   // levels unlocked); they stay out of the level select and out of the star / badge totals until then
   function hiddenLevelIds() {
@@ -546,6 +571,7 @@
           sfx('click');
           if (b.dataset.act === 'back') call('goTitle');
           else if (b.dataset.act === 'settings') this.openSettings();
+          else if (b.dataset.act === 'unlockInfo') this.toast(unlockRuleText(b.dataset.campInfo || this.tab), 'info', 6500);
           return;
         }
         const t = e.target.closest('.tile');
@@ -554,9 +580,9 @@
         else {
           sfx('error');
           t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope');
-          const shut = campaignLockText(this.tab);
+          const shut = campaignLockText(this.tab) || lockTextFor(+t.dataset.id);
           this.toast(t.classList.contains('soon') ? 'This crossing is still being surveyed — coming soon.'
-            : shut || 'Complete one of the two levels before this one to unlock it.', 'info');
+            : shut || 'Complete one of the two levels before this one to unlock it.', 'info', 3600);
         }
       });
       this.el.levels = el;
@@ -653,8 +679,11 @@
           const lth = theme(lv.theme || ch.theme);
           const done = S && S.isCompleted && S.isCompleted(id);
           const rail = campaignOf(lv) === 'rail';
-          tiles.push(`<button class="tile ${isOpen ? 'open' : 'locked'} ${done ? 'done' : ''} ${rail ? 'is-rail' : ''}" data-id="${id}" style="--acc:${lth.accent}" ${isOpen ? '' : 'aria-disabled="true"'}>
-              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${isOpen ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
+          const skip = isOpen && !done && skipped(id);
+          const gate = isGateLevel(lv);
+          const gateTip = (rail ? 'Line' : 'Chapter') + ' finale: complete it to go on (it can\'t be skipped)';
+          tiles.push(`<button class="tile ${isOpen ? 'open' : 'locked'} ${done ? 'done' : ''} ${rail ? 'is-rail' : ''} ${skip ? 'skipped' : ''} ${gate ? 'gate' : ''}" data-id="${id}" style="--acc:${lth.accent}" ${isOpen ? '' : 'aria-disabled="true"'}>
+              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${gate ? '<span class="tile-gate" title="' + gateTip + '">' + icon('flag') + '</span>' : ''}${skip ? '<span class="tile-skip">Skipped — come back later</span>' : ''}${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${isOpen ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
               <div class="tile-body"><div class="tile-name">${esc(lv.name || levelLabel(lv))}</div>
               <div class="tile-stars">${[0, 1, 2].map(i => starSvg(i < st ? 'on' : '')).join('')}</div></div>
             </button>`);
@@ -665,6 +694,7 @@
               <div class="ch-num">${ch.n}</div>
               <div class="ch-text"><h3>${esc(ch.name)}</h3><p>Levels ${range} · ${esc(ch.desc)}</p></div>
               <div class="ch-stars">${chMax ? starSvg('on') + '<b>' + chStars + '</b>/' + chMax : '<span class="soon-tag">Coming soon</span>'}</div>
+              ${unlockInfoBtn(camp)}
             </div>
             <div class="tiles">${tiles.join('')}</div>
           </section>`);
@@ -912,7 +942,9 @@
       const hasHint = !!level.hint;
       $('[data-act=hint]', this.el.level).hidden = !hasHint;
       this.hideHint();
-      if (hasHint) setTimeout(() => { if (this.level === level && this.mode === 'edit') this.showHint(null, id != null && id <= 3 ? 0 : 24000); }, 650);
+      // auto-show only on a fresh start: an empty design, or a level never passed (a built, solved level - e.g. after a
+      // reload - keeps it behind the hint button / H)
+      if (hasHint) setTimeout(() => { if (this.level === level && this.mode === 'edit' && this.shouldAutoHint(level)) this.showHint(null, id != null && id <= 3 ? 0 : 24000); }, 650);
 
       this.hideResults(true);
       this.setMode('edit');
@@ -957,6 +989,14 @@
     },
 
     // ---------------------------------------------------------------- hint & toasts
+    shouldAutoHint(level) {
+      if (!level || !level.hint) return false;
+      const g = game(), S = stor();
+      let beams = 0;
+      try { const d = g && (g.getDesign ? g.getDesign() : g.design); beams = d && Array.isArray(d.beams) ? d.beams.length : 0; } catch (e) { beams = 0; }
+      if (!beams) return true;
+      try { return !(S && S.isCompleted && S.isCompleted(levelId(level))); } catch (e) { return true; }
+    },
     // ms: auto-hide delay (0 = stay until dismissed; the first tutorial levels keep their hint up)
     showHint(text, ms) {
       const lv = this.level;
@@ -1370,7 +1410,7 @@
 
     // exposed helpers
     icon, money, theme, vehSvg, trainSvg, material, materials, levelMaterials, CHAPTERS, RAIL_CHAPTERS, THEMES,
-    campaignOf, displayNum, levelLabel, shortLabel, badgeNum, hiddenLevelIds,
+    campaignOf, displayNum, levelLabel, shortLabel, badgeNum, hiddenLevelIds, unlockRuleText, unlockInfoBtn,
   };
 
   function budgetColor(r) {

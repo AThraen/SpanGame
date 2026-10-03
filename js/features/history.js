@@ -5,7 +5,7 @@
 // wrapping BG.Game / BG.Hud / BG.Editor methods (hooks, no rewrites of the shared files).
 //
 // Storage keys (all under BG.Storage's 'span.v1.' prefix; the legacy keys are never rewritten):
-//   settings, progress, design.<id>, unlockAll   legacy (storage.js), untouched
+//   settings, progress, design.<id>, unlockAll, unlocks   legacy (storage.js), untouched
 //   hist.meta     { schema, migratedAt }
 //   hist.runs     [ run, ... ]  newest last, capped to MAX_RUNS
 //                 run = { i, t, l, c, n, ok, f, s, p, d, b, k? }  (id, time, level, cost, members, passed,
@@ -318,7 +318,7 @@
         const ls = root.localStorage;
         if (ls) for (let j = 0; j < ls.length; j++) { const k = ls.key(j); if (k && k.indexOf(P) === 0) out.add(k.slice(P.length)); }
       } catch (e) { /* unavailable */ }
-      ['settings', 'progress', 'unlockAll', 'hist.meta', 'hist.runs', 'hist.bests', 'hist.stats', 'hist.snaps', 'hist.session'].forEach(k => out.add(k));
+      ['settings', 'progress', 'unlockAll', 'unlocks', 'hist.meta', 'hist.runs', 'hist.bests', 'hist.stats', 'hist.snaps', 'hist.session'].forEach(k => out.add(k));
       (Array.isArray(BG.Levels) ? BG.Levels : []).forEach((l, j) => out.add('design.' + (l && l.id != null ? l.id : j + 1)));
       H._snapIndex().forEach(e => out.add('hist.s.' + e.k));
       out.delete('__probe');

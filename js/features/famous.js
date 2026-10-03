@@ -59,7 +59,8 @@
       if (miss.length) return 'Needs the ' + miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ') + ' module - coming with a later update.';
       if (Famous.isStub(lv)) return 'This crossing is still being surveyed - it opens with a later update.';
       if (!Famous.campaignOpen()) return 'Famous Bridges opens after road level ' + Famous.UNLOCK_AFTER + '.';
-      return 'Complete one of the two famous bridges before this one to unlock it.';
+      const st = S(), why = st && st.lockText ? safe(() => st.lockText(lv.id, BG.Levels), null) : null;
+      return why || 'Complete one of the two famous bridges before this one to unlock it.';
     },
     nextAfter(lv) {
       const list = Famous.playableLevels();
@@ -188,10 +189,12 @@
         const unlocked = Famous.isUnlocked(lv.id);
         const stars = st ? safe(() => st.getStars(lv.id), 0) : 0;
         const done = st && safe(() => st.isCompleted(lv.id), false);
+        // open, unfinished, and a later bridge is done: "Skipped - come back later" (BG.Storage.isSkipped)
+        const skip = unlocked && !done && !!(st && st.isSkipped && safe(() => st.isSkipped(lv.id, BG.Levels), false));
         const badge = miss.length ? '<span class="fb-need">Needs ' + esc(miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ')) + '</span>'
           : blocked ? '<span class="fb-need">Coming soon</span>' : '';
-        return `<button class="fb-tile ${unlocked ? 'open' : 'locked'} ${done ? 'done' : ''} ${blocked ? 'stub' : ''}" data-fbid="${lv.id}" data-id="${lv.id}" ${unlocked ? '' : 'aria-disabled="true"'} style="animation-delay:${Math.min(i, 20) * 22}ms">
-            <span class="fb-tile-art"><img src="${esc(H.art || '')}" alt="" draggable="false" loading="lazy" onerror="this.style.display='none'"><span class="fb-tile-year">${esc(H.year || '')}</span>${unlocked ? '' : '<span class="fb-tile-lock">' + icon('lock') + '</span>'}${badge}</span>
+        return `<button class="fb-tile ${unlocked ? 'open' : 'locked'} ${done ? 'done' : ''} ${blocked ? 'stub' : ''} ${skip ? 'skipped' : ''}" data-fbid="${lv.id}" data-id="${lv.id}" ${unlocked ? '' : 'aria-disabled="true"'} style="animation-delay:${Math.min(i, 20) * 22}ms">
+            <span class="fb-tile-art"><img src="${esc(H.art || '')}" alt="" draggable="false" loading="lazy" onerror="this.style.display='none'"><span class="fb-tile-year">${esc(H.year || '')}</span>${unlocked ? '' : '<span class="fb-tile-lock">' + icon('lock') + '</span>'}${badge}${skip ? '<span class="tile-skip">Skipped — come back later</span>' : ''}</span>
             <span class="fb-tile-body"><span class="fb-tile-num">${i + 1}</span><span class="fb-tile-txt"><b>${esc(lv.name)}</b><small>${esc(H.location || '')}</small></span>
             <span class="fb-tile-stars">${blocked ? '' : [0, 1, 2].map(k => starSvg(k < stars)).join('')}</span></span>
           </button>`;
@@ -200,6 +203,7 @@
         <div class="fb-intro glass">
           <div><h3>Build the bridges that made history</h3><p>Each crossing is a scaled-down version of a real bridge - its gap, its piers, its shipping channel. Read the story, then find out why the engineers chose the shape they did.</p></div>
           <span class="chip chip-lg">${starSvg(true)}<b>${Famous.stars()}</b> / ${max}</span>
+          ${BG.Hud && BG.Hud.unlockInfoBtn ? BG.Hud.unlockInfoBtn(CAMPAIGN) : ''}
         </div>
         ${open ? '' : '<p class="fb-gate">' + icon('lock') + '<span>Complete road level ' + Famous.UNLOCK_AFTER + ' to open Famous Bridges.</span></p>'}
         <div class="fb-grid">${tiles}</div>`;
