@@ -545,7 +545,7 @@
     setMaterial(id, silent) {
       const ed = this.editor; if (!ed) return;
       if (typeof ed.setMaterial === 'function') ed.setMaterial(id); else ed.material = id;
-      if (ed.tool !== 'build' && ed.tool !== 'select') { if (typeof ed.setTool === 'function') ed.setTool('build'); else ed.tool = 'build'; }
+      if (ed.tool !== 'build' && ed.tool !== 'select' && ed.tool !== 'arch') { if (typeof ed.setTool === 'function') ed.setTool('build'); else ed.tool = 'build'; } // arch-tool: the arch tool keeps its tool
     },
     toggleMirror() {
       const ed = this.editor; if (!ed) return;

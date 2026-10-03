@@ -38,7 +38,7 @@ It is plain HTML, CSS and JavaScript: no build step, no frameworks, no runtime d
 
 ![The editor: a steel truss half built, the next member dragged out with its length and cost](docs/screenshots/editor.jpg)
 
-Pick a material from the palette and drag from an anchor or a joint. Beams snap to a grid and to nearby joints, and stop at the material's maximum length. Building chains on from the end of the last beam. There is mirror building, select / move / delete, undo / redo, piers that can rise into towers, and nine bridge templates (beam, Warren, Pratt and Howe trusses, deck and through arches, suspension, cable-stayed, viaduct) to start from. The cost bar shows how close you are to the budget and to the two- and three-star thresholds.
+Pick a material from the palette and drag from an anchor or a joint. Beams snap to a grid and to nearby joints, and stop at the material's maximum length. Building chains on from the end of the last beam. There is mirror building, select / move / delete, undo / redo, piers that can rise into towers, and nine bridge templates (beam, Warren, Pratt and Howe trusses, deck and through arches, suspension, cable-stayed, viaduct) to start from. The **Arch & Curve tool** (`A`) lays a properly rounded arch or a hanging suspension cable in one gesture: drag from start to end, move up or down to set the rise, click. It picks the segments, keeps the joints on the grid, and can add the posts or hangers down to the deck for you; **Smooth** tidies an arch you built by hand. The cost bar shows how close you are to the budget and to the two- and three-star thresholds.
 
 ### Test it, and watch it fail
 
@@ -131,6 +131,7 @@ More detail on the rules, the badges, the daily challenge and every level is in 
 | Right-click / `E` | Erase (click or drag-sweep) |
 | `B` / `P` / `S` | Build tool / pier tool / select tool (`Delete` removes the selection, `Ctrl+A` selects all) |
 | `1`–`6` | Choose a material (in palette order) |
+| `A` | Arch & Curve tool: drag start to end, release, move up/down for the rise, click to place; `+`/`−` or wheel = segments, `Esc` / right-click cancels |
 | `M` | Mirror symmetry around the middle of the gap |
 | `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`) | Undo / redo |
 | `G` / `H` | Goals panel / level hint |
@@ -162,6 +163,7 @@ More detail on the rules, the badges, the daily challenge and every level is in 
 | Hold and lift | Menu: delete the joint / beam / pier under the finger, stop building, undo, fit view |
 | Drag empty space / two fingers | Pan |
 | Pinch | Zoom (also while the test runs) |
+| Arch tool: drag start to end, then drag the handle | Set the rise; tap empty space or **Place** to place the curve, **Cancel** or a two-finger tap cancels, − / + in the bar change the segments |
 
 ## Campaigns
 

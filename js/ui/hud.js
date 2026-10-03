@@ -67,6 +67,7 @@
     road: '<path d="M4 21L9 3M20 21L15 3"/><path d="M12 5v2.5M12 11v2.5M12 17v2.5"/>',
     train: '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13" r=".6" fill="currentColor"/><circle cx="15" cy="13" r=".6" fill="currentColor"/><path d="M8 16l-3 5M16 16l3 5M6.5 19h11"/>',
     track: '<path d="M3 18h18"/><path d="M3 14l4-3 4 2 4-6 6 4"/><path d="M6 18v2M12 18v2M18 18v2"/>',
+    arch: '<path d="M2 6h20"/><path d="M3 20Q12-1 21 20"/><path d="M7.5 6v6M16.5 6v6M12 6v3.5"/>', // arch-tool
     follow: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/><circle cx="12" cy="12" r="7.5"/>',
   };
   function icon(name, cls) {
@@ -753,6 +754,7 @@
             <button class="tool" data-tool="erase" title="Erase (E) — or right-click">${icon('erase')}<span>Erase</span></button>
             <button class="tool" data-tool="pier" title="Pier (P)">${icon('pier')}<span>Pier</span></button>
             <button class="tool" data-tool="select" title="Select (S) — box-select, then Delete; drag joints to move">${icon('select')}<span>Select</span></button>
+            <button class="tool" data-tool="arch" title="Arch &amp; Curve (A) — drag from start to end, move up/down for the rise, click to place">${icon('arch')}<span>Arch</span></button><!-- arch-tool -->
             <div class="rail-sep"></div>
             <button class="tool toggle" data-act="mirror" title="Mirror symmetry (M)">${icon('mirror')}<span>Mirror</span></button>
             <div class="tool-wrap" data-ref="tplWrap">

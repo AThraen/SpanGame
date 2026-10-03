@@ -4239,6 +4239,7 @@
       this._drawNoBuild(ctx, state);
       if (BG.TerrainFix && BG.TerrainFix.drawWaterLimit) BG.TerrainFix.drawWaterLimit(this, ctx, state); // terrain-fix: waterline = build limit
       this._drawEditOver(ctx, state, items, sh);
+      if (BG.ArchTool && BG.ArchTool.drawOverlay) BG.ArchTool.drawOverlay(this, ctx, state, sh); // arch-tool: curve preview
       if (this._pierLabels && this._pierLabels.length) {
         this._screenXf(ctx);
         for (const pl of this._pierLabels) this._label(ctx, pl[0], pl[1], pl[2] > 70 ? 'PIER ZONE' : 'PIER', 'rgba(40,32,10,0.8)', '#ffd860', 10);

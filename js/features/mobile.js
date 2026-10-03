@@ -299,6 +299,7 @@
           <b>Tap a joint</b><span>start / stop building from it</span>
           <b>Hold, then drag</b><span>move a joint</span>
           <b>Hold and lift</b><span>delete, stop, undo… menu</span>
+          <b>Arch tool</b><span>drag start to end, drag for the rise, tap to place; two-finger tap cancels</span>
           <b>Drag empty space</b><span>pan the view</span>
           <b>Pinch / two fingers</b><span>zoom and pan</span></div></div>`);
       card.insertBefore(gest, keys ? keys.nextSibling : foot2);
@@ -377,7 +378,7 @@
       sw.innerHTML = ($('.mat-ico', btn) || {}).innerHTML || '';
       nm.textContent = ($('.mat-info b', btn) || {}).textContent || mat;
       const cost = ($('.mat-meta em', btn) || {}).textContent || '', len = ($('.mat-meta i', btn) || {}).textContent || '';
-      sm.textContent = tool === 'erase' ? 'Erase tool' : tool === 'pier' ? 'Pier tool' : tool === 'select' ? 'Select tool' : cost + ' · ' + len;
+      sm.textContent = tool === 'erase' ? 'Erase tool' : tool === 'pier' ? 'Pier tool' : tool === 'select' ? 'Select tool' : tool === 'arch' ? 'Arch tool · ' + len : cost + ' · ' + len; // arch-tool
     }
     UI.chip.classList.toggle('m-tool-mode', tool !== 'build');
   }
@@ -561,6 +562,7 @@
   function editorBuilding() {
     const ed = editor();
     const a = ed && ed._act;
+    if (ed && ed._tool === 'arch' && ed._arch && ed._arch.phase === 'drag' && !(ed._dom && ed._dom.pan)) return true; // arch-tool: loupe while dragging a curve
     if (!a || (ed._dom && ed._dom.pan)) return false;
     return a.type === 'drag' || a.type === 'move' || a.type === 'pier' || a.type === 'chainpress' || a.type === 'press';
   }
@@ -608,7 +610,7 @@
       UI.reticle.classList.toggle('show', showR);
       if (showR) UI.reticle.style.transform = 'translate(' + Math.round(pt.x) + 'px,' + Math.round(pt.y) + 'px)';
     }
-    const wantLoupe = getSetting('loupe') !== false && (m.moved || a.type === 'chainpress' || (ed.state && ed.state.moveArmed));
+    const wantLoupe = getSetting('loupe') !== false && (m.moved || (a && a.type === 'chainpress') || (ed.state && ed.state.moveArmed));
     if (!wantLoupe) { UI.loupe.classList.remove('show'); M.loupeVisible = false; return; }
     const c = canvasEl();
     const rect = c.getBoundingClientRect();
@@ -704,7 +706,7 @@
   // (settings, daily panel, history), results card, material sheet, tool rail, sim bar, context menu,
   // goals panel, famous history card, the daily 14-day strip and the campaign tabs row.
   const SCROLLERS = '.ls-scroll, .tpl-menu, .modal-card, .results-card, .palette, .rail, .simbar, .m-ctx, ' +
-    '.goals-panel, .fb-card, .fb-body, .dly-hist, .camp-tabs, .hist-body';
+    '.goals-panel, .fb-card, .fb-body, .dly-hist, .camp-tabs, .hist-body, .arch-bar'; // arch-tool: the arch bar scrolls sideways on phones
   function installGuards() {
     const opt = { passive: false };
     ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => doc.addEventListener(t, (e) => { if (e.cancelable) e.preventDefault(); }, opt));
