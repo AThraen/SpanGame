@@ -57,8 +57,213 @@
 
   function pierCost(level, pier) {
     const c = costs();
-    const h = Math.max(0, pier.topY - floorY(level));
+    const h = Math.max(0, pier.topY - pierBaseY(level, pier));
     return c.pierBase + c.pierPerMeter * h;
+  }
+
+  // ------------------------------------------------------------------ land-side structures (SPEC §17)
+  // Inland anchors (deadman anchorages on a bank top, or set into a hillside above it), land pier zones
+  // (pierZones[i].ground = 'left' | 'right': the pier stands on that bank's surface - a land pylon) and the
+  // roadway clearance envelope over the bank roads. Levels without these fields behave exactly as before.
+  const INLAND_MIN = 1.0;     // m from the gap edge: an anchor on a bank top further back is "inland"
+  const HILL_MIN = 0.3;       // m above the bank surface: the anchor is set into a hillside
+  const ROAD_MARGIN = 0.5;    // m added to the tallest vehicle's height -> roadway envelope height
+  const ROADWAY_MSG = 'Keep the road clear';
+
+  /** Which bank surface lies under x: 'left' (x <= leftEdge), 'right' (x >= rightEdge) or null (the gap). */
+  function bankAt(level, x) {
+    const t = (level && level.terrain) || {};
+    if (x <= num(t.leftEdge, 0) + EPS) return 'left';
+    if (x >= num(t.rightEdge, 0) - EPS) return 'right';
+    return null;
+  }
+  function bankY(level, bank) {
+    const t = (level && level.terrain) || {};
+    return bank === 'right' ? num(t.rightY, 0) : num(t.leftY, 0);
+  }
+
+  /** Anchor i -> {i, id, x, y, kind: 'edge' | 'inland' | 'hill', bank, surfaceY, side (+1: the gap is
+   *  toward +x, i.e. left bank), explicit}. 'inland' = on a bank top >= INLAND_MIN from the gap edge (or
+   *  flagged `inland: true` on a bank); 'hill' = inland and more than HILL_MIN above the bank surface. */
+  function anchorInfo(level, i) {
+    const a = ((level && level.anchors) || [])[i];
+    if (!a) return null;
+    const t = (level && level.terrain) || {};
+    const L = num(t.leftEdge, 0), R = num(t.rightEdge, 0);
+    let bank = null;
+    if (a.x <= L - INLAND_MIN + EPS || (a.inland && a.x <= L + EPS)) bank = 'left';
+    else if (a.x >= R + INLAND_MIN - EPS || (a.inland && a.x >= R - EPS)) bank = 'right';
+    const sy = bank ? bankY(level, bank) : null;
+    let kind = 'edge';
+    if (bank && a.y >= sy - 0.05) kind = a.y > sy + HILL_MIN ? 'hill' : 'inland';
+    return { i, id: 'a' + i, x: a.x, y: a.y, kind, bank: kind === 'edge' ? null : bank, surfaceY: sy,
+      side: bank === 'right' ? -1 : 1, explicit: !!a.inland };
+  }
+  function inlandAnchors(level) {
+    const out = [];
+    const n = ((level && level.anchors) || []).length;
+    for (let i = 0; i < n; i++) { const f = anchorInfo(level, i); if (f && f.kind !== 'edge') out.push(f); }
+    return out;
+  }
+  function isInlandAnchorId(level, id) {
+    if (typeof id !== 'string' || id[0] !== 'a') return false;
+    const f = anchorInfo(level, +id.slice(1));
+    return !!f && f.kind !== 'edge';
+  }
+
+  /** Hillside under a 'hill' anchor: a convex polygon (counter-clockwise) standing on the bank surface,
+   *  its front-top corner = the anchor face (facing the gap). Solid for joints and beams like the banks. */
+  function hillPoly(f, level) {
+    const h = f.y - f.surfaceY, s = f.side;
+    const t = (level && level.terrain) || {};
+    const edge = s > 0 ? num(t.leftEdge, 0) : num(t.rightEdge, 0);
+    let toe = f.x + s * (0.5 * h + 0.3);
+    if (s * (toe - edge) > 0) toe = edge; // the hillside never overhangs the gap
+    const pts = [
+      { x: toe, y: f.surfaceY },                             // front toe (gap side)
+      { x: f.x, y: f.y },                                    // anchor face
+      { x: f.x - s * 3, y: f.y },                            // plateau
+      { x: f.x - s * (3 + 1.4 * h + 0.6), y: f.surfaceY },   // back toe
+    ];
+    return s > 0 ? pts : pts.reverse(); // counter-clockwise either way
+  }
+  function anchorMounds(level) {
+    const out = [];
+    for (const f of inlandAnchors(level)) if (f.kind === 'hill') out.push({ i: f.i, bank: f.bank, anchor: f, poly: hillPoly(f, level) });
+    return out;
+  }
+  // convex CCW polygon helpers (inward offset e > 0 shrinks the polygon: grazing within e is allowed)
+  function polyContains(poly, x, y, e) {
+    for (let k = 0; k < poly.length; k++) {
+      const p = poly[k], q = poly[(k + 1) % poly.length];
+      const ex = q.x - p.x, ey = q.y - p.y, l = hyp(ex, ey);
+      if (l < 1e-12) continue;
+      if ((ex * (y - p.y) - ey * (x - p.x)) / l <= e) return false; // left of the edge = inside
+    }
+    return true;
+  }
+  function segmentHitsPoly(x1, y1, x2, y2, poly, e) {
+    let t0 = 0, t1 = 1;
+    const dx = x2 - x1, dy = y2 - y1;
+    for (let k = 0; k < poly.length; k++) {
+      const p = poly[k], q = poly[(k + 1) % poly.length];
+      const ex = q.x - p.x, ey = q.y - p.y, l = hyp(ex, ey);
+      if (l < 1e-12) continue;
+      // inside: (ex*(y-p.y) - ey*(x-p.x))/l > e  ->  f(t) = f0 + t*fd > 0
+      const f0 = (ex * (y1 - p.y) - ey * (x1 - p.x)) / l - e;
+      const fd = (ex * dy - ey * dx) / l;
+      if (Math.abs(fd) < 1e-12) { if (f0 <= 0) return false; continue; }
+      const t = -f0 / fd;
+      if (fd > 0) { if (t > t0) t0 = t; } else if (t < t1) t1 = t;
+      if (t0 >= t1) return false;
+    }
+    return t1 - t0 > 1e-9;
+  }
+  function polyDistance(poly, x, y) {
+    let best = Infinity;
+    for (let k = 0; k < poly.length; k++) {
+      const p = poly[k], q = poly[(k + 1) % poly.length];
+      const dx = q.x - p.x, dy = q.y - p.y, l2 = dx * dx + dy * dy;
+      let u = l2 > 0 ? ((x - p.x) * dx + (y - p.y) * dy) / l2 : 0;
+      u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const d = hyp(x - p.x - u * dx, y - p.y - u * dy);
+      if (d < best) best = d;
+    }
+    return polyContains(poly, x, y, 0) ? 0 : best;
+  }
+
+  /** The pier zone containing x (or null). */
+  function pierZoneAt(level, x) {
+    for (const z of (level && level.pierZones) || []) {
+      if (x >= Math.min(z.x0, z.x1) - EPS && x <= Math.max(z.x0, z.x1) + EPS) return z;
+    }
+    return null;
+  }
+  /** 'left' | 'right' when the pier (or x) stands in a land pier zone (zone.ground), else null. */
+  function landPierBank(level, pierOrX) {
+    const x = typeof pierOrX === 'number' ? pierOrX : pierOrX && pierOrX.x;
+    if (typeof x !== 'number') return null;
+    const z = pierZoneAt(level, x);
+    return z && (z.ground === 'left' || z.ground === 'right') ? z.ground : null;
+  }
+  /** Where a pier's base stands: the bank surface in a land pier zone, else the valley floor. */
+  function pierBaseY(level, pierOrX) {
+    const g = landPierBank(level, pierOrX);
+    return g ? bankY(level, g) : floorY(level);
+  }
+
+  /** Tallest vehicle the level's traffic sends across (road vehicles and rail cars), m. */
+  function tallestVehicle(level) {
+    let h = 0;
+    for (const g of (level && level.traffic) || []) {
+      if (g && g.type === 'train') {
+        const tr = BG.Trains && BG.Trains[g.train];
+        for (const c of (tr && tr.cars) || []) {
+          const d = BG.RailCars && BG.RailCars[typeof c === 'string' ? c : c && c.type];
+          if (d && d.height > h) h = d.height;
+        }
+      } else {
+        const d = BG.Vehicles && g && BG.Vehicles[g.type];
+        if (d && d.height > h) h = d.height;
+      }
+    }
+    return h > 0 ? h : 2;
+  }
+  /** Does the level use land-side structures (inland anchors flagged or set in a hillside, land pier
+   *  zones) or ask for the roadway envelope (`roadClearance: true | <height m>`)? */
+  function hasLandFeatures(level) {
+    if (!level) return false;
+    if (level.roadClearance === false) return false;
+    if (level.roadClearance === true || typeof level.roadClearance === 'number') return true;
+    for (const z of level.pierZones || []) if (z && (z.ground === 'left' || z.ground === 'right')) return true;
+    const n = (level.anchors || []).length;
+    for (let i = 0; i < n; i++) {
+      const f = anchorInfo(level, i);
+      if (f && f.kind !== 'edge' && (f.explicit || f.kind === 'hill')) return true;
+    }
+    return false;
+  }
+  /** Roadway clearance envelope over both bank roads, or null when the level does not use it.
+   *  -> {height, vehicle, margin, rects: [{bank, x0, x1, y0, y1}]} (open rectangles: the road surface
+   *  itself and the envelope's top edge are legal). */
+  function roadEnvelope(level) {
+    if (!hasLandFeatures(level)) return null;
+    const t = level.terrain || {};
+    const veh = tallestVehicle(level);
+    const height = typeof level.roadClearance === 'number' && level.roadClearance > 0 ? level.roadClearance : veh + ROAD_MARGIN;
+    const B = 1e6, L = num(t.leftEdge, 0), R = num(t.rightEdge, 0), ly = num(t.leftY, 0), ry = num(t.rightY, 0);
+    return { height, vehicle: veh, margin: ROAD_MARGIN, rects: [
+      { bank: 'left', x0: L - B, x1: L, y0: ly, y1: ly + height },
+      { bank: 'right', x0: R, x1: R + B, y0: ry, y1: ry + height },
+    ] };
+  }
+  function inRoadway(level, x, y, env) {
+    const E = env === undefined ? roadEnvelope(level) : env;
+    if (!E) return false;
+    for (const r of E.rects) if (pointInRect(x, y, r)) return true;
+    return false;
+  }
+  /** Does a member cross the roadway envelope? Road / rail deck members are exempt, and so are members
+   *  that end at an inland anchor (anchorage stays run beside the carriageway into their deadman). */
+  function beamInRoadway(level, aId, bId, x1, y1, x2, y2, m, env) {
+    const E = env === undefined ? roadEnvelope(level) : env;
+    if (!E) return false;
+    const mat = mats()[m];
+    if (mat && (mat.isRoad || mat.isRail)) return false;
+    if (isInlandAnchorId(level, aId) || isInlandAnchorId(level, bId)) return false;
+    for (const r of E.rects) if (segmentHitsRect(x1, y1, x2, y2, r)) return true;
+    return false;
+  }
+  /** Horizontal extent of the land-side structures (inland anchors + their hillsides, land pier zones,
+   *  land piers of the design) -> {x0, x1, y1} or null when there are none. */
+  function landExtent(level, design) {
+    let x0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const add = (x, y) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y != null && y > y1) y1 = y; };
+    for (const f of inlandAnchors(level)) add(f.x, f.y);
+    for (const m of anchorMounds(level)) for (const p of m.poly) add(p.x, p.y);
+    for (const z of (level && level.pierZones) || []) if (z && (z.ground === 'left' || z.ground === 'right')) { add(z.x0, null); add(z.x1, null); }
+    for (const p of (design && design.piers) || []) if (landPierBank(level, p)) add(p.x, p.topY);
+    return x0 <= x1 ? { x0, x1, y1: isFinite(y1) ? y1 : null } : null;
   }
 
   function cost(level, design) {
@@ -105,6 +310,7 @@
     if (y < fy - e) return true;
     if (x < num(t.leftEdge, 0) - e && y < num(t.leftY, 0) - e) return true;
     if (x > num(t.rightEdge, 0) + e && y < num(t.rightY, 0) - e) return true;
+    for (const m of anchorMounds(level)) if (polyContains(m.poly, x, y, e)) return true; // hillside anchorages
     return false;
   }
 
@@ -126,6 +332,7 @@
       const rr = { x0: r.x0 + e, x1: r.x1 - e, y0: r.y0 + e, y1: r.y1 - e };
       if (segmentHitsRect(x1, y1, x2, y2, rr)) return true;
     }
+    for (const m of anchorMounds(level)) if (segmentHitsPoly(x1, y1, x2, y2, m.poly, e)) return true;
     return false;
   }
 
@@ -142,6 +349,7 @@
       const d = hyp(x - ax - u * dx, y - ay - u * dy);
       if (d < best) best = d;
     }
+    for (const m of anchorMounds(level)) { const d = polyDistance(m.poly, x, y); if (d < best) best = d; }
     return best;
   }
 
@@ -245,6 +453,7 @@
     const d = design || emptyDesign();
     const map = new Map();
     for (const n of allNodes(lv, { nodes: [], piers: d.piers || [] })) map.set(n.id, n);
+    const env = roadEnvelope(lv); // null on levels without land-side structures (§17)
 
     // user nodes
     for (const n of d.nodes || []) {
@@ -266,6 +475,7 @@
       // terrain-fix: user joints may not go below the waterline (a beam's lowest point is an endpoint,
       // so this also keeps beams out of the water unless they end on an anchor or a pier top)
       if (belowWater(lv, n.x, n.y)) errors.push({ type: 'underwater', msg: UNDERWATER_MSG, nodeId: n.id });
+      if (env && inRoadway(lv, n.x, n.y, env)) errors.push({ type: 'roadway', msg: ROADWAY_MSG, nodeId: n.id });
     }
 
     // piers
@@ -273,7 +483,6 @@
     const zones = lv.pierZones || [];
     const maxP = num(lv.maxPiers, 0);
     if (piers.length > maxP) errors.push({ type: 'too_many_piers', msg: 'Too many piers (max ' + maxP + ')' });
-    const fy = floorY(lv);
     for (let i = 0; i < piers.length; i++) {
       const p = piers[i];
       const id = 'p' + i;
@@ -281,7 +490,10 @@
       let inZone = false;
       for (const z of zones) if (p.x >= Math.min(z.x0, z.x1) - EPS && p.x <= Math.max(z.x0, z.x1) + EPS) { inZone = true; break; }
       if (!inZone) errors.push({ type: 'pier_out_of_zone', msg: 'Piers must stand in a pier zone', nodeId: id, pierIndex: i });
+      const fy = pierBaseY(lv, p); // valley floor, or the bank surface in a land pier zone
       if (p.topY < fy + 0.5) errors.push({ type: 'pier_too_short', msg: 'Pier is too short', nodeId: id, pierIndex: i });
+      // a land pylon's top (and so everything hung from it) must clear the traffic on the bank road
+      else if (env && landPierBank(lv, p) && inRoadway(lv, p.x, p.topY, env)) errors.push({ type: 'roadway', msg: ROADWAY_MSG, nodeId: id, pierIndex: i });
       if (ba && p.topY > ba.y1 + EPS) errors.push({ type: 'outside_build_area', msg: 'Pier rises above the build area', nodeId: id, pierIndex: i });
       for (const r of noBuild) {
         if (segmentHitsRect(p.x, fy, p.x, p.topY, r) || pointInRect(p.x, p.topY, r)) {
@@ -310,6 +522,7 @@
         if (segmentHitsRect(na.x, na.y, nb.x, nb.y, r)) { errors.push({ type: 'in_nobuild', msg: 'Beam crosses a no-build zone', beamIndex: i }); break; }
       }
       if (segmentInTerrain(lv, na.x, na.y, nb.x, nb.y, 0.05)) errors.push({ type: 'in_terrain', msg: 'Beam passes through the ground', beamIndex: i });
+      if (env && beamInRoadway(lv, b.a, b.b, na.x, na.y, nb.x, nb.y, b.m, env)) errors.push({ type: 'roadway', msg: ROADWAY_MSG, beamIndex: i });
       // track is laid (nearly) level - rail is not a structural web member
       if (mat.isRail && Math.abs(nb.y - na.y) > RAIL_MAX_SLOPE * Math.abs(nb.x - na.x) + EPS) {
         errors.push({ type: 'rail_too_steep', msg: 'Rail track must be laid nearly level (max ' + Math.round(RAIL_MAX_SLOPE * 100) + ' % slope)', beamIndex: i });
@@ -416,5 +629,9 @@
     segmentInTerrain, terrainDistance, TERRAIN_CLEARANCE, RAIL_MAX_SLOPE,
     nextNodeId, trafficSummary, roadConnected, railConnected, deckConnected, trafficKinds, railRules,
     belowWater, UNDERWATER_MSG, // terrain-fix
+    // land-side structures (SPEC §17)
+    anchorInfo, inlandAnchors, isInlandAnchorId, anchorMounds, bankAt, bankY, pierZoneAt, landPierBank, pierBaseY,
+    tallestVehicle, hasLandFeatures, roadEnvelope, inRoadway, beamInRoadway, landExtent,
+    segmentHitsPoly, polyContains, ROADWAY_MSG, ROAD_MARGIN, INLAND_MIN, HILL_MIN,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -103,6 +103,8 @@
                                   // lead car arrives ~2 s in: after the 1.2 s gravity ramp has settled,
                                   // without minutes of empty bridge for slow trains (handcar: 6 m)
   const TRAIN_SPAWN_MIN = 4;      // m: never closer than this to the gap
+  const PYLON_DAMP = 0.0015;      // fraction of a land pylon top's velocity removed per substep (rocking)
+  const PYLON_TILT_MAX = 0.05;    // rad (~2.9°): a land pylon leaning further has overturned its footing
 
   function mulberry32(a) {
     a = (a >>> 0) || 1;
@@ -254,10 +256,121 @@
       }
       this.nBeams = bIn;
       this.nDesignBeams = bIn;
+      const M = BG.Model;
+      this.piers = (design.piers || []).map(p => {
+        // land pier zones (SPEC §17): the pier stands on the bank surface
+        const g = M && M.landPierBank ? M.landPierBank(level, p) : null;
+        const o = { x: p.x, baseY: g ? M.pierBaseY(level, p) : this.terrain.floorY, topY: p.topY };
+        if (g) { o.ground = g; o.topX = p.x; o.tilt = 0; o.failed = false; }
+        return o;
+      });
+      this._buildPylons();
       for (let i = 0; i < nIn; i++) this.w[i] = this.nodes[i].fixed ? 0 : 1 / this.mass[i];
-
-      this.piers = (design.piers || []).map(p => ({ x: p.x, baseY: this.terrain.floorY, topY: p.topY }));
       this._buildBendLinks();
+    }
+
+    /* Land pylons (SPEC §17): a pier in a land pier zone is a concrete pylon standing on a footing on the bank.
+     * Its top is a free joint held by a rigid column to the footing (fixed) plus a rotational spring at the
+     * footing with a limited overturning moment (BG.LandPylon.momentLimit, zone.footing overrides). Pulled
+     * sideways by stays it leans on its backstays; with nothing to balance the pull the footing gives way
+     * and the pylon topples about its base. Levels without land pier zones: nPyl = 0, nothing runs. */
+    _buildPylons() {
+      this.nPyl = 0;
+      const ps = this.piers, list = [];
+      for (let i = 0; i < ps.length; i++) {
+        if (!ps[i].ground) continue;
+        const k = this.nodeIndex.get('p' + i);
+        if (k === undefined) continue;
+        const L = ps[i].topY - ps[i].baseY;
+        if (!(L > 0.3)) { ps[i].ground = null; continue; } // degenerate: stays a fixed point
+        list.push({ i, k, L });
+      }
+      if (!list.length) return;
+      const P = BG.LandPylon || {};
+      const n = list.length;
+      this.nPyl = n;
+      this.pyN = new Int32Array(n); this.pyPier = new Int32Array(n);
+      this.pyBX = new Float64Array(n); this.pyBY = new Float64Array(n);
+      this.pyBX0 = new Float64Array(n); this.pyBY0 = new Float64Array(n);
+      this.pyLen = new Float64Array(n); this.pyDC = new Float64Array(n);
+      this.pyRC = new Float64Array(n); this.pyCap = new Float64Array(n);
+      this.pyM = new Float64Array(n); this.pyMf = new Float64Array(n); this.pyF = new Float64Array(n);
+      this.pyAct = new Uint8Array(n); this.pyPeak = new Float64Array(n);
+      for (let q = 0; q < n; q++) {
+        const e = list[q], p = ps[e.i];
+        const z = BG.Model && BG.Model.pierZoneAt ? BG.Model.pierZoneAt(this.level, p.x) : null;
+        this.pyN[q] = e.k; this.pyPier[q] = e.i;
+        this.pyBX[q] = this.pyBX0[q] = p.x; this.pyBY[q] = this.pyBY0[q] = p.baseY;
+        this.pyLen[q] = e.L;
+        this.pyDC[q] = e.L / num(P.stiffness, 5e10);
+        this.pyRC[q] = 1 / num(P.footingStiffness, 2e9);
+        this.pyCap[q] = Math.max(1, num(z && z.footing, num(P.momentLimit, 3e5)));
+        this.pyAct[q] = 1;
+        this.mass[e.k] += num(P.massPerMeter, 900) * e.L / 3; // a uniform column swings like a third of its mass at the tip
+        this.nodes[e.k].fixed = false;
+        this.nodes[e.k].pylon = true;
+      }
+      this.firstTopple = null;
+    }
+
+    /* XPBD: column length (rigid) + footing rotation spring for every land pylon (substep). */
+    _solvePylons(h) {
+      const n = this.nPyl, px = this.px, py = this.py, w = this.w;
+      const invH2 = 1 / (h * h);
+      for (let q = 0; q < n; q++) {
+        const k = this.pyN[q], wk = w[k];
+        if (wk === 0) continue;
+        let dx = px[k] - this.pyBX[q], dy = py[k] - this.pyBY[q];
+        let len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-9) continue;
+        // column (base fixed: the whole correction goes to the top)
+        const C = len - this.pyLen[q];
+        const dl = -C / (wk + this.pyDC[q] * invH2);
+        px[k] += wk * dl * dx / len; py[k] += wk * dl * dy / len;
+        this.pyF[q] = -dl * invH2;
+        if (!this.pyAct[q]) {
+          // a toppled pylon comes to rest lying on the bank (it pivots about its footing on a flat bank top)
+          if (py[k] < this.pyBY[q]) { const sx = px[k] < this.pyBX[q] ? -1 : 1; px[k] = this.pyBX[q] + sx * this.pyLen[q]; py[k] = this.pyBY[q]; }
+          this.pyM[q] = 0; continue;
+        }
+        // footing: rotation of the column from vertical
+        dx = px[k] - this.pyBX[q]; dy = py[k] - this.pyBY[q];
+        const l2 = dx * dx + dy * dy;
+        if (l2 < 1e-8) continue;
+        const th = atan2Det(-dx, dy);
+        const gx = -dy / l2, gy = dx / l2;
+        const W = wk * (gx * gx + gy * gy);
+        let dm = -th / (W + this.pyRC[q] * invH2);
+        // elastic-plastic footing: it never resists more than its moment limit (it rotates instead)
+        const lim = this.pyCap[q] * h * h;
+        if (dm > lim) dm = lim; else if (dm < -lim) dm = -lim;
+        px[k] += wk * gx * dm; py[k] += wk * gy * dm;
+        this.pyM[q] = dm * invH2;
+      }
+    }
+
+    /* footing damping (velocity level) + moment filter / overturning check */
+    _pylonPost(h, kf) {
+      const n = this.nPyl, px = this.px, py = this.py, vx = this.vx, vy = this.vy, w = this.w;
+      for (let q = 0; q < n; q++) {
+        const k = this.pyN[q], wk = w[k];
+        if (wk === 0) continue;
+        const dx = px[k] - this.pyBX[q], dy = py[k] - this.pyBY[q], l2 = dx * dx + dy * dy;
+        // a little damping of the rocking (the column is rigid, so the top can only swing)
+        if (l2 > 1e-8 && this.pyAct[q]) { const d = 1 - PYLON_DAMP; vx[k] *= d; vy[k] *= d; }
+        if (!this.pyAct[q]) continue;
+        this.pyMf[q] += (this.pyM[q] - this.pyMf[q]) * kf;
+        const r = Math.abs(this.pyMf[q]) / this.pyCap[q];
+        if (r > this.pyPeak[q]) this.pyPeak[q] = r;
+        // overturned: leaning past PYLON_TILT_MAX the footing is torn out and the pylon falls about its base
+        if (Math.abs(atan2Det(-dx, dy)) > PYLON_TILT_MAX) {
+          this.pyAct[q] = 0; this.pyM[q] = 0;
+          const i = this.pyPier[q];
+          const ev = { type: 'pylon_fail', pier: i, x: this.pyBX[q], y: this.pyBY[q], moment: Math.abs(this.pyMf[q]), time: Math.round(this.time * 1000) / 1000 };
+          if (!this.firstTopple) this.firstTopple = ev;
+          this.events.push(ev);
+        }
+      }
     }
 
     /* Road decks (and rail tracks) are continuous: consecutive deck segments meeting at a joint get an
@@ -441,6 +554,12 @@
         vehiclesFinished: fin, vehiclesTotal: this.vehicles.length, brokenBeams: broken,
         failReason: this.failReason, firstBreak: this.firstBreak,
       };
+      if (this.nPyl) { // land pylons (SPEC §17)
+        let fallen = 0;
+        for (let q = 0; q < this.nPyl; q++) if (!this.pyAct[q]) fallen++;
+        out.pylonsToppled = fallen;
+        out.firstTopple = this.firstTopple;
+      }
       if (this._cars.length) {
         let der = 0;
         for (const c of this._cars) if (c.state === 'derailed' || c.state === 'fallen') der++;
@@ -685,6 +804,7 @@
           lM[l] = dl * invH2;
         }
       }
+      if (this.nPyl) this._solvePylons(h); // land pylons (SPEC §17)
 
       // 4. vehicle contacts
       for (let k = 0; k < vs.length; k++) {
@@ -819,6 +939,7 @@
 
       // 8. stress filter + breaking
       const kf = Math.min(1, h / STRESS_TAU);
+      if (this.nPyl) this._pylonPost(h, kf);
       const fF = this.fFilt, peak = this.peakArr, tl = this.tlim, cl = this.clim, frag = this.frag;
       for (let l = 0; l < nl; l++) if (this.lact[l]) this.lMf[l] += (this.lM[l] - this.lMf[l]) * kf;
       for (let j = 0; j < nb; j++) if (active[j]) fF[j] += (fRaw[j] - fF[j]) * kf;
@@ -1753,6 +1874,16 @@
         if (this.beamLinks[j]) b.bend = this.active[j] ? this._bendRatio(j) : 0;
         b.peak = this.peakArr[j];
         b.broken = !this.active[j];
+      }
+      for (let q = 0; q < this.nPyl; q++) {
+        // land pylons: live top, lean (rad, + = toward -x) and footing load (|moment| / limit)
+        const p = this.piers[this.pyPier[q]], k = this.pyN[q];
+        p.topX = this.px[k]; p.topY = this.py[k];
+        p.x = this.pyBX[q]; p.baseY = this.pyBY[q];
+        p.tilt = atan2Det(-(this.px[k] - this.pyBX[q]), this.py[k] - this.pyBY[q]);
+        p.footing = this.pyAct[q] ? Math.abs(this.pyMf[q]) / this.pyCap[q] : 1;
+        p.peak = this.pyPeak[q];
+        p.failed = !this.pyAct[q];
       }
       for (const v of this.vehicles) {
         if (v.kind === 'train') { if (v._live) this._syncTrain(v); continue; }

@@ -770,6 +770,10 @@
           break;
         case 'vehicle_finish': if (withAudio) sfx('finish'); break;
         case 'vehicle_fall': shake(0.35); break;
+        case 'pylon_fail': // a land pylon topples (SPEC §17)
+          if (withAudio) sfx('break', { material: 'masonry', pan });
+          shake(0.7);
+          break;
         case 'derail': {
           const v = sim.vehicles && sim.vehicles[ev.i];
           if (!this._derailFx && sim === this.sim && BG.RailInfo) {
@@ -1034,7 +1038,10 @@
 
       // what gave way first, and why (teaches reading the stress map)
       const fb = sum.firstBreak || sim.firstBreak;
-      if (!passed && !simOk && fb) {
+      const ft = sum.firstTopple || sim.firstTopple; // §17 a land pylon overturned its footing
+      if (!passed && !simOk && ft && (!fb || ft.time <= fb.time)) {
+        text += ' A land pylon toppled first: its footing could not hold the pull of its stays. Guy it back with backstays to an inland anchor behind it.';
+      } else if (!passed && !simOk && fb) {
         const mname = (materialDef(fb.m).name || fb.m).toLowerCase();
         const kN = Math.round(Math.abs(fb.force || 0) / 1000);
         let why;

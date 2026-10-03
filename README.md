@@ -33,6 +33,7 @@ The top bar of a level states only facts about that level: chapter number (or th
    - After you place a beam, building continues from its end: each click places the next beam (clicking empty space builds there too). Reaching an anchor ends the chain; Esc or right-click stops it anywhere. Clicking a joint that is out of reach builds toward it and stops at the material's maximum length, just as the preview shows.
    - A new joint that lands on an existing beam joins it: the beam is split there. So a strut that stops on the road is connected to the road.
    - Joints must stay at least 0.5 m clear of the ground (only anchors and piers bear on rock), and beams may not pass through it.
+   - **Building on the banks.** Some crossings have *inland anchors*: concrete deadman blocks buried in a bank top, or anchor blocks set into a hillside behind the road, each with a steel bolt plate where members attach. Their *land pier zones* (striped on the bank) take **land pylons**: concrete towers on a footing that the road passes through. A land pylon is not a fixed point like a pier in the valley: its footing only resists a small push, so a pylon pulled by its stays must be **guyed back** with a backstay to an inland anchor behind it, or it topples. On these levels the bank road also has a **clearance envelope** (the amber "keep clear" band, as tall as the tallest vehicle plus 0.5 m): no joint or member may go inside it, except the road deck itself and stays that end at an inland anchor. The editor marks a violating beam red and says "Keep the road clear".
    - **Road** and **reinforced road** are what vehicles drive on. The road must run continuously from bank to bank, and it bends at its joints: it needs a supported joint (a strut, hanger or chord) about every 5–6 m. **Wood** and **steel** are structural members. **Rope** and **cable** only carry tension. Pier tops are rigid concrete supports.
 4. **Test** (Space). Beams are coloured by live stress, from cool through yellow to red, and glow when above 85%. Hover a beam to see its force, stress and (for road) how much of it is bending. Overloaded members snap; the results say which member gave way first and why.
 5. **Optimise.** After a run, **Inspect** shows the peak stress each member reached, drawn on the bridge as built, with broken members marked. Back in the editor, hovering a beam shows its peak from the last test. Trim the members that stay white or green and reinforce the red ones.
@@ -215,6 +216,7 @@ tools/                   Node tooling (not loaded by the game)
   test-events.js         wind / quake physics, bit-identity of event-free levels, levels 51-53
   e2e.js                 headless-Chrome end-to-end check of the real game
   test-terrain-fix.js    underwater build rule + drawn terrain matches the model (Node + headless Chrome)
+  test-anchors.js        inland anchors, land pylons, roadway clearance envelope (SPEC §17)
   e2e-events.js          headless-Chrome check of the Forces of Nature levels and HUD
   test-generator.js      365 dailies + 200 random seeds: valid, road-only, solvable, deterministic; distribution + timing
   test-daily.js          daily/endless records, streaks, share text (Node) + headless-browser daily/endless flow
@@ -243,6 +245,7 @@ node tools/test-unlock.js      # campaign unlock rule: skip one level, chapter-f
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
 node tools/test-terrain-fix.js # underwater rule, editor feedback, drawn cliffs vs model (--no-browser: Node only)
+node tools/test-anchors.js     # inland anchors, land pylons (guyed stands / unguyed topples), roadway envelope, templates, editor
 node tools/test-goals.js       # every badge goal re-verified by simulation (tools/gen-goals.js regenerates them)
 node tools/test-events.js      # wind / quake events (add --full for the bit-identity check on every road and rail design)
 node tools/e2e-goals.js [outDir]   # headless browser check of the badges UI + persistence
@@ -364,6 +367,8 @@ The level select has one tab per campaign: **Roads** (1–50, plus the hidden *F
 1. Write `tools/levels/level-NN.json` (the shape is in SPEC.md §4.3) and run `node tools/build-levels.js`, which regenerates `js/core/levels.js`. Do not edit `levels.js` by hand.
 2. Save a reference design as `tools/solutions/level-NN.json` and a cheap one as `level-NN-best.json`. You can build them in the game and copy them with `BG.Model.serialize(BG.Game.getDesign())` in the browser console.
 3. Run `node tools/verify-levels.js --only NN` and adjust the budget until both designs pass.
+
+Land-side structures (SPEC.md §17) are opt-in per level: mark an anchor on a bank `{"x": -24, "y": 0, "inland": true}` (a deadman block; give it a `y` above the bank to set it into a hillside), give a pier zone `"ground": "left"` or `"right"` to let land pylons stand on that bank (optional `"footing"`: its overturning limit in N·m), and the roadway clearance envelope switches on by itself (`"roadClearance"` sets its height in metres, or `false` turns it off). Levels without these fields play exactly as before.
 
 ## Level generator
 

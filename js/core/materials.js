@@ -80,4 +80,9 @@
   BG.MaterialOrder = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable', 'rail', 'masonry', 'girder'];
   /** Cost constants. Pier cost = pierBase + pierPerMeter * (topY - floorY). */
   BG.Costs = { joint: 0, pierBase: 1000, pierPerMeter: 250 };
+  /** Land pylons (SPEC §17: piers in a land pier zone, zone.ground): a rigid concrete column on a footing.
+   *  The footing turns a little under moment (footingStiffness, N·m/rad) and resists at most momentLimit
+   *  (N·m; a zone's `footing` overrides it): beyond that it yields, the pylon leans, and past ~3° it
+   *  topples about its base - unless backstays take the pull. Cost as any pier, from the bank surface. */
+  BG.LandPylon = { stiffness: 5e10, footingStiffness: 2e9, momentLimit: 3e5, massPerMeter: 900 };
 })(typeof window !== 'undefined' ? window : globalThis);

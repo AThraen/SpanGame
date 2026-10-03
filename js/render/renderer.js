@@ -90,6 +90,7 @@
   function humanize(r) {
     if (!r) return null;
     if (r === 'underwater') return (BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water"; // terrain-fix
+    if (r === 'roadway') return (BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear'; // §17
     r = String(r).replace(/_/g, ' ');
     return r.charAt(0).toUpperCase() + r.slice(1);
   }
@@ -663,7 +664,10 @@
     let ax = f.wreck ? f.x : f.front - vwz * 0.2;
     let clamped = false;
     const t = L.terrain;
-    if (!f.wreck && ax > t.rightEdge + vwz * 0.22) { ax = t.rightEdge + vwz * 0.22; clamped = true; }
+    // stop at the far bank - or at the land-side structures beyond it (SPEC §17)
+    const land = this._landInfo();
+    const farX = land && land.ext ? Math.max(t.rightEdge, land.ext.x1 - vwz * 0.5) : t.rightEdge;
+    if (!f.wreck && ax > farX + vwz * 0.22) { ax = farX + vwz * 0.22; clamped = true; }
     const ay = f.y - vhz * 0.06;
     F.offX *= Math.exp(-dt * 0.5); F.offY *= Math.exp(-dt * 0.5);
     const sxm = ins.left + aw / 2, sym = ins.top + ah / 2;
@@ -683,7 +687,13 @@
     const lowRef = (t.waterY !== null && t.waterY !== undefined) ? t.waterY - 2.5 : t.floorY - 1;
     // the floor may be cropped: show at most a few metres below the build area (and the water line)
     const y0 = Math.min(ba.y0, Math.max(lowRef, top - 0.9 * (x1 - x0), ba.y0 - 4));
-    const y1 = Math.max(ba.y1, top + 7); // room for the tallest vehicles + a margin under the top bar
+    let y1 = Math.max(ba.y1, top + 7); // room for the tallest vehicles + a margin under the top bar
+    // land-side structures (SPEC §17): inland anchors, their hillsides and land pier zones stay in frame
+    const land = this._landInfo();
+    if (land && land.ext) {
+      const e = land.ext;
+      return { x0: Math.min(x0, e.x0 - 3), x1: Math.max(x1, e.x1 + 3), y0, y1: e.y1 != null ? Math.max(y1, e.y1 + 2) : y1 };
+    }
     return { x0, x1, y0, y1 };
   };
   R.fitToLevel = function (opts) {
@@ -709,6 +719,7 @@
     this.theme = themeOf(this.themeId);
     const self = this;
     this._bgRec = loadBg(this.themeId, function () { self._bgVersion++; self._backKey = self._midKey = ''; });
+    this._land = undefined; // §17 land-side structures (recomputed lazily)
     this._buildTerrain();
     this._initRail(level);
     this._clouds = null;
@@ -2512,6 +2523,9 @@
       ctx.restore();
     }
     const img = Sprites.raster('anchor', size * z * d);
+    const land = this._landInfo();
+    const inl = {};
+    if (land) for (const a of land.inland) inl[a.i] = a;
     (L.anchors || []).forEach((a, i) => {
       ctx.save();
       ctx.translate(a.x, a.y);
@@ -2520,7 +2534,12 @@
         ctx.fillStyle = 'rgba(255,214,90,' + (0.18 + 0.22 * p) + ')';
         ctx.beginPath(); ctx.arc(0, 0, 0.55 + 0.25 * p, 0, TAU); ctx.fill();
       }
-      if (img) {
+      if (inl[i]) { // §17 inland anchor: its block + bolt plate are drawn by _drawLandworks; add the shackle eye
+        const r = Math.max(0.16, 4.5 / z);
+        ctx.strokeStyle = '#2c3138'; ctx.lineWidth = Math.max(0.07, 2.4 / z);
+        ctx.fillStyle = '#d8dde3';
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); ctx.stroke();
+      } else if (img) {
         ctx.scale(1, -1);
         ctx.drawImage(img, -size / 2, -size * (28 / 128), size, size);
       } else {
@@ -2588,8 +2607,200 @@
   R._pierList = function (state) {
     const L = this.level, fy = L.terrain.floorY;
     const sim = state.sim;
-    if (sim && sim.piers && state.mode !== 'edit') return sim.piers.map(function (p) { return { x: p.x, baseY: p.baseY !== undefined ? p.baseY : fy, topY: p.topY }; });
-    return ((state.design && state.design.piers) || []).map(function (p) { return { x: p.x, baseY: p.baseY !== undefined ? p.baseY : fy, topY: p.topY }; });
+    const Mo = BG.Model;
+    if (sim && sim.piers && state.mode !== 'edit') return sim.piers.map(function (p) { return { x: p.x, baseY: p.baseY !== undefined ? p.baseY : fy, topY: p.topY, ground: p.ground || null, topX: p.topX, failed: !!p.failed, footing: p.footing }; });
+    return ((state.design && state.design.piers) || []).map(function (p) {
+      const g = Mo && Mo.landPierBank ? Mo.landPierBank(L, p) : null; // §17 land pylon: stands on the bank
+      return { x: p.x, baseY: p.baseY !== undefined ? p.baseY : g ? Mo.pierBaseY(L, p) : fy, topY: p.topY, ground: g };
+    });
+  };
+  /** a pier from _pierList: a concrete pier on the floor, or a land pylon on its footing (§17) */
+  R._drawPierItem = function (ctx, p, ghost, invalid) {
+    if (p.ground) this._drawPylon(ctx, p.x, p.baseY, p.topX !== undefined ? p.topX : p.x, p.topY, ghost, invalid, p);
+    else this._drawPier(ctx, p.x, p.baseY, p.topY, ghost, invalid);
+  };
+
+  // =====================================================================================
+  // land-side structures (SPEC §17): inland anchors (deadman blocks / hillside anchorages),
+  // land pylons, the roadway clearance envelope
+  // =====================================================================================
+  R._landInfo = function () {
+    const L = this.level, Mo = BG.Model;
+    if (!L || !Mo || !Mo.inlandAnchors) return null;
+    if (this._land !== undefined && this._landLevel === L) return this._land;
+    this._landLevel = L;
+    const inland = Mo.inlandAnchors(L);
+    const zones = (L.pierZones || []).filter(function (z) { return z && (z.ground === 'left' || z.ground === 'right'); });
+    const feat = Mo.hasLandFeatures(L);
+    this._land = (inland.length || zones.length || feat) ? {
+      inland, mounds: Mo.anchorMounds(L), zones, env: Mo.roadEnvelope(L),
+      ext: feat ? Mo.landExtent(L, null) : null, // only levels that use the new fields re-frame the camera
+    } : null;
+    return this._land;
+  };
+  /** hillsides under hillside anchors + concrete anchorage blocks with bolt plates (world space) */
+  R._drawLandworks = function (ctx) {
+    const land = this._landInfo();
+    if (!land || !land.inland.length) return;
+    const G = this.theme.ground, z = this.camera.zoom, px = 1 / z;
+    for (const m of land.mounds) {
+      const P = m.poly, a = m.anchor;
+      ctx.save();
+      // the hillside rises behind the road: soil body, strata, a grassy (or sandy / snowy) crest
+      ctx.beginPath();
+      P.forEach(function (q, i) { i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); });
+      ctx.closePath();
+      const gr = ctx.createLinearGradient(0, a.y, 0, a.surfaceY);
+      gr.addColorStop(0, mix(G.soil[0], '#ffffff', 0.06)); gr.addColorStop(1, G.soil[1]);
+      ctx.fillStyle = gr; ctx.fill();
+      ctx.clip();
+      ctx.globalAlpha = 0.35;
+      const h = a.y - a.surfaceY;
+      for (let k = 1; k < 5; k++) {
+        ctx.fillStyle = G.strata[k % G.strata.length];
+        const yy = a.surfaceY + h * k / 5;
+        ctx.fillRect(Math.min(P[0].x, P[3].x) - 1, yy, Math.abs(P[3].x - P[0].x) + 2, h * 0.08 + 0.05);
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      // crest strip along the slopes and plateau
+      ctx.save();
+      ctx.strokeStyle = G.a; ctx.lineWidth = 0.32; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      const s = a.side;
+      const front = s > 0 ? P[0] : P[3], back = s > 0 ? P[3] : P[0], plat = s > 0 ? P[2] : P[1];
+      ctx.moveTo(back.x, back.y + 0.12); ctx.lineTo(plat.x, plat.y - 0.12); ctx.lineTo(a.x - s * 0.4, a.y - 0.12);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.2 * px;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(front.x, front.y); ctx.stroke();
+      ctx.restore();
+    }
+    for (const a of land.inland) this._drawDeadman(ctx, a);
+  };
+  /** concrete anchorage block: buried flush in the bank ('inland') or set into the hillside face ('hill');
+   *  the anchor point is the bolt plate on its face, where the members end. */
+  R._drawDeadman = function (ctx, a) {
+    const z = this.camera.zoom, px = 1 / z, s = a.side;
+    ctx.save();
+    if (a.kind === 'hill') {
+      // block set into the slope behind the face, its face plumb toward the gap
+      const bx0 = a.x - s * 2.4, bx1 = a.x + s * 0.12, by0 = a.y - 1.9, by1 = a.y + 0.35;
+      const xl = Math.min(bx0, bx1), xr = Math.max(bx0, bx1);
+      const cg = ctx.createLinearGradient(xl, 0, xr, 0);
+      cg.addColorStop(0, s > 0 ? '#9c9e9d' : '#d2d4d2'); cg.addColorStop(1, s > 0 ? '#d2d4d2' : '#9c9e9d');
+      ctx.fillStyle = cg; ctx.fillRect(xl, by0, xr - xl, by1 - by0);
+      ctx.fillStyle = 'rgba(0,0,0,0.14)';
+      for (let k = 1; k < 3; k++) ctx.fillRect(xl, by0 + k * (by1 - by0) / 3, xr - xl, 1.2 * px);
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.2 * px; ctx.strokeRect(xl, by0, xr - xl, by1 - by0);
+      // bolt plate on the face
+      this._boltPlate(ctx, a.x + s * 0.13, a.y - 0.25, 0.16, 1.1, true);
+    } else {
+      // deadman: a buried concrete block (drawn in section), its top flush with the bank surface
+      const w = 2.4, d = 1.7, sy = a.surfaceY;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(a.x - w / 2 - 0.12, sy - d - 0.12, w + 0.24, d + 0.12);
+      const cg = ctx.createLinearGradient(0, sy, 0, sy - d);
+      cg.addColorStop(0, '#cfd1cf'); cg.addColorStop(1, '#8e9190');
+      ctx.fillStyle = cg; ctx.fillRect(a.x - w / 2, sy - d, w, d);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      for (let k = 1; k < 3; k++) ctx.fillRect(a.x - w / 2, sy - k * d / 3, w, 1.2 * px);
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.2 * px; ctx.strokeRect(a.x - w / 2, sy - d, w, d);
+      // tie rod down into the block
+      ctx.strokeStyle = '#4b5057'; ctx.lineWidth = Math.max(0.07, 1.6 * px);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, sy - d * 0.65); ctx.stroke();
+      // bolt plate on the surface
+      this._boltPlate(ctx, a.x, a.y + 0.06, 1.1, 0.16, false);
+    }
+    ctx.restore();
+  };
+  /** steel bolt plate centred at (x, y), w x h, with four bolts and the shackle eye at the anchor */
+  R._boltPlate = function (ctx, x, y, w, h, vertical) {
+    const px = 1 / this.camera.zoom;
+    const g = ctx.createLinearGradient(x - w / 2, y + h / 2, x + w / 2, y - h / 2);
+    g.addColorStop(0, '#7d858e'); g.addColorStop(1, '#3d434b');
+    ctx.fillStyle = g; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1 * px; ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = '#c9cfd6';
+    const r = Math.max(0.035, 1.3 * px);
+    for (let k = 0; k < 4; k++) {
+      const u = (k + 0.5) / 4 - 0.5;
+      const bx = vertical ? x : x + u * w * 0.9, by = vertical ? y + u * h * 0.9 : y;
+      ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
+    }
+  };
+  /** land pylon: a footing on the bank and a tapered concrete column to its (live) top */
+  R._drawPylon = function (ctx, x, baseY, tx, ty, ghost, invalid, info) {
+    const z = this.camera.zoom, px = 1 / z;
+    const dx = tx - x, dy = ty - baseY, len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.2) return;
+    ctx.save();
+    if (ghost) ctx.globalAlpha = 0.55;
+    // footing block (stays on the bank)
+    ctx.fillStyle = invalid ? '#c8483a' : '#8f9294';
+    ctx.fillRect(x - 1.9, baseY - 1.1, 3.8, 1.1);
+    ctx.fillStyle = invalid ? '#e0604f' : '#a9acad';
+    ctx.fillRect(x - 1.6, baseY - 0.05, 3.2, 0.32);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1 * px; ctx.strokeRect(x - 1.9, baseY - 1.1, 3.8, 1.1);
+    // column in its own frame: u along the column, v across
+    ctx.translate(x, baseY + 0.25);
+    ctx.rotate(Math.atan2(-dx, dy));
+    const L = len - 0.25, wb = 1.35, wt = 0.9;
+    const g = ctx.createLinearGradient(-wb / 2, 0, wb / 2, 0);
+    if (invalid) { g.addColorStop(0, '#ff8a7a'); g.addColorStop(1, '#b8382a'); }
+    else { g.addColorStop(0, '#dcdedc'); g.addColorStop(0.35, '#c6c8c6'); g.addColorStop(1, '#8a8d8e'); }
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(-wb / 2, 0); ctx.lineTo(wb / 2, 0); ctx.lineTo(wt / 2, L - 0.5); ctx.lineTo(-wt / 2, L - 0.5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1 * px; ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let u = 1.8; u < L - 0.8; u += 1.8) { const w = wb + (wt - wb) * (u / L); ctx.fillRect(-w / 2, u, w, 1.2 * px); }
+    // the road passes through the pylon: a portal opening at the base
+    if (!info || !info.failed) {
+      const env = (this._landInfo() || {}).env;
+      const oh = env ? Math.min(L - 1.2, env.height - 0.2) : 0;
+      if (oh > 0.5) {
+        ctx.fillStyle = 'rgba(20,24,30,0.28)';
+        ctx.fillRect(-wb * 0.28, 0, wb * 0.56, oh);
+      }
+    }
+    // saddle / cap
+    ctx.fillStyle = invalid ? '#e0604f' : '#e2e4e3';
+    ctx.beginPath(); ctx.moveTo(-wt / 2 - 0.25, L - 0.1); ctx.lineTo(wt / 2 + 0.25, L - 0.1); ctx.lineTo(wt / 2, L - 0.55); ctx.lineTo(-wt / 2, L - 0.55); ctx.closePath(); ctx.fill();
+    // footing about to give way: red glow at the base
+    if (info && !info.failed && info.footing > 0.85) {
+      ctx.fillStyle = 'rgba(255,60,40,' + (0.25 + 0.3 * Math.min(1, (info.footing - 0.85) / 0.15)) + ')';
+      ctx.fillRect(-wb / 2 - 0.1, -0.2, wb + 0.2, 1.0);
+    }
+    ctx.restore();
+  };
+  /** edit overlay (screen space): the roadway envelope over each bank road ("keep clear") */
+  R._drawRoadway = function (ctx) {
+    const land = this._landInfo();
+    if (!land || !land.env) return;
+    const v = this._visibleWorld(), W = this.W;
+    for (const r of land.env.rects) {
+      const x0 = Math.max(r.x0, v.x0 - 2), x1 = Math.min(r.x1, v.x1 + 2);
+      if (x1 <= x0) continue;
+      const p0 = this.worldToScreen(x0, r.y1), p1 = this.worldToScreen(x1, r.y0);
+      const w = p1.x - p0.x, h = p1.y - p0.y;
+      if (w <= 0 || h <= 0) continue;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p0.x, p0.y, w, h); ctx.clip();
+      ctx.fillStyle = 'rgba(255,190,60,0.07)'; ctx.fillRect(p0.x, p0.y, w, h);
+      ctx.strokeStyle = 'rgba(255,190,60,0.22)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const sp = 16;
+      for (let x = p0.x - h - sp; x < p1.x + sp; x += sp) { ctx.moveTo(x, p1.y); ctx.lineTo(x + h, p0.y); }
+      ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(255,200,80,0.75)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.moveTo(p0.x, Math.round(p0.y) + 0.5); ctx.lineTo(p1.x, Math.round(p0.y) + 0.5); ctx.stroke();
+      ctx.setLineDash([]);
+      if (h > 14 && w > 240) {
+        // in the middle of the visible stretch of bank road, clear of the abutment (pylons stand nearer the gap)
+        const lx = r.bank === 'left' ? Math.min((Math.max(p0.x, 0) + p1.x) / 2, p1.x - 120) : Math.max((p0.x + Math.min(p1.x, W)) / 2, p0.x + 120);
+        this._label(ctx, lx, p0.y - 10, 'ROAD · KEEP CLEAR ' + land.env.height.toFixed(1) + ' m', 'rgba(70,46,6,0.78)', '#ffd98a', 10);
+      }
+    }
   };
 
   // =====================================================================================
@@ -3555,11 +3766,14 @@
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
     }
+    this._drawRoadway(ctx); // §17 roadway clearance envelope
     // pier zones
     if ((L.maxPiers || 0) > 0 && L.pierZones && L.pierZones.length) {
       const active = es.tool === 'pier';
-      const fy = L.terrain.floorY;
+      const Mo = BG.Model;
       for (const pz of L.pierZones) {
+        // land pier zones (§17) are marked on the bank surface
+        const fy = (pz.ground === 'left' || pz.ground === 'right') && Mo && Mo.bankY ? Mo.bankY(L, pz.ground) : L.terrain.floorY;
         const a = this.worldToScreen(pz.x0, fy), b = this.worldToScreen(pz.x1, fy);
         const topS = this.worldToScreen(0, Math.max(L.terrain.leftY, L.terrain.rightY) + 2).y;
         const col = ctx.createLinearGradient(0, a.y, 0, topS);
@@ -3771,15 +3985,17 @@
     // ghost pier
     const gp = es.pierGhost || es.ghostPier || (gh && (gh.pier || gh.kind === 'pier') ? { x: gh.x2 !== undefined ? gh.x2 : gh.x, topY: gh.y2 !== undefined ? gh.y2 : gh.topY, valid: gh.valid } : null);
     if (gp && typeof gp.x === 'number') {
-      this._drawPier(ctx, gp.x, L.terrain.floorY, gp.topY, true, gp.valid === false);
+      const Mo = BG.Model, gnd = Mo && Mo.landPierBank ? Mo.landPierBank(L, gp.x) : null; // §17 land pylon
+      const gby = gnd ? Mo.pierBaseY(L, gp.x) : L.terrain.floorY;
+      this._drawPierItem(ctx, { x: gp.x, baseY: gby, topY: gp.topY, ground: gnd }, true, gp.valid === false);
       let cost = gp.cost;
-      if (typeof cost !== 'number' && BG.Costs) cost = Math.round((BG.Costs.pierBase || 0) + (BG.Costs.pierPerMeter || 0) * (gp.topY - L.terrain.floorY));
-      label = { x: gp.x, y: gp.topY + 1.2, text: (gp.topY - L.terrain.floorY).toFixed(1) + ' m pier' + (typeof cost === 'number' ? '  ·  $' + cost.toLocaleString('en-US') : ''), bad: gp.valid === false };
+      if (typeof cost !== 'number' && BG.Costs) cost = Math.round((BG.Costs.pierBase || 0) + (BG.Costs.pierPerMeter || 0) * (gp.topY - gby));
+      label = { x: gp.x, y: gp.topY + 1.2, text: (gp.topY - gby).toFixed(1) + ' m ' + (gnd ? 'pylon' : 'pier') + (typeof cost === 'number' ? '  ·  $' + cost.toLocaleString('en-US') : ''), bad: gp.valid === false };
     }
     // hovered pier
     if (typeof es.hoverPier === 'number' && state.design && state.design.piers && state.design.piers[es.hoverPier]) {
       const p = state.design.piers[es.hoverPier];
-      const fy = L.terrain.floorY;
+      const fy = BG.Model && BG.Model.pierBaseY ? BG.Model.pierBaseY(L, p) : L.terrain.floorY; // §17 land pylons
       ctx.strokeStyle = erase ? '#ff5a4a' : '#ffffff'; ctx.lineWidth = 2.5 * px;
       ctx.globalAlpha = 0.6 + 0.4 * pulse;
       ctx.strokeRect(p.x - 1.05, fy - 0.2, 2.1, p.topY - fy + 0.2);
@@ -3907,8 +4123,9 @@
 
     this._worldXf(ctx, sh.x, sh.y);
     this._drawShips(ctx);
+    this._drawLandworks(ctx); // §17 hillsides + anchorage blocks
     const piers = this._pierList(state);
-    for (const p of piers) this._drawPier(ctx, p.x, p.baseY, p.topY);
+    for (const p of piers) this._drawPierItem(ctx, p);
 
     // beams
     const items = this._collectBeams(state);

@@ -102,6 +102,11 @@
     return false;
   }
 
+  // where a pier at x stands: the bank surface in a land pier zone (BG.Model, SPEC §17), else the floor
+  function pierBase(level, x, floorY) {
+    const M = BG.Model;
+    return M && M.landPierBank && M.landPierBank(level, x) ? M.pierBaseY(level, x) : floorY;
+  }
   function checkGeometry(level, design) {
     const errors = [];
     const err = (type, msg, extra) => errors.push(Object.assign({ type, msg }, extra || {}));
@@ -134,10 +139,11 @@
     piers.forEach((p, i) => {
       const okZone = zones.some((z) => p.x >= z.x0 - EPS && p.x <= z.x1 + EPS);
       if (!okZone) err('pier_zone', 'Pier outside pier zone', { nodeId: 'p' + i });
-      if (!(p.topY > floorY)) err('pier_height', 'Pier top below floor', { nodeId: 'p' + i });
+      const baseY = pierBase(level, p.x, floorY); // land pier zones: the bank surface (SPEC §17)
+      if (!(p.topY > baseY)) err('pier_height', 'Pier top below floor', { nodeId: 'p' + i });
       if (area && p.topY > area.y1 + EPS) err('outside_area', 'Pier top outside build area', { nodeId: 'p' + i });
       for (const z of noBuild) {
-        if (p.x > z.x0 + 1e-4 && p.x < z.x1 - 1e-4 && p.topY > z.y0 + 1e-4 && floorY < z.y1) { err('nobuild', 'Pier in no-build zone', { nodeId: 'p' + i }); break; }
+        if (p.x > z.x0 + 1e-4 && p.x < z.x1 - 1e-4 && p.topY > z.y0 + 1e-4 && baseY < z.y1) { err('nobuild', 'Pier in no-build zone', { nodeId: 'p' + i }); break; }
       }
     });
 
@@ -193,6 +199,7 @@
     return best;
   }
 
+  function isLandZone(z) { return !!z && (z.ground === 'left' || z.ground === 'right'); }
   function makeContext(level, opts) {
     const t = level.terrain || {};
     const anchors = level.anchors || [];
@@ -219,11 +226,15 @@
       mMax: mats.masonry ? maxLen(mats.masonry) : 0,
       area, floorY, waterY,
       lowY: Math.max(floorY, waterY == null ? -1e9 : waterY) + 0.6,
-      zones: level.pierZones || [],
+      zones: (level.pierZones || []).filter((z) => !isLandZone(z)), // pier zones in the gap
+      landZones: (level.pierZones || []).filter(isLandZone),          // land pier zones (SPEC §17)
       maxPiers: num(level.maxPiers, 0),
       noBuild: level.noBuild || [],
       existingPiers: (opts.design && Array.isArray(opts.design.piers)) ? opts.design.piers : [],
     };
+    const M = BG.Model;
+    ctx.env = M && M.roadEnvelope ? M.roadEnvelope(level) : null;      // roadway clearance envelope or null
+    ctx.inland = M && M.inlandAnchors ? M.inlandAnchors(level) : [];    // inland (deadman / hillside) anchors
     ctx.deckY = (x) => A.y + (B.y - A.y) * (x - A.x) / L;
     ctx.deckTop = Math.max(A.y, B.y);
     ctx.deckLow = Math.min(A.y, B.y);
@@ -313,12 +324,17 @@
     return Math.max(2, Math.ceil(c.L / (Math.min(c.roadMax, limit || Infinity) * 0.999)));
   }
 
-  function pierOK(c, x, topY) {
-    if (!c.zones.some((z) => x >= z.x0 - EPS && x <= z.x1 + EPS)) return false;
-    if (!(topY > c.floorY + 0.5)) return false;
+  function pierOK(c, x, topY, land) {
+    if (!(land ? c.landZones : c.zones).some((z) => x >= Math.min(z.x0, z.x1) - EPS && x <= Math.max(z.x0, z.x1) + EPS)) return false;
+    const base = land ? pierBase(c.level, x, c.floorY) : c.floorY;
+    if (!(topY > base + 0.5)) return false;
     if (topY > c.area.y1 + EPS) return false;
-    for (const z of c.noBuild) if (x > z.x0 - 0.05 && x < z.x1 + 0.05 && topY > z.y0 && c.floorY < z.y1) return false;
+    for (const z of c.noBuild) if (x > z.x0 - 0.05 && x < z.x1 + 0.05 && topY > z.y0 && base < z.y1) return false;
     return true;
+  }
+  // how many banks have a land pier zone (0-2)
+  function landSides(c) {
+    return (c.landZones.some((z) => z.ground === 'left') ? 1 : 0) + (c.landZones.some((z) => z.ground === 'right') ? 1 : 0);
   }
 
   // choose a pier position near `target` within [lo,hi]; prefers deck joints and existing piers
@@ -638,6 +654,44 @@
     return { id, x: pick.x, y: top, idx: pick.idx, bank: false };
   }
 
+  // land pylon (SPEC §17): a pier in a land pier zone on that bank, guyed back by a backstay to an inland
+  // anchor behind it (a land pylon without one topples). Tallest of: deck + H, the roadway envelope + 0.5 m.
+  function landTower(F, side, H, used) {
+    const c = F.ctx, left = side === 'L', bank = left ? 'left' : 'right';
+    const zs = c.landZones.filter((z) => z.ground === bank);
+    if (!zs.length || !BG.Model) return null;
+    const by = BG.Model.bankY(c.level, bank);
+    const minTop = by + (c.env ? c.env.height + 0.5 : 2);
+    const top = Math.ceil(Math.max(c.deckTop + H, minTop) * 4) / 4;
+    if (top > c.area.y1 - 0.05) return null;
+    const edge = left ? c.xL : c.xR;
+    let best = null;
+    for (const z of zs) {
+      const x0 = Math.min(z.x0, z.x1), x1 = Math.max(z.x0, z.x1);
+      for (let x = Math.ceil(x0 * 2) / 2; x <= x1 + EPS; x += 0.5) {
+        if (used.some((u) => Math.abs(u - x) < 2)) continue;
+        if (!pierOK(c, x, top, true)) continue;
+        // backstay: the inland anchor furthest behind the pylon that a tension member still reaches
+        let ai = -1, ad = -1;
+        for (const a of c.inland) {
+          if (a.bank !== bank || (left ? a.x > x - 1 : a.x < x + 1)) continue;
+          const l = hyp(a.x - x, a.y - top);
+          if (l > c.tMax * 0.995 || Math.abs(a.x - x) < 2) continue;
+          const d = Math.abs(a.x - x);
+          if (d > ad) { ad = d; ai = a.i; }
+        }
+        if (ai < 0) continue;
+        const score = Math.abs(edge - x); // nearer the gap: shorter stays
+        if (!best || score < best.score) best = { x, ai, score };
+      }
+    }
+    if (!best) return null;
+    used.push(best.x);
+    const id = F.pier(best.x, top);
+    F.beam(id, 'a' + best.ai, c.tension);
+    return { id, x: best.x, y: top, idx: -1, bank: false, land: true };
+  }
+
   function suspensionBuild(F, v) {
     const c = F.ctx, n = v.n;
     if (c.L / n > c.roadMax * 1.0001) return false;
@@ -645,7 +699,12 @@
     const D = deck.ids, xs = deck.xs, ys = deck.ys;
     const used = [];
     let TL = null, TR = null;
-    if (v.towers === 'piers') {
+    if (v.towers === 'land') {
+      if (c.maxPiers < 2) return false;
+      TL = landTower(F, 'L', v.H, used);
+      TR = landTower(F, 'R', v.H, used);
+      if (!TL || !TR) return false;
+    } else if (v.towers === 'piers') {
       if (c.maxPiers < 2) return false;
       TL = pierTower(F, deck, c.xL + c.L * 0.22, c.xL + c.L * 0.08, c.xL + c.L * 0.42, v.H, used);
       TR = pierTower(F, deck, c.xR - c.L * 0.22, c.xR - c.L * 0.42, c.xR - c.L * 0.08, v.H, used);
@@ -688,8 +747,8 @@
       }
       F.beam(p2, tw.id, T);
     };
-    if (!TL.bank) side(TL, 1, TL.idx - (Math.abs(xs[TL.idx] - TL.x) < 0.05 ? 1 : 0), c.aL);
-    if (!TR.bank) side(TR, n - 1, TR.idx + (Math.abs(xs[TR.idx] - TR.x) < 0.05 ? 1 : 0), c.aR);
+    if (!TL.bank && !TL.land) side(TL, 1, TL.idx - (Math.abs(xs[TL.idx] - TL.x) < 0.05 ? 1 : 0), c.aL);
+    if (!TR.bank && !TR.land) side(TR, n - 1, TR.idx + (Math.abs(xs[TR.idx] - TR.x) < 0.05 ? 1 : 0), c.aR);
     // hangers: verticals + one inclined hanger per panel (triangulates the deck/cable network)
     const mid = n / 2;
     for (let i = 1; i < n; i++) if (C[i] && C[i] !== D[i]) F.beam(D[i], C[i], T);
@@ -709,6 +768,8 @@
     const Hp0 = num(opts.height, clamp(c.L * 0.15, 5, 28));
     const Hb0 = c.sMax;
     const modes = usePiers ? ['piers', 'bank'] : ['bank'];
+    // land pylons on both banks, backstayed to inland anchors (SPEC §17): tried first
+    if (c.maxPiers >= 2 && landSides(c) === 2 && opts.towers !== 'bank') modes.unshift('land');
     for (const towers of modes) {
       for (const sc of [1, 0.8, 0.62, 0.45]) {
         const H = Math.min(Hp0 * sc, c.capAbove);
@@ -726,7 +787,14 @@
     const D = deck.ids, xs = deck.xs, ys = deck.ys;
     const used = [];
     const towers = [];
-    if (v.mode === 'center' && c.maxPiers >= 1) {
+    if (v.mode === 'land') {
+      for (const sd of ['L', 'R']) {
+        if (towers.length >= c.maxPiers) break;
+        const t = landTower(F, sd, v.H, used);
+        if (t) towers.push(t);
+      }
+      if (!towers.length) return false;
+    } else if (v.mode === 'center' && c.maxPiers >= 1) {
       const t = pierTower(F, deck, c.mid, c.mid - c.L * 0.25, c.mid + c.L * 0.25, v.H, used);
       if (!t) return false;
       towers.push(t);
@@ -741,6 +809,7 @@
       if (dy < 0.8) return Infinity;
       if (dx > 0.05 && dy / dx < 0.16) return Infinity;
       const l = hyp(dx, dy);
+      if (t.land && BG.Model && BG.Model.beamInRoadway(c.level, t.id, D[i], t.x, t.y, xs[i], ys[i], c.tension, c.env)) return Infinity;
       return l <= c.tMax * 0.995 ? l : Infinity;
     };
     const hasTower = (i) => towers.some((t) => t.idx === i);
@@ -774,6 +843,7 @@
     const out = [];
     const n0 = minPanels(c);
     const modes = [];
+    if (c.maxPiers >= 1 && landSides(c) && opts.towers !== 'bank') modes.push('land'); // SPEC §17
     if (c.maxPiers >= 1 && c.zones.length && opts.towers !== 'bank') {
       if (c.maxPiers >= 2 && c.L >= 70) modes.push('pair', 'center'); else modes.push('center', 'pair');
     }

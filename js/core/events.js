@@ -374,6 +374,8 @@
     const fx = this.fixed, px = sim.px, py = sim.py;
     const xm = 0.5 * (t0.leftEdge + t0.rightEdge);
     for (let k = 0; k < fx.length; k++) { px[fx[k]] = this.fx0[k]; py[fx[k]] = this.fy0[k]; }
+    const np = sim.nPyl || 0; // land pylons (SPEC §17): their footings ride on the ground too
+    for (let q = 0; q < np; q++) { sim.pyBX[q] = sim.pyBX0[q]; sim.pyBY[q] = sim.pyBY0[q]; }
     let any = false;
     for (const ev of this.quakes) {
       if (t <= ev.start || t >= ev.start + ev.duration + (t0.rightEdge - x0) / ev.waveSpeed) continue;
@@ -381,6 +383,10 @@
       for (let k = 0; k < fx.length; k++) {
         const o = groundOffset(ev, this.fx0[k], t, seed, x0);
         px[fx[k]] += o.dx; py[fx[k]] += o.dy;
+      }
+      for (let q = 0; q < np; q++) {
+        const o = groundOffset(ev, sim.pyBX0[q], t, seed, x0);
+        sim.pyBX[q] += o.dx; sim.pyBY[q] += o.dy;
       }
       let o = groundOffset(ev, t0.leftEdge, t, seed, x0); dxL += o.dx; dyL += o.dy;
       o = groundOffset(ev, t0.rightEdge, t, seed, x0); dxR += o.dx; dyR += o.dy;

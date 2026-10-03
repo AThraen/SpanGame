@@ -468,6 +468,68 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   const hNew = await hintAt(1, (d) => { const S = BG.Storage; S.resetProgress(); S.saveDesign(1, d); });
   ok('hint: auto-shown on a built level that was never passed', hNew.show && hNew.beams > 0, hNew);
 
+  // ================================================================ land-side structures (SPEC §17): inland anchors, land pylons, roadway envelope
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?noresume'); await page.waitForTimeout(1200);
+  const landLevel = {
+    id: 9901, name: 'Anchor Yard', theme: 'meadow', hint: 'Guy the pylons back to the anchors.',
+    terrain: { leftEdge: 0, leftY: 0, rightEdge: 40, rightY: 0, floorY: -10, waterY: -6 },
+    anchors: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: -24, y: 0, inland: true }, { x: 60, y: 7, inland: true }],
+    pierZones: [{ x0: -8, x1: -3, ground: 'left' }, { x0: 43, x1: 48, ground: 'right' }], maxPiers: 2,
+    noBuild: [], buildArea: { x0: -26, x1: 62, y0: -6, y1: 26 },
+    materials: ['road', 'reinforced_road', 'steel', 'cable'], budget: 100000,
+    traffic: [{ type: 'bus', count: 2, interval: 3 }], timeLimit: 30, templates: true,
+  };
+  await page.evaluate((L) => { BG.Levels.push(L); BG.Game.openLevel(9901, { force: true }); }, landLevel); await page.waitForTimeout(900);
+  await page.evaluate(() => { BG.Hud.hideHint(); BG.Game.editor.design = { nodes: [], beams: [], piers: [] }; });
+  const fit = await page.evaluate(() => {
+    const r = BG.Game.renderer, c = BG.Game.canvas.getBoundingClientRect(), s = (x, y) => r.worldToScreen(x, y);
+    const inView = (x, y) => { const p = s(x, y); return p.x >= 0 && p.x <= c.width && p.y >= 0 && p.y <= c.height; };
+    return { a2: inView(-24, 0), a3: inView(60, 7), hill: inView(64, 0), b: r.levelBounds() };
+  });
+  ok('§17 fitToLevel frames the inland anchors and the hillside anchorage', fit.a2 && fit.a3 && fit.hill && fit.b.x0 <= -27 && fit.b.x1 >= 66, fit);
+  await shot('40-land-empty');
+  // a steel member from the road anchor back over the bank road, through the vehicle envelope: red ghost + toast
+  await page.keyboard.press('3'); // steel
+  const a0s = await W2S(0, 0), low = await W2S(-6, 2);
+  await page.mouse.move(a0s.x, a0s.y); await page.mouse.down();
+  await page.mouse.move((a0s.x + low.x) / 2, (a0s.y + low.y) / 2, { steps: 4 }); await page.mouse.move(low.x, low.y, { steps: 4 });
+  const gh = await page.evaluate(() => { const g = BG.Game.editor.state.ghost; return g && { valid: g.valid, reason: g.reason }; });
+  await shot('41-land-roadway-ghost');
+  await page.mouse.up(); await page.waitForTimeout(150);
+  const rw = await page.evaluate(() => ({ beams: BG.Game.getDesign().beams.length, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | ') }));
+  ok('§17 a member into the roadway envelope: red ghost "roadway", refused with "Keep the road clear"', gh && gh.valid === false && gh.reason === 'roadway' && rw.beams === 0 && /Keep the road clear/.test(rw.toast), { gh, rw });
+  await page.keyboard.press('Escape');
+  // pier tool on the bank: a land pylon whose top clears the envelope
+  await page.keyboard.press('p');
+  const lpz = await W2S(-5, 1);
+  await page.mouse.move(lpz.x, lpz.y); await page.mouse.down(); await page.mouse.move(lpz.x, lpz.y - 4, { steps: 3 }); await page.mouse.up(); await page.waitForTimeout(150);
+  const pyl = await page.evaluate(() => { const d = BG.Game.getDesign(); return { piers: d.piers, base: d.piers[0] && BG.Model.pierBaseY(BG.Game.level, d.piers[0]), valid: BG.Model.validate(BG.Game.level, d).ok }; });
+  ok('§17 pier tool in a land pier zone: pylon on the bank, top above the envelope', pyl.piers.length === 1 && pyl.base === 0 && pyl.piers[0].topY >= 3.7 && pyl.valid, pyl);
+  await page.keyboard.press('b');
+  // cable-stayed template: land pylons backstayed to the inland anchors; the run passes, the pylons stand
+  await page.evaluate(() => { BG.Game.editor.design = { nodes: [], beams: [], piers: [] }; BG.Game.editor.applyTemplate('cable_stayed'); });
+  const tpl = await page.evaluate(() => { const L = BG.Game.level, d = BG.Game.getDesign(); return { land: d.piers.filter(p => BG.Model.landPierBank(L, p)).length, back: d.beams.filter(b => /^a[23]$/.test(b.a) || /^a[23]$/.test(b.b)).length, valid: BG.Model.validate(L, d).ok }; });
+  ok('§17 cable-stayed template uses both land pylons and backstays them to the inland anchors', tpl.land === 2 && tpl.back === 2 && tpl.valid, tpl);
+  await page.mouse.move(VW / 2, 40); await page.waitForTimeout(200);
+  await shot('42-land-template');
+  await page.evaluate(() => { BG.Game._lastToggle = -1e9; BG.Game.startSim(); });
+  r = await runSim(4);
+  await shot('43-land-sim');
+  r = await runSim(60); await page.waitForTimeout(400);
+  const st = await page.evaluate(() => (BG.Game.sim && BG.Game.sim.piers || []).map(p => ({ ground: p.ground, tilt: p.tilt, failed: p.failed })));
+  ok('§17 guyed land pylons: the run passes and both pylons stand', r.res && r.res.passed && st.length === 2 && st.every(p => p.ground && !p.failed && Math.abs(p.tilt) < 0.01), { passed: r.res && r.res.passed, st });
+  // the same bridge without its backstays: the pylons topple and the results say why
+  await page.evaluate(() => BG.Game.backToEdit()); await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const d = BG.Game.getDesign(); d.beams = d.beams.filter(b => !/^a[23]$/.test(b.a) && !/^a[23]$/.test(b.b)); BG.Game.editor.design = d;
+    BG.Game._lastToggle = -1e9; BG.Game.startSim();
+  });
+  r = await runSim(30); await page.waitForTimeout(1500);
+  const top = await page.evaluate(() => ({ text: document.querySelector('[data-ref=results]').textContent, piers: (BG.Game.sim.piers || []).map(p => p.failed) }));
+  ok('§17 without backstays the land pylons topple; the results explain it', r.res && !r.res.passed && top.piers.some(Boolean) && /land pylon toppled/.test(top.text), { passed: r.res && r.res.passed, piers: top.piers });
+  await shot('44-land-toppled');
+  await page.evaluate(() => { const i = BG.Levels.findIndex(l => l.id === 9901); if (i >= 0) BG.Levels.splice(i, 1); BG.Storage.clearDesign && BG.Storage.clearDesign(9901); });
+
   ok('no console errors', errors.length === 0, errors.slice(0, 15));
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} e2e checks passed`);
   await browser.close();

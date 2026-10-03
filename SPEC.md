@@ -66,6 +66,7 @@ tools/harness.js         Node loader for js/core/* + runHeadless()
 tools/test-physics.js    physics unit/behaviour tests
 tools/verify-levels.js   runs every level against its reference + best designs
 tools/build-levels.js    tools/levels/level-NN.json -> js/core/levels.js (generated; never edit levels.js by hand)
+tools/test-anchors.js    inland anchors, land pylons, roadway envelope (§17)
 tools/solutions/level-NN.json, level-NN-best.json   reference / best designs (not loaded by the game)
 ```
 
@@ -120,7 +121,10 @@ Keyed by type: `car` (~1.2 t), `van` (~2.5 t), `bus` (~12 t), `truck` (~20 t), `
     waterY: -7 /* or null */,
   },
   anchors: [ {x:0,y:0}, {x:12,y:0}, {x:0,y:-3}, ... ], // must include both road endpoints
+                                     // ({x, y, inland: true} = inland anchor on a bank top / in a hillside, §17)
   pierZones: [ {x0: 20, x1: 30} ],   // where piers may stand on the floor ([] = none)
+                                     // ({x0, x1, ground: 'left'|'right'} = land pier zone on that bank, §17)
+  // roadClearance: true | <m> | false  optional: force / size / disable the roadway envelope (§17)
   maxPiers: 0,
   noBuild: [ {x0, x1, y0, y1} ],     // e.g. ship clearance; no joint or beam may enter
   buildArea: { x0, x1, y0, y1 },     // joints must be inside
@@ -158,7 +162,8 @@ BG.Model.validate(level, design)   // -> { ok, errors:[{type, msg, beamIndex?, n
                                    //    in_terrain (joint in rock, or beam passing through rock),
                                    //    near_terrain (user joint < TERRAIN_CLEARANCE = 0.5 m from the ground:
                                    //    only anchors and piers may bear on rock),
-                                   //    underwater (user joint below terrain.waterY; see §10)
+                                   //    underwater (user joint below terrain.waterY; see §10),
+                                   //    roadway (joint / member / land pylon top in the roadway envelope, §17)
 BG.Model.roadConnected(level, design)   // road/reinforced road path from the left road anchor to the right one
 BG.Model.segmentInTerrain(level, x1, y1, x2, y2, tol), BG.Model.terrainDistance(level, x, y)
 BG.Model.clone(design), BG.Model.serialize(design), BG.Model.deserialize(str)
@@ -831,3 +836,94 @@ working from `file://` and without storage.
   is in the precache. Also checks the update path and reports the precache size. `--drop=<file>` serves a
   precache without that file to prove the detector fails.
 - `tools/test-history.js`: Node (fake storage) + browser (desktop, phones, tablet); `--node-only` skips the browser.
+
+## 17. Land-side structures — inland anchors, land pylons, roadway envelope (GitHub issue #2)
+
+Engine, editor, renderer and template support for structures that stand on the banks: backstayed pylons, deadman
+anchorages and hillside anchor blocks. **A level without the new fields behaves exactly as before**: every rule below
+is gated on them (all 170 reference / best designs and every goal design were re-run against the pre-change engine:
+validation, cost and the full simulation trace are bit-identical). `tools/test-anchors.js` asserts that no shipped
+level uses them yet. Levels that use them come next.
+
+### 17.1 Level fields (all optional)
+```js
+anchors:   [ ..., { x: -24, y: 0, inland: true },    // deadman anchor on the left bank top
+                  { x: 60, y: 7, inland: true } ],   // anchorage set into a hillside 7 m above the right bank
+pierZones: [ ..., { x0: -8, x1: -3, ground: 'left' }, { x0: 43, x1: 48, ground: 'right', footing: 4e5 } ],
+roadClearance: true | 5.5 | false                    // force the envelope on / set its height (m) / switch it off
+```
+- **Inland anchor** (`BG.Model.anchorInfo(level, i)` → `{kind, bank, surfaceY, side, explicit}`): an anchor on a bank
+  (x ≤ leftEdge − 1 m or x ≥ rightEdge + 1 m, or flagged `inland` on a bank) at or above its surface. `kind`:
+  `'edge'` (every other anchor: road anchors, cliff-face anchors), `'inland'` (on the bank top: a deadman block buried
+  flush, bolt plate on the surface), `'hill'` (more than `HILL_MIN` = 0.3 m above the bank: set into a hillside that
+  rises behind the road). The anchor point is the bolt plate on the block's face: members attach there and end there.
+  Any material may attach (cables, rope and steel are the useful ones). Also `inlandAnchors(level)`, `isInlandAnchorId`.
+- **Hillside** (`anchorMounds(level)` → `[{i, bank, anchor, poly}]`): under a `'hill'` anchor a convex quadrilateral
+  stands on the bank surface - the anchor face is its gap-side top corner, a 3 m plateau behind it, slopes down to the
+  bank (front 0.5 m per m of height + 0.3 m, never past the gap edge; back 1.4 m per m + 0.6 m). It is solid ground for
+  `inTerrain`, `segmentInTerrain` and `terrainDistance` (joints keep 0.5 m clear and members cannot pass through it:
+  they end at the anchor face), but not for vehicles or debris (in depth it stands beside the road).
+- **Land pier zone** (`zone.ground`): a pier there is a **land pylon**. Its base is the bank surface
+  (`pierBaseY(level, pier)`, `landPierBank(level, pier)`, `pierZoneAt(level, x)`); `pier_too_short`, the no-build check
+  and the cost (`pierBase + pierPerMeter × (topY − base)`) are measured from there. The editor's pier tool works in these
+  zones as on the floor (the top is clamped above the roadway envelope).
+- `hasLandFeatures(level)`: a flagged inland anchor, a hillside anchor, a land pier zone, or `roadClearance` true /
+  a number (`false` always wins). Unflagged bank-top anchors (as on levels 25, 36, 40, 51, 53) are drawn as deadman
+  blocks but switch no rule on.
+
+### 17.2 Roadway clearance envelope
+`roadEnvelope(level)` → `null` unless `hasLandFeatures`, else `{height, vehicle, margin, rects}`: an open band over each
+bank road (x < leftEdge above leftY, x > rightEdge above rightY), height = the tallest vehicle in the traffic (road
+vehicles and rail cars, `tallestVehicle(level)`) + `ROAD_MARGIN` 0.5 m, or `roadClearance` m. `validate` adds
+`{type: 'roadway', msg: ROADWAY_MSG}` ("Keep the road clear") for
+- a user joint inside it (`inRoadway`; the road surface and the band's top edge are legal),
+- a member crossing it (`beamInRoadway(level, aId, bId, x1, y1, x2, y2, m)`), **except** road / reinforced road / rail
+  deck members (the road itself) and members that end at an inland anchor (anchorage stays run beside the carriageway
+  into their deadman, as on real suspension and cable-stayed bridges),
+- a land pylon whose top is inside it (the road passes through the pylon's portal; its top must clear the traffic).
+
+Editor: `_pointProblem` returns `'roadway'` (red ghost, drags clamp, no mirror partner there), `_beamProblem` and
+`_moveValid` reject crossing members, a refused placement toasts `ROADWAY_MSG`, the renderer's ghost label shows it, and
+edit mode draws the envelope as an amber hatched band labelled "ROAD · KEEP CLEAR h m".
+
+### 17.3 Land pylon physics (`BG.Simulation`; constants `BG.LandPylon` in materials.js)
+- A land pylon's top `p<i>` is a **free joint** (`sim.nodes[k].fixed = false`, `.pylon = true`) held by a rigid concrete
+  column (distance constraint, EA `stiffness` 5e10 N) to its footing (a fixed point on the bank, not a node) and by an
+  **elastic-plastic footing**: a rotation spring (`footingStiffness` 2e9 N·m/rad) that never resists more than
+  `momentLimit` 3e5 N·m (`zone.footing` overrides). Mass at the top: `massPerMeter` 900 kg/m × height / 3 (a uniform
+  column's swing) plus half of every attached member as usual. Light rocking damping.
+- Pulled sideways by its stays, a pylon leans until its backstays take the pull (the footing yields at its limit; the
+  stays are far stiffer). With nothing to balance the pull it keeps turning: past `PYLON_TILT_MAX` 0.05 rad (≈ 2.9°) the
+  footing is torn out (event `{type: 'pylon_fail', pier, x, y, moment, time}`, `sim.firstTopple`) and the pylon falls
+  about its base until it lies on the bank. An unloaded land pylon stands.
+- Read-outs: `sim.piers[i] = {x, baseY, topY, ground, topX, tilt (rad, + = toward −x), footing (|moment| / limit), peak,
+  failed}`; `summary()` adds `pylonsToppled` and `firstTopple` only when there are land pylons (`sim.nPyl > 0`). Quakes
+  (§12) move the footings with the ground. Floor piers are unchanged fixed points (`baseY = floorY`).
+- Results: a failed run whose first failure was a toppled pylon says "A land pylon toppled first: its footing could not
+  hold the pull of its stays. Guy it back with backstays to an inland anchor behind it." Effects: dust + shake; audio: a
+  masonry break.
+
+### 17.4 Rendering
+Deadman anchors: a concrete block buried flush in the bank (drawn in section) with a tie rod up to a steel bolt plate on
+the surface. Hillside anchors: an earth hillside (theme soil, strata, grassy crest) with a concrete block set into its
+face and a vertical bolt plate facing the gap. Both carry a shackle eye at the anchor point instead of the anchor sprite.
+Land pylons: a footing block on the bank and a tapered concrete column with a portal opening over the road, drawn along
+the live (leaning or fallen) column; the footing glows red above 85 % of its limit. Land pier zones are striped on the
+bank surface. `levelBounds` / `fitToLevel` (and so the follow camera's zoom) include `landExtent(level)` (inland anchors,
+hillsides, land pier zones) on levels with land features, and the follow camera's far-bank stop moves out to the
+right-hand land structures.
+
+### 17.5 Templates
+`suspension` and `cable_stayed` try a `'land'` tower mode first when the level has land pier zones (suspension: on both
+banks): a land pylon in each zone (nearest the gap with a reachable backstay; top = deck + tower height, at least the
+envelope + 0.5 m), backstayed by one tension member to the inland anchor furthest behind it that the material reaches.
+A pylon with no inland anchor to backstay to is not built (it would topple). Cable-stayed stays from a land pylon skip
+deck joints whose stay would cross the envelope. Gap pier zones keep their old modes (`ctx.zones` = gap zones only,
+`ctx.landZones` the land ones); bank towers keep backstaying to the nearest anchor behind them (inland ones included).
+
+### 17.6 Tests
+`node tools/test-anchors.js`: anchor kinds, envelope rules and exemptions, land pier base / cost, hillside solidity,
+a guyed pylon standing vs an unguyed one toppling (deterministic), an unloaded pylon standing, quake footing motion,
+both templates (valid, pass, backstayed), editor feedback + pier tool, shipped levels untouched. `tools/e2e.js` (at the
+end): a land level in the browser - camera framing, the red "roadway" ghost + toast, the pier tool on the bank, the
+cable-stayed template passing with standing pylons, and the same bridge without backstays toppling with the explanation.

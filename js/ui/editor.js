@@ -308,13 +308,11 @@
       return best;
     }
     _pickPier(x, y) {
-      const lv = this._level() || {};
-      const fy = num((lv.terrain || {}).floorY, -1e9);
       const rx = Math.max(0.7, this._px(10)), ry = Math.max(0.6, this._px(12));
       let best = null, bd = Infinity;
       this._design.piers.forEach((p, i) => {
         const dx = Math.abs(p.x - x);
-        if (dx <= rx && y <= p.topY + ry && y >= fy - 1 && dx < bd) { bd = dx; best = i; }
+        if (dx <= rx && y <= p.topY + ry && y >= this._pierBase(p.x) - 1 && dx < bd) { bd = dx; best = i; }
       });
       return best;
     }
@@ -342,7 +340,27 @@
       const M = BG.Model;
       if (M && M.terrainDistance && M.TERRAIN_CLEARANCE && M.terrainDistance(lv, x, y) < M.TERRAIN_CLEARANCE - 1e-6) return 'near_terrain';
       if (M && M.belowWater && M.belowWater(lv, x, y)) return 'underwater'; // terrain-fix: piers only below the waterline
+      if (M && M.inRoadway && M.inRoadway(lv, x, y)) return 'roadway'; // §17: keep the bank road clear
       return null;
+    }
+    /** §17: does a member (not a deck) cross the roadway envelope over a bank road? */
+    _roadwayProblem(aId, bId, ax, ay, bx, by, m) {
+      const M = BG.Model;
+      return M && M.beamInRoadway && M.beamInRoadway(this._level() || {}, aId, bId, ax, ay, bx, by, m) ? 'roadway' : null;
+    }
+    /** §17: where a pier at x stands (the bank surface in a land pier zone, else the valley floor) */
+    _pierBase(x) {
+      const lv = this._level() || {};
+      const M = BG.Model;
+      if (M && M.pierBaseY) return M.pierBaseY(lv, x);
+      return num((lv.terrain || {}).floorY, -10);
+    }
+    /** §17: lowest legal pier top at x (a land pylon must clear the bank road's envelope) */
+    _pierMin(x) {
+      const lv = this._level() || {};
+      const M = BG.Model, base = this._pierBase(x);
+      const env = M && M.landPierBank && M.landPierBank(lv, x) ? M.roadEnvelope(lv) : null;
+      return env ? base + Math.ceil(env.height * 4) / 4 : base + 1;
     }
     _segProblem(ax, ay, bx, by) {
       const lv = this._level() || {};
@@ -405,7 +423,7 @@
       if (!this._allowed(m)) return 'material_not_allowed';
       if (len > maxLenOf(m) + 1e-6) return 'too_long';
       if (!bId) { const p = this._pointProblem(bx, by); if (p) return p; }
-      const s = this._segProblem(ax, ay, bx, by);
+      const s = this._segProblem(ax, ay, bx, by) || this._roadwayProblem(aId, bId, ax, ay, bx, by, m);
       if (s) return s;
       if (aId && bId && this._beamIndex(aId, bId) >= 0) return 'duplicate_beam';
       return null;
@@ -609,6 +627,7 @@
       if (!g || !g.valid) {
         this._sfx('error');
         if (g && g.reason === 'underwater') this._toast((BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water - use a pier"); // terrain-fix
+        if (g && g.reason === 'roadway') this._toast((BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear'); // §17
         return null;
       }
       this._begin();
@@ -844,6 +863,7 @@
         const len = hyp(B.x - A.x, B.y - A.y);
         if (len > maxLenOf(it.b.m) + 1e-6 || len < MIN_LEN) return false;
         if (this._segProblem(A.x, A.y, B.x, B.y)) return false;
+        if (this._roadwayProblem(it.b.a, it.b.b, A.x, A.y, B.x, B.y, it.b.m)) return false;
       }
       return true;
     }
@@ -963,7 +983,7 @@
       }
       const n = this._pickNode(x, y, r, (q) => q.kind === 'node' && Math.abs(q.x - x) < POS_EPS);
       if (n) ty = n.y;
-      return r4(clamp(ty, fy + 1, top));
+      return r4(clamp(ty, this._pierMin(x), top));
     }
     _pierNear(x, skip) {
       return this._design.piers.some((p, i) => skip.indexOf(i) < 0 && Math.abs(p.x - x) < 1.5);
@@ -988,7 +1008,7 @@
       if (this._design.piers.length >= maxP) { this._sfx('error'); this._toast('Pier limit reached (' + maxP + ').'); return 'handled'; }
       if (this._pierNear(px, [])) { this._sfx('error'); this._toast('Too close to another pier.'); return 'handled'; }
       const topY = this._pierTop(px, y, o);
-      if (lv.noBuild && lv.noBuild.some((r) => segHitsRect(px, num((lv.terrain || {}).floorY, -10), px, topY, r))) {
+      if (lv.noBuild && lv.noBuild.some((r) => segHitsRect(px, this._pierBase(px), px, topY, r))) {
         this._sfx('error'); this._toast('Piers may not enter the no-build zone.'); return 'handled';
       }
       this._begin();
@@ -1012,12 +1032,11 @@
       const lv = this._level() || {};
       const p0 = this._design.piers[a.idx[0]];
       let topY = this._pierTop(p0.x, y + (a.off || 0), o);
-      const fy = num((lv.terrain || {}).floorY, -10);
       // refuse heights that enter a no-build zone: clamp below it
       for (const r of lv.noBuild || []) {
         for (const k of a.idx) {
           const p = this._design.piers[k];
-          if (segHitsRect(p.x, fy, p.x, topY, r)) topY = Math.min(topY, Math.min(r.y0, r.y1));
+          if (segHitsRect(p.x, this._pierBase(p.x), p.x, topY, r)) topY = Math.min(topY, Math.min(r.y0, r.y1));
         }
       }
       // keep beams attached to the pier top within max length

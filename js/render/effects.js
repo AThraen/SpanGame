@@ -352,6 +352,14 @@
         this.chunks(p.x, p.y + 0.2, 10, BALLAST);
         break;
       }
+      case 'pylon_fail': { // a land pylon's footing gives way (SPEC §17)
+        this.shake(0.7);
+        if (typeof ev.x === 'number') {
+          this.dust(ev.x, ev.y + 0.2, 26, 'rgba(196,190,178,1)', 1.9);
+          this.dust(ev.x, ev.y + 0.1, 10, null, 1.2);
+        }
+        break;
+      }
       case 'creak': {
         const key = ev.beamIndex;
         const now = this.time;
