@@ -51,18 +51,29 @@
     return vehicleName(v.type);
   }
   function isTrain(v) { return !!v && (v.kind === 'train' || v.type === 'train'); }
-  // famous: Famous Bridges levels (campaign 'famous', 201+) form their own campaign (rules in js/features/famous.js)
-  function campaignOf(lv) { return lv && (lv.campaign === 'rail' || lv.campaign === 'famous') ? lv.campaign : 'road'; }
+  // campaigns (Roads incl. the bonus chapter, Iron Road, Famous Bridges): the rules live in ONE table,
+  // BG.Storage.CAMPAIGNS (unlock gate, finale ids, playable levels); the level select tabs in BG.Hud
+  const CAMPAIGN_ORDER = ['road', 'rail', 'famous'];
+  function campaignOf(lv) {
+    if (BG.Storage && BG.Storage.campaignOf) return BG.Storage.campaignOf(lv);
+    return lv && lv.campaign && lv.campaign !== 'road' ? lv.campaign : 'road';
+  }
+  function campaignOrder() { return (BG.Storage && BG.Storage.CAMPAIGN_ORDER) || CAMPAIGN_ORDER; }
   function campaignLevels(campaign) {
     if (BG.Storage && BG.Storage.campaignLevels) return BG.Storage.campaignLevels(levels(), campaign);
     return levels().filter(l => campaignOf(l) === campaign).sort((a, b) => a.id - b.id);
   }
-  // the campaign's declared final level (50 Roads, 120 Iron Road) - not just the last one present
-  const CAMPAIGN_FINAL = { road: 50, rail: 120 };
-  function isCampaignFinale(lv) {
-    if (!lv) return false;
-    if (BG.Storage && BG.Storage.isCampaignFinale) return !!BG.Storage.isCampaignFinale(lv);
-    return levelId(lv) === CAMPAIGN_FINAL[campaignOf(lv)];
+  // which finale a passed level ends ('road' after 50, 'bonus' after 53, 'rail' after 120, 'famous' after 212), or null
+  function finaleOf(lv) {
+    if (!lv || !BG.Storage || !BG.Storage.finaleOf) return null;
+    return BG.Storage.finaleOf(lv);
+  }
+  function campaignOpen(campaign) {
+    return !BG.Storage || !BG.Storage.isCampaignUnlocked || !!safe(() => BG.Storage.isCampaignUnlocked(campaign), true);
+  }
+  // a railway level: the Iron Road, or any level whose traffic includes a train (e.g. the Forth Bridge, 205)
+  function isRailLevel(lv) {
+    return !!lv && (campaignOf(lv) === 'rail' || (Array.isArray(lv.traffic) && lv.traffic.some(g => g && g.type === 'train')));
   }
   function gapOf(lv) { const t = lv && lv.terrain; return t ? (t.rightEdge - t.leftEdge) : 0; }
   function railMaterial(id) { const m = BG.Materials && BG.Materials[id]; return !!(m ? m.isRail : id === 'rail'); }
@@ -335,11 +346,12 @@
       if (last && !S.isCompleted(levelId(last))) return last;
       const camp = campaignOf(last);
       const open = list => list.find(l => this.isUnlocked(levelId(l)) && !S.isCompleted(levelId(l)));
-      const firstOpen = open(campaignLevels(camp)) || open(campaignLevels(camp === 'road' ? 'rail' : 'road'));
+      let firstOpen = open(campaignLevels(camp));
+      for (const c of campaignOrder()) { if (firstOpen) break; if (c !== camp) firstOpen = open(campaignLevels(c)); }
       return firstOpen || last || L[0];
     },
     campaignOf(lv) { return campaignOf(lv || this.level); },
-    // next level in the same campaign (Roads 1-50, Iron Road 101-120), or null at the end of it
+    // next playable level in the same campaign (Roads 1-53, Iron Road 101-120, Famous Bridges 201-212), or null at the end
     nextInCampaign(lv) {
       lv = lv || this.level;
       if (!lv) return null;
@@ -392,8 +404,8 @@
       if (!lv) { hudCall('toast', 'Level ' + id + ' is not available yet.', 'info'); return false; }
       if (!(opts && opts.force) && !this.isUnlocked(levelId(lv))) {
         sfx('error');
-        const railShut = campaignOf(lv) === 'rail' && BG.Storage && BG.Storage.isCampaignUnlocked && !BG.Storage.isCampaignUnlocked('rail');
-        hudCall('toast', railShut ? 'Complete level 10 to open the Iron Road.' : 'Complete the previous level first.', 'info');
+        const shut = BG.Storage && BG.Storage.campaignLockText ? safe(() => BG.Storage.campaignLockText(campaignOf(lv)), null) : null;
+        hudCall('toast', shut || 'Complete the previous level first.', 'info');
         return false;
       }
       this._leaveLevel();
@@ -442,7 +454,7 @@
       // sticks for the rest of this level
       this.followOn = gapOf(lv) > 60;
       // track recording strip: on by default on railway levels (key T)
-      this.trackOn = campaignOf(lv) === 'rail';
+      this.trackOn = isRailLevel(lv);
       this._applyFollow(false);
       this._setState('edit');
       hudCall('showScreen', 'level');
@@ -632,7 +644,7 @@
     },
     setFollow(on) { if (!!on !== !!this.followOn) this.toggleFollow(); },
     // ---------------------------------------------------------------- track recording strip (rail)
-    hasTrack() { return campaignOf(this.level) === 'rail'; },
+    hasTrack() { return isRailLevel(this.level); },
     toggleTrack() {
       if (!this.level || !this.hasTrack()) return;
       this.trackOn = !this.trackOn;
@@ -968,7 +980,7 @@
       const broken = sum.brokenBeams != null ? sum.brokenBeams : (sim.beams || []).filter(b => b.broken).length;
       let stars = passed ? (cost <= budget * 0.7 ? 3 : cost <= budget * 0.85 ? 2 : 1) : 0;
       // Iron Road: the third star also needs the "Structure held" verdict (no member broke)
-      const starHeld = stars === 3 && campaignOf(lv) === 'rail' && broken > 0;
+      const starHeld = stars === 3 && isRailLevel(lv) && broken > 0;
       if (starHeld) stars = 2;
       const reason = sim.failReason || (status === 'failed' && sim.status === 'running' ? 'timeout' : null);
 
@@ -1031,17 +1043,19 @@
 
       let rec = { entry: null, improved: false };
       const S = BG.Storage;
-      const railWasOpen = S && S.isCampaignUnlocked ? safe(() => S.isCampaignUnlocked('rail'), true) : true;
+      // campaigns this result opens (the Iron Road after level 10, Famous Bridges after 15)
+      const wasOpen = {};
+      campaignOrder().forEach(c => { wasOpen[c] = campaignOpen(c); });
       if (S) rec = safe(() => S.recordResult(levelId(lv), { passed, stars, cost }), rec) || rec;
-      const railNowOpen = S && S.isCampaignUnlocked ? safe(() => S.isCampaignUnlocked('rail'), true) : true;
+      const opened = campaignOrder().filter(c => !wasOpen[c] && campaignOpen(c) && campaignLevels(c).length > 0);
       const next = this.nextInCampaign(lv);
       const campaign = campaignOf(lv);
       const res = {
         passed, stars, cost, budget, title, reasonText: text, simOk, reason,
         time: sum.time != null ? sum.time : sim.time, peakStress: peak, vehiclesFinished: vf, vehiclesTotal: vt,
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
-        finale: passed && isCampaignFinale(lv), campaign,
-        railUnlocked: !railWasOpen && railNowOpen && campaignLevels('rail').length > 0,
+        finale: passed && !!finaleOf(lv), finaleKind: passed ? finaleOf(lv) : null, campaign,
+        railUnlocked: opened.includes('rail'), campaignsOpened: opened,
         rail: BG.RailInfo && sim.ride ? safe(() => BG.RailInfo.rideCard(sim, sum), null) : null,
         derail: this._derailFx && this._derailFx.info ? this._derailFx.info : null,
       };
@@ -1050,7 +1064,13 @@
       hudCall('setMode', 'results');
       hudCall('showResults', res);
       sfx(passed ? 'success' : 'fail');
-      if (res.railUnlocked) setTimeout(() => { if (this.state === 'results') { hudCall('toast', 'The Iron Road is open! Railway bridges await on the level select.', 'good', 5200); sfx('horn', { kind: 'whistle' }); } }, 1500);
+      // a newly opened campaign gets a toast once the stars have landed
+      const OPEN_TOAST = { rail: 'The Iron Road is open! Railway bridges await on the level select.', famous: 'Famous Bridges is open! Rebuild real bridges from history on the level select.' };
+      opened.forEach((c, i) => setTimeout(() => {
+        if (this.state !== 'results') return;
+        hudCall('toast', OPEN_TOAST[c] || 'A new campaign is open on the level select.', 'good', 5200);
+        if (c === 'rail') sfx('horn', { kind: 'whistle' });
+      }, 1500 + i * 1800));
     },
     nextLevel() {
       const next = this.nextInCampaign(this.level);

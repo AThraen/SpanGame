@@ -78,28 +78,58 @@
       return t;
     },
     // ---- campaigns ----
-    // Road levels (1-50) have no campaign field (or 'road'); Iron Road levels (101-120) have campaign 'rail'.
-    RAIL_UNLOCK_LEVEL: 10,
-    // declared id range of each campaign; the finale screen shows only after its LAST id, never
-    // after whichever level happens to be the last one built so far
-    CAMPAIGNS: { road: { first: 1, last: 50 }, rail: { first: 101, last: 120 } },
-    campaignFinalId(campaign) { const c = Storage.CAMPAIGNS[campaign]; return c ? c.last : null; },
-    isCampaignFinale(level) {
-      if (!level || level.id == null) return false;
-      return level.id === Storage.campaignFinalId(Storage.campaignOf(level));
+    // ONE table for every campaign (rules only; js/ui/hud.js owns their tabs and looks). A level names its
+    // campaign in `level.campaign` ('rail' = Iron Road, 'famous' = Famous Bridges); no field (or 'road') = Roads,
+    // which also holds the hidden bonus chapter (51-53). `last` is the declared final id (the finale shows after
+    // it, never after whichever level happens to be built last), `bonusLast` the end of the Roads' bonus chapter,
+    // `unlockAfter` the road level that opens the campaign (with ?unlockall everything is open).
+    CAMPAIGNS: {
+      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null },
+      rail: { id: 'rail', name: 'Iron Road', first: 101, last: 120, unlockAfter: 10 },
+      famous: { id: 'famous', name: 'Famous Bridges', first: 201, last: 212, unlockAfter: 15 },
     },
-    // famous: Famous Bridges (campaign 'famous', ids 201+) is a separate campaign; its unlock rule lives in js/features/famous.js
-    campaignOf(level) { return level && (level.campaign === 'rail' || level.campaign === 'famous') ? level.campaign : 'road'; },
-    // the levels of one campaign, sorted by id (the order unlocking and "Next level" follow)
+    CAMPAIGN_ORDER: ['road', 'rail', 'famous'],
+    RAIL_UNLOCK_LEVEL: 10,
+    campaignOf(level) {
+      const c = level && level.campaign;
+      return c && c !== 'road' && Object.prototype.hasOwnProperty.call(Storage.CAMPAIGNS, c) ? c : 'road';
+    },
+    campaignDef(campaign) { return Storage.CAMPAIGNS[campaign] || null; },
+    campaignFinalId(campaign) { const c = Storage.CAMPAIGNS[campaign]; return c ? c.last : null; },
+    // which finale a passed level ends: its campaign's id at the campaign's last level, 'bonus' at the end
+    // of the Roads' bonus chapter, else null
+    finaleOf(level) {
+      if (!level || level.id == null) return null;
+      const camp = Storage.campaignOf(level), c = Storage.CAMPAIGNS[camp];
+      if (!c) return null;
+      if (level.id === c.last) return camp;
+      if (c.bonusLast != null && level.id === c.bonusLast) return 'bonus';
+      return null;
+    },
+    isCampaignFinale(level) { return Storage.finaleOf(level) != null; },
+    // a level can be played when the optional modules it needs are installed and it is not a stub
+    // (js/features/requirements.js; famous levels use level.requires / level.stub)
+    isPlayable(level) {
+      if (!level) return false;
+      try { return !BG.Requirements || BG.Requirements.met(level); } catch (e) { return true; }
+    },
+    // the playable levels of one campaign, sorted by id (the order unlocking and "Next level" follow)
     campaignLevels(levels, campaign) {
-      return (levels || []).filter(l => l && Storage.campaignOf(l) === campaign)
+      return (levels || []).filter(l => l && Storage.campaignOf(l) === campaign && Storage.isPlayable(l))
         .slice().sort((a, b) => (a.id != null ? a.id : 0) - (b.id != null ? b.id : 0));
     },
-    // the Iron Road opens once road level 10 is complete (or with ?unlockall)
+    // a campaign opens once its unlockAfter road level is complete (or with ?unlockall)
     isCampaignUnlocked(campaign) {
-      if (campaign !== 'rail') return true;
+      const c = Storage.CAMPAIGNS[campaign];
+      if (!c || c.unlockAfter == null) return true;
       if (Storage.get('unlockAll', false)) return true;
-      return Storage.isCompleted(Storage.RAIL_UNLOCK_LEVEL);
+      return Storage.isCompleted(c.unlockAfter);
+    },
+    // "Complete level 10 to open the Iron Road." (null when the campaign is open)
+    campaignLockText(campaign) {
+      const c = Storage.CAMPAIGNS[campaign];
+      if (!c || Storage.isCampaignUnlocked(campaign)) return null;
+      return 'Complete level ' + c.unlockAfter + ' to open ' + (campaign === 'famous' ? c.name : 'the ' + c.name) + '.';
     },
     campaignStars(levels, campaign) {
       let got = 0, max = 0;
@@ -107,12 +137,14 @@
       return { got, max };
     },
     // A level is unlocked if it is the first one of its campaign (and that campaign is open), or if
-    // either of the two levels before it in the same campaign is completed.
+    // either of the two levels before it in the same campaign is completed. Levels that are not playable
+    // (missing module / stub) never unlock, not even with ?unlockall.
     isUnlocked(id, levels) {
+      const lv = levels && levels.length ? levels.find(l => l && l.id === id) : null;
+      if (lv && !Storage.isPlayable(lv)) return false;
       if (Storage.get('unlockAll', false)) return true;
       if (!levels || !levels.length) return id === 1;
-      const lv = levels.find(l => l && l.id === id);
-      const campaign = lv ? Storage.campaignOf(lv) : (id > 100 ? 'rail' : 'road');
+      const campaign = lv ? Storage.campaignOf(lv) : (id > 200 ? 'famous' : id > 100 ? 'rail' : 'road');
       if (!Storage.isCampaignUnlocked(campaign)) return false;
       const list = lv ? Storage.campaignLevels(levels, campaign) : levels;
       const idx = list.findIndex(l => (l.id != null ? l.id : -1) === id);

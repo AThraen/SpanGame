@@ -343,6 +343,16 @@
         wrap.appendChild(b);
         this._titleBtn = b;
       }
+      // Endless gets its own title entry point next to the daily (continues the current run, or starts one)
+      if (wrap && !wrap.querySelector('.dly-endless-btn')) {
+        const b = doc.createElement('button');
+        b.className = 'btn btn-glass btn-xl dly-endless-btn';
+        b.dataset.dly = 'endless';
+        b.innerHTML = INF_ICON + '<span class="dly-btn-txt"><b>Endless</b><small data-dref="endlessSub"></small></span>';
+        b.addEventListener('click', e => { e.stopPropagation(); sfx('click'); this.startEndless(false); setTimeout(() => b.blur(), 0); });
+        wrap.appendChild(b);
+        this._endlessBtn = b;
+      }
       // panel
       const p = doc.createElement('div');
       p.id = 'daily-panel';
@@ -474,6 +484,10 @@
       const sub = b.querySelector('[data-dref=titleSub]');
       if (sub) sub.textContent = parts.join(' · ');
       b.classList.toggle('done', !!(e && e.passed));
+      const eb = this._endlessBtn, en = loadEndless();
+      const esub = eb && eb.querySelector('[data-dref=endlessSub]');
+      if (esub) esub.textContent = en.run ? 'Crossing ' + ((en.run.index | 0) + 1) + ' · ' + (en.run.cleared | 0) + ' cleared'
+        : (en.best.cleared | 0) ? 'Best run: ' + (en.best.cleared | 0) + ' cleared' : 'Ever-harder crossings';
     },
 
     _decorateLevelHud(level) {
@@ -588,6 +602,7 @@
   function starsHtml(n) { let s = '<span class="dly-stars">'; for (let i = 0; i < 3; i++) s += '<i class="' + (i < (n | 0) ? 'on' : '') + '">★</i>'; return s + '</span>'; }
   const DIFF_WORDS = ['Gentle', 'Easy', 'Steady', 'Tricky', 'Hard', 'Tough', 'Brutal'];
   const CAL_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2.2 2.2 4.8-4.8"/></svg>';
+  const INF_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12c-2-2.7-3.6-4-5.4-4a4 4 0 000 8c1.8 0 3.4-1.3 5.4-4zm0 0c2 2.7 3.6 4 5.4 4a4 4 0 000-8c-1.8 0-3.4 1.3-5.4 4z"/></svg>';
   const CLOSE_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   const PLAY_ICON = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12.5 7.5L7 19.5z" fill="currentColor"/></svg>';
   const SHARE_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0014.5 4h-9A1.5 1.5 0 004 5.5v9A1.5 1.5 0 005.5 16H8"/></svg>';

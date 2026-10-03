@@ -28,7 +28,30 @@ ok('requirements module loaded headless', !!BG.Requirements && typeof BG.Require
 ok('famous campaign has >= 8 playable levels', playable.length >= 8, playable.length);
 ok('famous ids are 201+ and unique', famous.every(l => l.id >= 201) && new Set(famous.map(l => l.id)).size === famous.length);
 ok('road levels unchanged (50 + 3 bonus, no campaign field)', BG.Levels.filter(l => !l.campaign || l.campaign === 'road').filter(l => l.id <= 50).length === 50);
-ok('stubs: wind (Tacoma) and rail (Forth) present and gated', ['wind', 'rail'].every(r => stubs.some(l => (l.requires || []).includes(r))), stubs.map(l => [l.id, l.requires]));
+// the two former stubs are finished: Tacoma Narrows (209, needs wind) and the Forth Bridge (205, needs rail)
+ok('Tacoma (wind) and Forth (rail) are playable, no stubs left', [205, 209].every(id => playable.some(l => l.id === id)) && !stubs.length, stubs.map(l => [l.id, l.requires]));
+{
+  const T = famous.find(l => l.id === 209);
+  const ev = BG.Forces.normalize(T.events);
+  ok('[209] Tacoma wind = BG.Forces.presets.tacoma (swept resonant period)', ev.length === 1 && T.events[0].preset === 'tacoma' && ev[0].type === 'wind' && Array.isArray(ev[0].period) && ev[0].speed === BG.Forces.presets.tacoma().speed, ev[0]);
+  // the lesson: the same bridge without its diagonal hangers (a plain suspension deck) passes in calm air
+  // but gallops to failure in the wind; the stiffened deck rides it out
+  const sol = (id, suf) => BG.Model.deserialize(fs.readFileSync(path.join(__dirname, 'solutions', 'level-' + id + (suf || '') + '.json'), 'utf8'));
+  for (const suf of ['', '-best']) {
+    const best = sol(209, suf);
+    const N = new Map(BG.Model.allNodes(T, best).map(n => [n.id, n]));
+    const plain = JSON.parse(JSON.stringify(best));
+    plain.beams = plain.beams.filter(b => !(b.m === 'rope' && Math.abs(N.get(b.a).x - N.get(b.b).x) > 0.01));
+    const calm = runHeadless(Object.assign({}, T, { events: [] }), plain), wind = runHeadless(T, plain), stiff = runHeadless(T, best);
+    ok('[209' + suf + '] plain deck: passes calm, gallops to failure in the wind; stiffened deck passes',
+      plain.beams.length < best.beams.length && calm.status === 'success' && wind.status === 'failed' && wind.firstBreak && wind.firstBreak.mode === 'bending' && stiff.status === 'success',
+      { removed: best.beams.length - plain.beams.length, calm: calm.status, wind: wind.status, fb: wind.firstBreak && wind.firstBreak.mode, stiff: stiff.status });
+  }
+  const F = famous.find(l => l.id === 205);
+  ok('[205] Forth: rail deck, a train, three pier zones', F.materials.includes('rail') && F.traffic.some(g => g.type === 'train') && F.pierZones.length === 3 && (F.requires || []).includes('rail'));
+  const fr = runHeadless(F, sol(205, '-best'), { keepSim: true });
+  ok('[205] best design: the express crosses on cantilevers from all three piers, structure held', fr.status === 'success' && fr.brokenBeams === 0 && sol(205, '-best').piers.length === 3 && fr.sim.ride && fr.sim.ride.kinkRatio <= 1, { status: fr.status, brk: fr.brokenBeams });
+}
 // the merged modules are detected (Iron Road: BG.Trains + rail; Forces of Nature: BG.Forces); stubs stay gated by level.stub
 ok('requirements: rail and wind modules detected', BG.Requirements.has('rail') && BG.Requirements.has('wind'), { rail: BG.Requirements.has('rail'), wind: BG.Requirements.has('wind'), forces: !!BG.Forces });
 ok('stubs are gated by level.stub once their module exists', stubs.every(l => BG.Requirements.isStub(l) || BG.Requirements.missing(l).length), stubs.map(l => l.id));

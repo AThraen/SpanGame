@@ -63,7 +63,7 @@
     const design = g.getDesign();
     // run-based goals use the last finished test of exactly this design
     let sim = null;
-    if (g.sim && g.sim.status && g.sim.status !== 'running' && g.sim.summary) sim = g.sim.summary();
+    if (g.sim && g.sim.status && g.sim.status !== 'running' && g.sim.summary) sim = Object.assign(g.sim.summary(), { ride: g.sim.ride || null });
     else if (lastRun && lastRun.lvl === lv.id && lastRun.sig === designSig(design)) sim = lastRun.summary;
     return G.evaluate(lv, design, sim);
   }
@@ -149,7 +149,7 @@
     box.innerHTML = '';
     if (!lv || !goals.length || !res.passed) { box.hidden = true; return; }
     const g = game();
-    const sum = g.sim && g.sim.summary ? g.sim.summary() : null;
+    const sum = g.sim && g.sim.summary ? Object.assign(g.sim.summary(), { ride: g.sim.ride || null }) : null;
     if (sum) lastRun = { lvl: lv.id, sig: designSig(g.getDesign()), summary: sum };
     const ev = G.evaluate(lv, g.getDesign(), sum);
     const fresh = res.passed ? S.recordBadges(lv.id, ev.earned) : [];
@@ -205,12 +205,13 @@
   function decorateTiles() {
     const ls = Hud.el.levels;
     if (!ls) return;
-    ls.querySelectorAll('.tile[data-id]:not(.soon)').forEach(t => {
+    // every campaign's tiles: chapter tiles (Roads, Iron Road) and the Famous Bridges picture tiles
+    ls.querySelectorAll('.tile[data-id]:not(.soon), .fb-tile[data-id]:not(.stub)').forEach(t => {
       const id = +t.dataset.id, goals = G.forLevel(id);
       if (!goals.length) return;
       const have = S.getBadges(id).filter(x => goals.some(g => g.type === x)).length;
-      const row = t.querySelector('.tile-stars');
-      if (!row) return;
+      const row = t.querySelector('.tile-stars, .fb-tile-stars');
+      if (!row || row.querySelector('.tile-badges')) return;
       const b = doc.createElement('span');
       b.className = 'tile-badges' + (have === goals.length ? ' all' : have ? ' some' : '');
       b.title = have + ' of ' + goals.length + ' challenge badges';

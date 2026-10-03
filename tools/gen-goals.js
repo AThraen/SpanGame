@@ -226,7 +226,7 @@ function solve(level) {
   return pool;
 }
 
-const PRIORITY = { no_piers: 5, no_steel: 5, timber_only: 5, symmetric: 4, cool_head: 4, featherweight: 3, minimalist: 3, penny: 3 };
+const PRIORITY = { no_piers: 5, no_steel: 5, timber_only: 5, smooth_ride: 5, symmetric: 4, cool_head: 4, featherweight: 3, minimalist: 3, penny: 3 };
 const EFFICIENCY = ['minimalist', 'featherweight', 'penny'];
 
 function achievable(level, pool) {
@@ -278,6 +278,18 @@ function achievable(level, pool) {
   if (level.materials.some(k => k !== 'road' && k !== 'wood') && usedAny(m => Object.keys(m.count).some(k => k !== 'road' && k !== 'wood'))) {
     const c = pool.filter(x => Object.keys(x.m.count).every(k => k === 'road' || k === 'wood'));
     if (c.length) out.timber_only = { spec: { type: 'timber_only' }, entry: c.sort((a, b) => a.m.cost - b.m.cost)[0] };
+  }
+  // railway levels (Iron Road, Forth Bridge): Smooth Ride - the worst kink the train felt, as a share of its limit,
+  // from the smoothest proven design plus slack (rounded up to 5 %); not offered when the plain solutions already
+  // ride that smoothly
+  if ((level.traffic || []).some(g => g.type === 'train')) {
+    const c = pool.filter(x => x.m.ride != null);
+    if (c.length) {
+      const e = minBy(c, x => x.m.ride);
+      const max = Math.min(0.6, Math.max(0.2, Math.ceil((e.m.ride + 0.03) * 20 - 1e-9) / 20));
+      const trivial = pool.filter(x => /^(ref|best)$/.test(x.label)).every(x => x.m.ride != null && x.m.ride <= max);
+      if (e.m.ride <= max && !trivial) out.smooth_ride = { spec: { type: 'smooth_ride', max }, entry: c.filter(x => x.m.ride <= max).sort((a, b) => a.m.cost - b.m.cost)[0] };
+    }
   }
   if ((level.maxPiers | 0) > 0 && usedAny(m => m.piers > 0)) {
     const c = pool.filter(x => x.m.piers === 0);

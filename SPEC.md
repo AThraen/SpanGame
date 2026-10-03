@@ -321,7 +321,8 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   limits), 106–110 "Stone & Steam" (steam + coaches, masonry viaducts over valleys), 111–115 "Freight Corridor"
   (commuter, long freight, ore trains; whole span loaded; deep steel trusses, cantilevers),
   116–120 "High Speed" (high-speed trains, speed impact, double-deck road + rail finale).
-- Level select gets campaign tabs: **Roads** / **Iron Road** (locked tab shows "Complete level 10").
+- Level select gets campaign tabs: **Roads** / **Iron Road** (locked tab shows "Complete level 10"); since the
+  integration all campaigns share one tab system (§15).
 - New traffic entry form: `{ type: 'train', train: '<preset id>', count, interval }`. Road vehicle entries may
   be mixed in on double-deck levels (they drive on `road` beams; trains only on `rail` beams).
 - Optional level field `rail: { maxGrade: 0.04, maxKinkDeg: 3 }` overrides derail thresholds.
@@ -447,6 +448,7 @@ the goal catalogue. A goal id is its type, unique per level.
 | `no_steel` | - | no steel beams |
 | `timber_only` | - | only road and wood |
 | `no_piers` | - | no piers |
+| `smooth_ride` | `max` | railway run: worst kink / limit (`sim.ride.kinkRatio`) <= max (needs a finished run) |
 
 ### 11.3 Generation + proof
 `node tools/gen-goals.js` (parallel, a few minutes) builds a candidate pool per level from the reference/best solutions,
@@ -458,9 +460,13 @@ rail sim decides the pass (derailments fail it), `timber_only` is never offered 
 Bonus levels 51-53 (§12.4) were added the same way at their merge (`--only 51,52,53`; 8 goals, proven with
 the level's wind / quake events on, seed 1 as in the game).
 The 10 playable Famous Bridges levels (§14) were added at their merge (`--only 201,...,212` without the stubs 205/209;
-28 goals); stub levels get goals when they are finished.
-The level select shows tile counts on every campaign tab (famous tiles too); the total chip counts all 83 playable
-levels (227 goals).
+28 goals). At the cross-feature integration the goal type `smooth_ride` (railway levels: `sim.ride.kinkRatio` <= `max`,
+the worst kink as a share of its limit; `BG.Goals.metrics` reads `.ride` from a summary or `.sim.ride` from a run, goals-ui
+passes `sim.ride` along) was added and goals were regenerated for 101-120, 205 (Forth) and 209 (Tacoma; with its wind on):
+Iron Road 59 goals (15 Smooth Ride), Famous Bridges 34. An "All Stone" (masonry-only) goal was tried and dropped: every
+all-masonry variant of the stone-viaduct designs (106-110) derails or cracks, so no design proves it.
+The level select shows tile counts on every campaign tab (famous tiles too); the total chip counts all 85
+levels (234 goals).
 
 ### 11.4 Storage
 `BG.Storage.getBadges(id)`, `recordBadges(id, ids)` -> newly earned, `totalBadges()`, `maxBadges()`; key `span.v1.badges` =
@@ -483,7 +489,8 @@ events: [
     vertical? /* vertical / horizontal ratio, 0.5 */, waveSpeed? /* m/s, 300 */, pga? /* g, overrides magnitude */, label? },
 ]
 ```
-Unknown types are ignored. Events may overlap. Peak ground acceleration from magnitude: `0.1 g · 2^(M − 6)`
+`{ preset: 'tacoma' | 'gale' | 'storm' | 'quake', ...overrides }` expands a `BG.Forces.presets` entry (level JSON can't call
+functions; level 209 uses it). Unknown types are ignored. Events may overlap. Peak ground acceleration from magnitude: `0.1 g · 2^(M − 6)`
 (M6 0.1 g, M7 0.2 g, M8 0.4 g).
 
 ### 12.2 Physics — `js/core/events.js` (`BG.Forces`)
@@ -595,9 +602,9 @@ BG.Generator.dailySeed(date), dailyDifficulty(seed), weekdayOf(seed) /* 0 = Mon 
 
 A separate campaign of real bridges, each preceded by a history card. Lives in new files
 (`js/features/requirements.js`, `js/features/famous.js`, `css/famous.css`, `assets/famous/*.svg`,
-`tools/test-famous.js`); shared files only get small, commented (`// famous:`) hook lines. `campaignOf()` in
-`js/main.js`, `js/ui/storage.js` and `js/ui/hud.js` returns `'famous'` for these levels, so they are never part of
-the Roads (unlocking, "next level", continue, star totals).
+`tools/test-famous.js`). Since the cross-feature integration it is an ordinary campaign of the shared campaign
+system (§15): `BG.Storage.CAMPAIGNS.famous` holds its rules, `BG.Hud.registerCampaign('famous', ...)` its tab, so it
+is never part of the Roads (unlocking, "next level", continue, star totals).
 
 ### 14.1 Levels
 - Ids **201+**, `tools/levels/level-2NN.json`, `campaign: 'famous'`, built into `BG.Levels` by `build-levels`
@@ -615,32 +622,37 @@ the Roads (unlocking, "next level", continue, star totals).
   - `templates` may be an **array of template ids**: only those (history-appropriate) templates are offered.
     `famous.js` wraps `BG.Templates.available` in the browser to flag the others `ok: false`; `true`/`false` keep
     their old meaning.
-- Playable now: 201 Pont du Gard, 202 Ponte Vecchio, 203 Iron Bridge, 204 Brooklyn, 206 Tower Bridge, 207 Sydney
-  Harbour, 208 Golden Gate, 210 Akashi Kaikyō, 211 Øresund, 212 Millau. Stubs (history card + terrain, no solutions,
-  `stub` set): 205 Forth Bridge (`requires: ['rail']`, traffic `{type:'train', train:'steam_express'}` in the §9.1
-  form) and 209 Tacoma Narrows (`requires: ['wind']`, plus a free-form `wind` hint object; to finish it, turn the
-  hint into §12.1 `events`). Both modules are now merged; finishing a stub = add solutions (+ goals, §11.3) and
-  remove `stub`.
-- Badge goals (§11) exist for every playable famous level (`node tools/gen-goals.js --only 201,...`); the famous
-  tiles show the same badge count as road tiles.
+- All twelve are playable: 201 Pont du Gard, 202 Ponte Vecchio, 203 Iron Bridge, 204 Brooklyn, 205 Forth Bridge,
+  206 Tower Bridge, 207 Sydney Harbour, 208 Golden Gate, 209 Tacoma Narrows, 210 Akashi Kaikyō, 211 Øresund, 212 Millau.
+  The two former stubs were finished at the cross-feature integration:
+  - **205 Forth Bridge** (`requires: ['rail']`, rail / steel / wood, one `steam_express`, three pier zones, two shipping
+    channels clear below the deck). The verified designs stand a tall pier in each zone (top 15 m above the track) and
+    hang a deep steel truss from it - 15 m over the piers, 6-8 m over the channels: three balanced cantilevers. Budget
+    $245k: reference 0.71 (peak 0.87, kink 0.26 of its limit), best 0.69 (peak 0.94, kink 0.41, structure held).
+    Rail rules apply to any level with train traffic (track strip, ride verdicts, "structure held" for ★★★).
+  - **209 Tacoma Narrows** (`requires: ['wind']`): `events: [{ preset: 'tacoma', period: [3.6, 2.6], lift: 0.4 }]` -
+    `BG.Forces.presets.tacoma` (19 m/s, gust 0.15, 30 s from t = 4 s) with a swept gust rhythm over the slender deck's
+    modes. Budget $86k: reference 0.83 (fan stays + cable hangers + diagonal rope hangers, peak 0.57), best 0.68 (lower
+    towers, peak 0.69). The lesson is checked by `test-famous.js`: the same bridges without their diagonal hangers (a
+    plain suspension deck) pass in calm air but gallop to a bending failure in the wind; the suspension template fails.
+- Badge goals (§11) exist for every famous level (`node tools/gen-goals.js --only 201,...`); the famous tiles get the
+  same badge count as road tiles (goals-ui decorates every campaign's tiles).
 - Pont du Gard is historically masonry: once §9.2 `masonry` exists, add it to level 201's `materials`
   and re-verify (the current solutions use wood/steel).
 
-### 14.2 Campaign rules (`BG.Famous`, js/features/famous.js)
+### 14.2 Campaign rules (`BG.Storage.CAMPAIGNS.famous` + `BG.Famous`, js/features/famous.js)
 - Unlock: the first playable famous level opens when **road level 15** is completed (or `?unlockall`); inside the
   campaign a level opens when either of the two previous *playable* famous levels is complete (stubs are skipped).
-  Implemented by wrapping `BG.Storage.isUnlocked` for famous ids only.
+  This is the shared rule of §15 (`unlockAfter: 15`); `BG.Famous.isUnlocked` just asks `BG.Storage`.
 - `BG.Game.openLevel(famousId)` shows the history card first (Build it / Back; Enter/Space = build, Esc = back);
   `opts.skipCard` skips it. Levels with unmet requirements never open, even with `force` / `?unlockall` —
   their card explains which module is missing (or that the crossing is still a stub).
-- `nextLevel` / results `hasNext` / finale stay inside the campaign (next playable famous id; after the last one the
-  finale card, then back to the Famous Bridges tab).
-- Level select: a third campaign tab **Famous Bridges** (`.camp-tab[data-camp=famous]`) next to the Hud's Roads |
-  Iron Road tabs (§9.4). `famous.js` wraps `BG.Hud.setCampaignTab` so `BG.Hud.tab` can be `'famous'` (never landing
-  on it while it is locked when returning from a level), and `buildLevelSelect`: the Hud builds the Roads chapters
-  underneath, then `BG.Famous.tab.render(screen)` adds the `.fb-panel`, which replaces the chapters
-  (`#screen-levels.fb-mode`), and points the header (active tab, subtitle, star chip) at the famous campaign.
-  `BG.Game.goLevelSelect()` reopens the tab of the level just played, as for the other campaigns.
+- `nextLevel` / results `hasNext` / finale stay inside the campaign (next playable famous id; after 212 the
+  finale, then back to the Famous Bridges tab) - all through §15, nothing famous-specific.
+- Level select: the third campaign tab **Famous Bridges** (`.camp-tab[data-camp=famous]`), registered with
+  `BG.Hud.registerCampaign('famous', { render, modeClass: 'fb-mode', panelClass: 'fb-panel', ... })`: while it is
+  active the Hud hides the chapters and `BG.Famous.tab.render(panel)` fills the `.fb-panel` with picture tiles
+  (`.fb-tile[data-fbid][data-id]`). `BG.Game.goLevelSelect()` reopens the tab of the level just played.
 - In a famous level the top bar badge shows the campaign number (1–12), the subtitle "Famous Bridges · year · place",
   and a history button reopens the card.
 
@@ -652,3 +664,40 @@ the Roads (unlocking, "next level", continue, star totals).
   `BG.Requirements.provide('wind')`.
 - `tools/harness.js` loads it; `verify-levels`, `test-templates`, `test-goals` and `e2e-goals` skip levels that are
   not `met` (stubs).
+
+## 15. Campaigns — one system for every campaign (cross-feature integration)
+
+After the Iron Road, terrain fix, goals, weather events, daily challenge and Famous Bridges were merged, the
+campaign logic that each feature had grown separately was folded into one system.
+
+- **Rules: `BG.Storage.CAMPAIGNS`** (js/ui/storage.js) - `road {first 1, last 50, bonusLast 53}`,
+  `rail {first 101, last 120, unlockAfter 10}`, `famous {first 201, last 212, unlockAfter 15}`, order
+  `CAMPAIGN_ORDER = ['road', 'rail', 'famous']`. `campaignOf(level)` (`level.campaign`, absent = road),
+  `isPlayable(level)` (`BG.Requirements.met`), `campaignLevels(levels, c)` (playable, by id: the unlock and "Next"
+  order), `isCampaignUnlocked(c)`, `campaignLockText(c)`, `campaignStars`, `isUnlocked(id, levels)` (unplayable
+  levels never open, not even with `?unlockall`), `finaleOf(level)` → `'road' | 'bonus' | 'rail' | 'famous' | null`.
+  `js/main.js` and `js/ui/hud.js` delegate `campaignOf` to it; no other file decides unlocking.
+- **Looks: `BG.Hud.registerCampaign(id, ui)`** - Roads and Iron Road are built in; Famous Bridges registers itself.
+  `ui = { name, sub, icon(), cls, levelK, levelNum(level), levelSub(level, gap), allLabel, maxDefault, chapters() |
+  render(panel, info) + panelClass + modeClass, locked(), continueLabel(level), finale: {banner, title, text(starLine)} }`.
+  The tab bar (`.camp-tabs`, one `.camp-tab[data-camp]` per campaign that has levels; locked tabs read "Complete
+  level N"), header star chip, subtitle and the chapters / custom panel all come from it. The Roads tab includes the
+  hidden *Forces of Nature* chapter (§12.4) once revealed; its levels stay out of the totals until then.
+- **Game flow (`BG.Game`)**: `nextInCampaign` = next playable level of the same campaign (50 → 51 once the bonus chapter
+  is open; 53, 120, 212 have none). Results carry `finale` / `finaleKind` (finales after 50 - "A hidden chapter has
+  opened" when 51 follows -, after 53 "Forces of Nature weathered", after 120, after 212) and `campaignsOpened` (a toast
+  announces the Iron Road / Famous Bridges the moment a result opens them). `continueTarget()`: the last level played if
+  unfinished, else the first open unfinished level of its campaign, then of the other campaigns in order; the title's
+  Continue label uses the campaign's `continueLabel` (famous: the bridge's name). Any level with train traffic is a
+  railway level (track strip, ride card, "structure held" for ★★★), e.g. the Forth Bridge.
+- **Title screen**: Play (level select), Continue, **Daily Challenge** and **Endless** (js/features/daily.js; the endless
+  button continues the current run or starts one). Daily / endless results never touch campaign progress (§13.2).
+- **Results modal layering** (`#screen-level .results`, inside `#ui`): `BG.Hud.showResults` fills banner, stars, stats and
+  the campaign finale text; then the wrappers add, in this order, the badge reveal (`.res-badges`, goals-ui; only on
+  levels with goals, so never on daily / endless levels) and the daily share card / endless score (`.dly-res`, daily.js;
+  only on generated levels) - both inserted just above `.res-actions`, so they never overlap. Overlays above it:
+  toasts (z 40), the famous history card (`.fb-overlay`, z 40; from a famous result's **Next** it opens over the
+  results and Esc / Back returns to them), the daily panel and the settings modal (`.modal`, z 45). Each overlay owns
+  the keyboard while open (capture-phase listeners), so Enter / Esc never reach the game underneath.
+- Tests: `tools/e2e.js` (campaign tabs, unlock gates, Next / finale per campaign, Continue across campaigns, title
+  entry points, results layering), `tools/test-famous.js`, `tools/e2e-goals.js`, `tools/test-daily.js`.

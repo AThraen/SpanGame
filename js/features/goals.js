@@ -60,6 +60,15 @@
         return { met: bad === 0, value: bad, target: 0, text: bad ? (bad + ' beam' + (bad === 1 ? '' : 's') + ' of other material') : 'road and wood only', frac: bad ? 0 : 1 };
       },
     },
+    // railway levels: the worst kink the train felt (sim.ride.kinkRatio, the same passage-mean kink / limit the
+    // derail rule judges) at or below a share of its limit
+    smooth_ride: {
+      name: 'Smooth Ride', icon: 'smooth', live: false,
+      desc: p => 'Pass with the worst track kink at or below ' + pct(p.max) + '% of its limit',
+      check: (m, p) => m.ride == null
+        ? { met: false, value: null, target: p.max, text: 'run a test', frac: 0 }
+        : { met: m.ride <= p.max + 1e-9, value: m.ride, target: p.max, text: 'kink ' + pct(m.ride) + '% / ' + pct(p.max) + '% of limit', frac: frac(p.max, m.ride) },
+    },
     no_piers: {
       name: 'No Piers', icon: 'nopiers', live: true,
       desc: () => 'Pass without building a single pier',
@@ -116,11 +125,14 @@
     const materials = {};
     for (const k in count) materials[k] = true;
     const simOk = !!sim && sim.status === 'success';
+    // ride quality of a railway run: a summary may carry it (.ride), or the run object its sim (.sim.ride)
+    const ride = sim && (sim.ride || (sim.sim && sim.sim.ride)) || null;
     return {
       members: (design.beams || []).length,
       cost, budget, costRatio: budget === Infinity ? 0 : round3(cost / budget),
       mass: Math.round(mass),
       peak: sim && sim.peakStress != null ? sim.peakStress : null,
+      ride: ride && typeof ride.kinkRatio === 'number' ? Math.round(ride.kinkRatio * 1000) / 1000 : null,
       piers: (design.piers || []).length,
       count, materials,
       asymmetry: asym, symmetric: asym === 0,

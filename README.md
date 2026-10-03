@@ -31,7 +31,7 @@ Your progress and your last design for each level are saved in `localStorage` au
 
 ## Challenge badges
 
-Beyond stars, every level (Roads, Iron Road and the playable Famous Bridges) has 2-3 optional **challenge badges**: *Minimalist* (at most N members), *Penny Pincher* (under a share of the budget), *Featherweight* (lightest structures), *Cool Head* (peak stress at or below 50-60 %), *Symmetric* (mirror-perfect about mid-span), *No Steel*, *Timber Only* and *No Piers*. A badge needs a **passing** run. The **Goals** button in the top bar (key **G**) opens a panel with live progress; the results screen reveals earned badges one by one, level tiles show `earned/total`, and the title and level-select screens show the grand total. Badges are saved per level id in `localStorage` (`span.v1.badges`). Every goal is guaranteed achievable: `tools/gen-goals.js` proves each one with a saved design in `tools/solutions/goals/`.
+Beyond stars, every level (Roads with the bonus chapter, Iron Road and Famous Bridges) has 2-3 optional **challenge badges**: *Minimalist* (at most N members), *Penny Pincher* (under a share of the budget), *Featherweight* (lightest structures), *Cool Head* (peak stress at or below 50-60 %), *Symmetric* (mirror-perfect about mid-span), *No Steel*, *Timber Only*, *No Piers* and, on railway levels, *Smooth Ride* (the worst track kink the train felt stays at or below a share of its limit, for example 40 %). A badge needs a **passing** run. The **Goals** button in the top bar (key **G**) opens a panel with live progress; the results screen reveals earned badges one by one, level tiles show `earned/total`, and the title and level-select screens show the grand total. Badges are saved per level id in `localStorage` (`span.v1.badges`). Every goal is guaranteed achievable: `tools/gen-goals.js` proves each one with a saved design in `tools/solutions/goals/`.
 
 ## Daily Challenge and Endless
 
@@ -120,7 +120,7 @@ js/features/
   forces-fx.js           wind / quake visuals, warning banner + timeline, wind and rumble audio, bonus chapter (wraps BG.Renderer / BG.Hud / BG.Game)
   daily.js               BG.Daily - Daily Challenge + Endless mode (title button, panel, share card, streak/history; wraps BG.Game / BG.Hud / BG.Storage)
   requirements.js        BG.Requirements - which optional modules a level needs (level.requires, stub levels); also loaded headless
-  famous.js              BG.Famous - Famous Bridges campaign: tab, unlock rule, history cards (wraps BG.Game / BG.Hud / BG.Storage)
+  famous.js              BG.Famous - Famous Bridges campaign: its level-select tab (BG.Hud.registerCampaign), history cards
 css/goals.css            styles for the above
 css/forces.css           styles for the Forces of Nature HUD
 css/daily.css            styles for the daily panel, loader and share card
@@ -163,7 +163,7 @@ You need Node 18 or later (developed on Node 24). The browser checks also need t
 
 ```sh
 node tools/test-physics.js     # 31 physics tests incl. exploits, stability, rail rules & >=4x realtime perf
-node tools/verify-levels.js    # every level (50 road + 3 bonus + 20 rail + 10 Famous Bridges), reference + best design each (see "Levels" below)
+node tools/verify-levels.js    # every level (50 road + 3 bonus + 20 rail + 12 Famous Bridges), reference + best design each (see "Levels" below)
                                #   --campaign road|rail|famous, --only 101-120, --ref-only
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
@@ -263,16 +263,20 @@ A separate campaign of real bridges, scaled down but faithful: each crossing kee
 | 2 | Ponte Vecchio | 1345 | 44 m | shallow segmental arches on two low piers, nothing above the deck |
 | 3 | The Iron Bridge | 1779 | 30 m | one deck arch from the banks, no piers (river traffic) |
 | 4 | Brooklyn Bridge | 1883 | 100 m | towers in the river, suspension cables plus stays |
-| 5 | Forth Bridge | 1890 | 150 m | *coming soon* - rail cantilevers (a stub until its designs are verified) |
+| 5 | Forth Bridge | 1890 | 150 m | a steam express on three steel cantilevers hung from tall pier towers, shallow over the two shipping channels |
 | 6 | Tower Bridge | 1894 | 90 m | two towers, ship channel, everything carried from above |
 | 7 | Sydney Harbour Bridge | 1932 | 100 m | through arch, harbour clear below the road |
 | 8 | Golden Gate Bridge | 1937 | 140 m | long suspension span between two towers |
-| 9 | Tacoma Narrows | 1940 | 140 m | *coming soon* - wind flutter (a stub until its wind and designs are done) |
+| 9 | Tacoma Narrows | 1940 | 140 m | suspension span in a pulsing 19 m/s wind (`BG.Forces.presets.tacoma`): a plain deck on vertical hangers gallops apart, diagonal hangers stiffen it |
 | 10 | Akashi Kaikyō Bridge | 1998 | 150 m | longest span: suspension with a stiffening truss, trucks |
 | 11 | Øresund Bridge | 2000 | 140 m | cable-stayed pylons beside the shipping lane |
 | 12 | Millau Viaduct | 2004 | 150 m | seven piers in a deep valley, short masts with fans of stays |
 
-Levels use ids 201+ and `campaign: 'famous'` (`tools/levels/level-2NN.json`, solutions in `tools/solutions/` as usual). A level can list modules it needs in `requires` (`'wind'`, `'rail'`, `'masonry'`) and can be marked `stub` while it has no verified designs; until `BG.Requirements` sees the module and the stub mark is gone, the level is shown locked with its history card and the verifiers (and badge tests) skip it. Playable famous levels have challenge badges like every other level.
+Levels use ids 201+ and `campaign: 'famous'` (`tools/levels/level-2NN.json`, solutions in `tools/solutions/` as usual). A level can list modules it needs in `requires` (`'wind'`, `'rail'`, `'masonry'`) and can be marked `stub` while it has no verified designs; until `BG.Requirements` sees the module and the stub mark is gone, the level is shown locked with its history card and the verifiers (and badge tests) skip it. All twelve are playable now (the Forth Bridge needs the Iron Road's trains, Tacoma Narrows the Forces of Nature wind), and every one has challenge badges.
+
+### Campaigns, tabs and the title screen
+
+The level select has one tab per campaign: **Roads** (1–50, plus the hidden *Forces of Nature* chapter 51–53 once 49 or 50 is done), **Iron Road** (101–120, opens after road level 10) and **Famous Bridges** (201–212, opens after road level 15). The rules live in one table, `BG.Storage.CAMPAIGNS` (unlock level, final id, the bonus chapter's end), and every campaign follows them the same way: a level opens when either of the two playable levels before it in its campaign is complete, **Next** stays inside the campaign, and each campaign has its own finale (after 50, after the bonus level 53, after 120 and after 212). `BG.Hud` draws the tabs from its own table of looks; a feature adds a campaign with `BG.Hud.registerCampaign(id, {...})` (Famous Bridges does). **Continue** on the title screen resumes the last level played in any campaign, or the next open level of that campaign (then of the others). The title screen also has the **Daily Challenge** and **Endless** buttons; both keep their results apart from the campaigns.
 
 ### Adding a level
 

@@ -3,7 +3,9 @@
 // Drives the real game headless: level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
 // auto-split beginner path), pass/fail runs, templates (level 4), undo/redo, mirror + piers (level 11),
 // frame timing, progress; Iron Road: campaign tab gating, mouse-built 101, a derail callout (102), 108, the
-// follow-camera scenery cache, and the finale (120 only). Exit code 0 = all checks passed.
+// follow-camera scenery cache, and the finale (120 only); the shared campaign system: one tab bar (Roads | Iron Road |
+// Famous Bridges), unlock gates, Next / finale per campaign (bonus 53 too), Continue across campaigns, the title's
+// Daily + Endless entry points, and results-modal layering (badges, history card over the results). Exit code 0 = all passed.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -320,6 +322,90 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   const fin = await page.evaluate(() => ({ cls: document.querySelector('[data-ref=results]').classList.contains('finale-rail'), banner: document.querySelector('[data-ref=resBanner]').textContent }));
   ok('120 reference passes and shows the Iron Road finale', r.res && r.res.passed && r.res.finale && fin.cls && /Iron Road complete/.test(fin.banner), r.res && { passed: r.res.passed, reason: r.res.reason, finale: r.res.finale, fin });
   await shot('27-rail120-finale');
+
+  // ================================================================ one campaign system (Roads + bonus | Iron Road | Famous Bridges)
+  await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
+  await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(600);
+  const tabs = await page.evaluate(() => ({
+    camps: Array.from(document.querySelectorAll('.camp-tabs .camp-tab')).map(b => b.dataset.camp),
+    famousLocked: document.querySelector('.camp-tab[data-camp=famous]').classList.contains('locked'),
+    famousSub: document.querySelector('[data-ref=ctFamous]').textContent,
+    lock: BG.Storage.campaignLockText('famous'),
+  }));
+  ok('level select: one tab bar - Roads | Iron Road | Famous Bridges; Famous locked until road 15', tabs.camps.join() === 'road,rail,famous' && tabs.famousLocked && /Complete level 15/.test(tabs.famousSub) && /level 15/.test(tabs.lock || ''), tabs);
+  const rules = await page.evaluate(() => {
+    const G = BG.Game, S = BG.Storage, L = id => G.findLevel(id), nx = id => { const n = G.nextInCampaign(L(id)); return n ? n.id : null; };
+    return {
+      next: [10, 50, 53, 105, 120, 204, 208, 211, 212].map(nx),
+      finale: [49, 50, 53, 119, 120, 211, 212].map(id => S.finaleOf(L(id))),
+      camp: [1, 51, 101, 205, 209].map(id => G.campaignOf(L(id))),
+      famousCount: S.campaignLevels(BG.Levels, 'famous').length,
+    };
+  });
+  ok('Next stays in the campaign (50 -> bonus 51, 204 -> Forth 205, 208 -> Tacoma 209; 53 / 120 / 212 end)', JSON.stringify(rules.next) === JSON.stringify([11, 51, null, 106, null, 205, 209, 212, null]), rules.next);
+  ok('one finale per campaign (50 Roads, 53 bonus, 120 Iron Road, 212 Famous Bridges)', JSON.stringify(rules.finale) === JSON.stringify([null, 'road', 'bonus', null, 'rail', null, 'famous']), rules.finale);
+  ok('campaigns: bonus levels are Roads, Forth + Tacoma are Famous Bridges (12 playable)', rules.camp.join() === 'road,road,rail,famous,famous' && rules.famousCount === 12, rules);
+  // road 15 opens Famous Bridges: toast, tab, first bridge only
+  await page.evaluate(() => { BG.Game.openLevel(15, { force: true }); }); await page.waitForTimeout(700);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(15));
+  r = await runSim(90); await page.waitForTimeout(1700);
+  const open15 = await page.evaluate(() => ({ opened: BG.Game.lastResult.campaignsOpened, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | '), open: BG.Storage.isCampaignUnlocked('famous') }));
+  ok('passing road 15 opens Famous Bridges (toast)', r.res && r.res.passed && open15.open && (open15.opened || []).includes('famous') && /Famous Bridges is open/.test(open15.toast), open15);
+  await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(400);
+  await page.click('.camp-tab[data-camp=famous]'); await page.waitForTimeout(500);
+  const fv = await page.evaluate(() => ({ tab: BG.Hud.tab, mode: document.getElementById('screen-levels').classList.contains('fb-mode'), chaptersHidden: getComputedStyle(document.querySelector('.chapters')).display === 'none', tiles: document.querySelectorAll('.fb-tile').length, open: Array.from(document.querySelectorAll('.fb-tile.open')).map(t => +t.dataset.id), badges: document.querySelectorAll('.fb-tile .tile-badges').length, stars: document.querySelector('[data-ref=lsStars]').textContent }));
+  ok('Famous Bridges tab: 12 picture tiles with badge counts, only 201 open, chapters hidden', fv.tab === 'famous' && fv.mode && fv.chaptersHidden && fv.tiles === 12 && fv.open.join() === '201' && fv.badges === 12 && /\/\s*36/.test(fv.stars), fv);
+  await shot('28-famous-tab');
+  // results layering: a famous result's Next opens the next bridge's history card OVER the results; Esc returns
+  await page.click('.fb-tile[data-fbid="201"]'); await page.waitForTimeout(500);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(900);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(201));
+  r = await runSim(90); await page.waitForTimeout(2600);
+  const lay = await page.evaluate(() => {
+    const card = document.querySelector('.results-card');
+    const kids = Array.from(card.children);
+    const idx = sel => kids.findIndex(k => k.matches(sel));
+    return { badges: idx('.res-badges'), actions: idx('.res-actions'), daily: !!card.querySelector('.dly-res'), hasNext: BG.Game.lastResult.hasNext, finale: BG.Game.lastResult.finale };
+  });
+  ok('famous result: badges above the buttons, no daily card, Next (not the finale)', r.res && r.res.passed && lay.badges >= 0 && lay.badges < lay.actions && !lay.daily && lay.hasNext && !lay.finale, lay);
+  await page.click('[data-act=next]'); await page.waitForTimeout(600);
+  const over = await page.evaluate(() => {
+    const ov = document.querySelector('.fb-overlay'), res = document.querySelector('[data-ref=results]');
+    const z = el => +getComputedStyle(el).zIndex || 0;
+    const r = ov.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { card: BG.Famous.card.open, state: BG.Game.state, title: (document.querySelector('.fb-card h2') || {}).textContent, onTop: !!(top && top.closest('.fb-overlay')), resShown: res.classList.contains('show'), z: z(ov) };
+  });
+  ok('Next from a famous result: the next history card sits on top of the results', over.card && over.state === 'results' && over.onTop && over.resShown && /Ponte Vecchio/.test(over.title), over);
+  await shot('29-famous-card-over-results');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  ok('Esc closes the card and leaves the results as they were', await page.evaluate(() => !BG.Famous.card.open && BG.Game.state === 'results' && document.querySelector('[data-ref=results]').classList.contains('show')));
+  // Continue works across campaigns: last played = an unfinished famous bridge
+  await page.evaluate(() => { BG.Storage.setLastLevel(202); BG.Game.goTitle(); }); await page.waitForTimeout(700);
+  const cont = await page.evaluate(() => ({ label: document.querySelector('[data-act=continue] .lbl').textContent, target: BG.Game.continueTarget().id, daily: !!document.querySelector('#screen-title .dly-title-btn'), endless: !!document.querySelector('#screen-title .dly-endless-btn'), endlessSub: (document.querySelector('.dly-endless-btn small') || {}).textContent, stars: document.querySelector('[data-ref=titleStars]').textContent }));
+  ok('title: Continue resumes the famous bridge; Daily Challenge + Endless entry points', cont.target === 202 && /Continue · Ponte Vecchio/.test(cont.label) && cont.daily && cont.endless && !!cont.endlessSub, cont);
+  await shot('30-title-entry-points');
+  await page.click('[data-act=continue]'); await page.waitForTimeout(500);
+  ok('Continue opens the history card of that bridge', await page.evaluate(() => BG.Famous.card.open && /Ponte Vecchio/.test(document.querySelector('.fb-card h2').textContent)));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  // all Iron Road levels finished, last = 120 -> Continue goes to the first open unfinished level of another campaign
+  const cross = await page.evaluate(() => {
+    const S = BG.Storage;
+    for (let id = 101; id <= 120; id++) S.recordResult(id, { passed: true, stars: 1, cost: 1 });
+    S.setLastLevel(120);
+    const t = BG.Game.continueTarget();
+    return { id: t && t.id, camp: t && BG.Game.campaignOf(t) };
+  });
+  ok('Continue after the whole Iron Road moves on to another campaign', cross.id != null && cross.camp !== 'rail', cross);
+  // the bonus chapter finale (53) in the browser: hidden chapter revealed, its own finale text, 'All levels'
+  await page.evaluate(() => { BG.Storage.recordResult(50, { passed: true, stars: 1, cost: 1 }); BG.Game.openLevel(53, { force: true }); }); await page.waitForTimeout(800);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('53-best'));
+  r = await runSim(90); await page.waitForTimeout(1800);
+  const b53 = await page.evaluate(() => ({ banner: document.querySelector('[data-ref=resBanner]').textContent, cls: document.querySelector('[data-ref=results]').classList.contains('finale-bonus'), next: document.querySelector('[data-act=next] span').textContent }));
+  ok('53 passes with the Forces of Nature finale', r.res && r.res.passed && r.res.finaleKind === 'bonus' && b53.cls && /Forces of Nature/.test(b53.banner) && b53.next === 'All levels', Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, b53));
+  await shot('31-bonus-finale');
+  await page.click('[data-act=next]'); await page.waitForTimeout(700);
+  const back = await page.evaluate(() => ({ state: BG.Game.state, tab: BG.Hud.tab, bonus: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent).includes('Forces of Nature') }));
+  ok('after the bonus finale: back on the Roads tab with the Forces of Nature chapter', back.state === 'levelSelect' && back.tab === 'road' && back.bonus, back);
 
   ok('no console errors', errors.length === 0, errors.slice(0, 15));
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} e2e checks passed`);

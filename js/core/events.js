@@ -89,6 +89,12 @@
   // ------------------------------------------------------------------ event normalisation
   function normalizeOne(e, i) {
     if (!e || typeof e !== 'object') return null;
+    // { preset: 'tacoma', ...overrides }: a named preset (BG.Forces.presets) with level-specific overrides,
+    // so level JSON can say "the Tacoma wind, tuned to this deck" without copying the preset's numbers
+    if (typeof e.preset === 'string' && presets[e.preset]) {
+      const o = Object.assign({}, e); delete o.preset;
+      e = presets[e.preset](o);
+    }
     const type = e.type === 'earthquake' ? 'quake' : e.type;
     const base = { type, index: i, start: Math.max(0, num(e.start, 0)), duration: Math.max(0.1, num(e.duration, 8)) };
     if (type === 'wind') {

@@ -31,13 +31,13 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond }); console
   ok('modules loaded', fresh.forces && fresh.fx);
   ok('bonus chapter hidden on a fresh profile', fresh.chapters.length === 6 && fresh.tiles === 50, fresh);
   // merge (goals / Iron Road): unrevealed bonus levels stay out of the star and badge totals
-  const t0 = await page.evaluate(() => { const totals = () => ({ stars: document.querySelector('[data-ref=lsStars]').textContent.trim(), badges: (document.querySelector('.ls-right .badge-chip') || {}).textContent || null }); return Object.assign(totals(), { gd: Object.keys(BG.GoalsData || {}).length }); });
-  ok('hidden bonus levels not counted in road stars / badge totals', t0.stars.endsWith('/ 150') && !!t0.badges && !t0.badges.endsWith('/ 199'), t0);
+  const t0 = await page.evaluate(() => { const totals = () => ({ stars: document.querySelector('[data-ref=lsStars]').textContent.trim(), badges: (document.querySelector('.ls-right .badge-chip') || {}).textContent || null }); return Object.assign(totals(), { gd: Object.keys(BG.GoalsData || {}).length, all: Object.values(BG.GoalsData || {}).reduce((a, g) => a + g.length, 0) }); });
+  ok('hidden bonus levels not counted in road stars / badge totals', t0.stars.endsWith('/ 150') && !!t0.badges && !t0.badges.endsWith('/ ' + t0.all), t0);
   // completing level 50 reveals it
   const after = await page.evaluate(() => { BG.Storage.recordResult(50, { passed: true, stars: 1, cost: 1 }); BG.Hud.buildLevelSelect(); return { chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), open51: !!document.querySelector('.tile.open[data-id="51"]'), open53: !!document.querySelector('.tile.open[data-id="53"]') }; });
   ok('Forces of Nature chapter appears after level 50', after.chapters.length === 7 && after.chapters[6] === 'Forces of Nature' && after.open51 && !after.open53, after);
   const t1 = await page.evaluate(() => { const totals = () => ({ stars: document.querySelector('[data-ref=lsStars]').textContent.trim(), badges: (document.querySelector('.ls-right .badge-chip') || {}).textContent || null }); return totals(); });
-  ok('revealed bonus levels count in the totals', t1.stars.endsWith('/ 159') && (t1.badges || '').endsWith('/ 199'), t1);
+  ok('revealed bonus levels count in the totals', t1.stars.endsWith('/ 159') && (t1.badges || '').endsWith('/ ' + t0.all), Object.assign({ allGoals: t0.all }, t1));
   await page.waitForTimeout(700);
   await shot('01-levelselect-bonus');
   // the Iron Road tab never shows the bonus chapter

@@ -244,16 +244,69 @@
     { n: 3, name: 'Freight Corridor', from: 111, to: 115, desc: 'Commuters, long freight & ore · whole span loaded · deep trusses', theme: 'canyon', campaign: 'rail' },
     { n: 4, name: 'High Speed', from: 116, to: 120, desc: 'High-speed trains · speed impact · double-deck road & rail finale', theme: 'city', campaign: 'rail' },
   ];
-  const CAMPAIGNS = {
-    road: { id: 'road', name: 'Roads', sub: 'Six regions · fifty bridges' },
-    rail: { id: 'rail', name: 'Iron Road', sub: 'Four lines · twenty railway bridges' },
+  // ------------------------------------------------------------------ campaigns
+  // The level select shows one tab per campaign. The RULES (id ranges, unlock level, finale ids, which levels
+  // are playable) live in BG.Storage.CAMPAIGNS; this table holds how each campaign LOOKS: tab icon, subtitle,
+  // chapters (or a custom panel renderer), labels and finale text. Feature modules add campaigns with
+  // BG.Hud.registerCampaign(id, ui) (js/features/famous.js registers 'famous').
+  const CAMPAIGN_UI = {
+    road: {
+      id: 'road', name: 'Roads', sub: 'Six regions · fifty bridges', icon: () => icon('road'), cls: '', levelK: 'LEVEL',
+      chapters: () => CHAPTERS, allLabel: 'All levels', maxDefault: 150,
+      finale: {
+        banner: 'All crossings complete', title: 'You spanned them all!',
+        text: (starLine, res) => 'Fifty bridges, from a wobbly plank to a 150 m suspension span. ' + starLine +
+          (res && res.hasNext ? ' A hidden chapter has opened: the Forces of Nature.' : '') +
+          (levelsList().some(l => campaignOf(l) === 'rail') ? ' The Iron Road is waiting on the level select.' : ''),
+      },
+      bonusFinale: {
+        banner: 'Forces of Nature weathered', title: 'Storm-proof!',
+        text: starLine => 'Hurricane, earthquake and a galloping deck - your bridges rode out all three. ' + starLine,
+      },
+    },
+    rail: {
+      id: 'rail', name: 'Iron Road', sub: 'Four lines · twenty railway bridges', icon: () => icon('train'), cls: 'is-rail', levelK: 'RAIL',
+      chapters: () => RAIL_CHAPTERS, allLabel: 'All lines', maxDefault: 60,
+      finale: {
+        banner: 'Iron Road complete', title: 'End of the line!',
+        text: starLine => 'Twenty railway bridges, from a handcar over a creek to high-speed expresses on a double-deck span. ' + starLine,
+      },
+      locked: () => `<div class="camp-locked glass">
+            <div class="cl-art">${trainSvg('steam')}</div>
+            <div class="cl-text"><h3>${icon('lock')}The Iron Road is closed</h3>
+            <p>Complete level 10 to open the Iron Road: twenty railway bridges, from handcars and trams to 2000-tonne ore trains and high-speed expresses.</p></div>
+          </div>`,
+    },
   };
-  // famous: Famous Bridges (201+) is its own campaign too (js/features/famous.js), never part of the Roads
-  function campaignOf(level) { return level && (level.campaign === 'rail' || level.campaign === 'famous') ? level.campaign : 'road'; }
-  function chaptersFor(campaign) { return campaign === 'rail' ? RAIL_CHAPTERS : CHAPTERS; }
-  function railCampaignOpen() {
+  const CAMPAIGN_ORDER = ['road', 'rail'];
+  function campaignOf(level) {
     const S = stor();
-    try { return S && S.isCampaignUnlocked ? S.isCampaignUnlocked('rail') : true; } catch (e) { return true; }
+    if (S && S.campaignOf) { try { return S.campaignOf(level); } catch (e) { /* */ } }
+    return level && level.campaign && level.campaign !== 'road' ? level.campaign : 'road';
+  }
+  function campaignUi(campaign) { return CAMPAIGN_UI[campaign] || CAMPAIGN_UI.road; }
+  function chaptersFor(campaign) { const c = campaignUi(campaign); return c.chapters ? c.chapters() : []; }
+  function campaignOpen(campaign) {
+    const S = stor();
+    try { return S && S.isCampaignUnlocked ? S.isCampaignUnlocked(campaign) : true; } catch (e) { return true; }
+  }
+  function railCampaignOpen() { return campaignOpen('rail'); }
+  function campaignLockText(campaign) {
+    const S = stor();
+    try { if (S && S.campaignLockText) return S.campaignLockText(campaign); } catch (e) { /* */ }
+    return null;
+  }
+  // the campaigns that get a tab: registered, and with at least one level in BG.Levels
+  function campaignTabs() {
+    return CAMPAIGN_ORDER.filter(c => c === 'road' || levelsList().some(l => campaignOf(l) === c));
+  }
+  // {got, max} stars of one campaign (playable levels; the Roads leave out hidden bonus levels)
+  function campaignStarsOf(campaign) {
+    const S = stor();
+    let r;
+    try { r = S && S.campaignStars ? S.campaignStars(levelsList(), campaign) : { got: S ? S.totalStars() : 0, max: 150 }; } catch (e) { r = { got: 0, max: 0 }; }
+    if (campaign === 'road') r.max = Math.max(0, r.max - 3 * hiddenLevelIds().length);
+    return r;
   }
   // what the player sees as the level number: the real id everywhere (1-50 on the Roads,
   // 101-120 on the Iron Road), so tiles, chapter headers and the HUD all agree
@@ -422,16 +475,18 @@
       let total = 0;
       try { total = S ? S.totalStars() : 0; } catch (e) { /* */ }
       $('[data-ref=titleStars] b', el).textContent = total;
-      const nLv = levelsList().length - hiddenLevelIds().length;
-      $('[data-ref=titleStars]', el).lastChild.textContent = ' / ' + (nLv ? nLv * 3 : 150);
+      // every campaign's playable levels (stubs and the still-hidden bonus chapter have nothing to earn yet)
+      const max = campaignTabs().reduce((t, c) => t + campaignStarsOf(c).max, 0);
+      $('[data-ref=titleStars]', el).lastChild.textContent = ' / ' + (max || 150);
       const cont = $('[data-act=continue]', el);
       const target = call('continueTarget');
       const prog = S ? S.getProgress() : null;
       const has = prog && (prog.lastLevel != null || Object.keys(prog.levels || {}).length);
       if (has && target) {
         cont.hidden = false;
-        $('.lbl', cont).textContent = 'Continue · ' + levelLabel(target);
-        cont.classList.toggle('is-rail', campaignOf(target) === 'rail');
+        const camp = campaignOf(target), cu = campaignUi(camp);
+        $('.lbl', cont).textContent = 'Continue · ' + (cu.continueLabel ? cu.continueLabel(target) : levelLabel(target));
+        CAMPAIGN_ORDER.forEach(c => { const k = campaignUi(c).cls; if (k) cont.classList.toggle(k, c === camp); });
       } else cont.hidden = true;
     },
 
@@ -442,10 +497,7 @@
           <header class="ls-head glass">
             <button class="btn btn-icon btn-ghost" data-act="back" title="Back (Esc)">${icon('back')}</button>
             <div class="ls-title"><h2>Select a crossing</h2><p data-ref="lsSub">Six regions · fifty bridges</p></div>
-            <div class="camp-tabs" role="tablist" aria-label="Campaign">
-              <button class="camp-tab" role="tab" data-camp="road">${icon('road')}<span class="ct-txt"><b>Roads</b><small data-ref="ctRoad">0 / 150</small></span></button>
-              <button class="camp-tab is-rail" role="tab" data-camp="rail">${icon('train')}<span class="ct-txt"><b>Iron Road</b><small data-ref="ctRail">Complete level 10</small></span><span class="ct-lock">${icon('lock')}</span></button>
-            </div>
+            <div class="camp-tabs" role="tablist" aria-label="Campaign"></div>
             <div class="ls-right">
               <span class="chip chip-lg" data-ref="lsStars">${starSvg('on')}<b>0</b> / 150</span>
               <button class="btn btn-icon btn-ghost" data-act="settings" title="Settings">${icon('gear')}</button>
@@ -474,56 +526,84 @@
         else {
           sfx('error');
           t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope');
-          const railShut = t.classList.contains('is-rail') && !railCampaignOpen();
+          const shut = campaignLockText(this.tab);
           this.toast(t.classList.contains('soon') ? 'This crossing is still being surveyed — coming soon.'
-            : railShut ? 'Complete level 10 to open the Iron Road.' : 'Complete one of the two levels before this one to unlock it.', 'info');
+            : shut || 'Complete one of the two levels before this one to unlock it.', 'info');
         }
       });
       this.el.levels = el;
       return el;
     },
-    // campaign tab on the level select: 'road' | 'rail'. noBuild: just remember it (the screen is built later)
+    // campaign tab on the level select: any campaign in CAMPAIGN_ORDER ('road' | 'rail' | 'famous' ...).
+    // noBuild: just remember it (the screen is built later); then it never lands on a locked tab.
     tab: 'road',
     setCampaignTab(campaign, noBuild) {
-      this.tab = campaign === 'rail' ? 'rail' : 'road';
+      this.tab = CAMPAIGN_UI[campaign] && campaignTabs().includes(campaign) ? campaign : 'road';
       // returning to the level select from a level: never land on a locked tab
-      if (noBuild && this.tab === 'rail' && !railCampaignOpen()) this.tab = 'road';
+      if (noBuild && !campaignOpen(this.tab)) this.tab = 'road';
       if (!noBuild && this.el.levels) {
         this.buildLevelSelect();
         const sc = $('.ls-scroll', this.el.levels);
         if (sc) sc.scrollTop = 0;
       }
     },
+    // registers a campaign's look (its rules live in BG.Storage.CAMPAIGNS). ui: { name, sub, icon() -> svg,
+    // cls (tab / tile class), levelK (top-bar badge word), allLabel (results button after the last level),
+    // modeClass (#screen-levels class while active), panelClass + render(panel, info) (own tile panel instead of
+    // chapters), continueLabel(level), finale: { banner, title, text(starLine) } }
+    registerCampaign(id, ui) {
+      CAMPAIGN_UI[id] = Object.assign({ id, name: id, sub: '', icon: () => icon('road'), cls: 'is-' + id, levelK: 'LEVEL', allLabel: 'All levels' }, ui || {});
+      if (!CAMPAIGN_ORDER.includes(id)) CAMPAIGN_ORDER.push(id);
+      if (this.el.levels && this.screen === 'levelSelect') this.buildLevelSelect();
+    },
+    campaignUi(id) { return CAMPAIGN_UI[id] || null; },
+    campaignTabs() { return campaignTabs(); },
+    campaignStars(id) { return campaignStarsOf(id); },
+    _renderCampaignTabs(el, camp) {
+      const bar = $('.camp-tabs', el);
+      if (!bar) return;
+      const S = stor();
+      bar.innerHTML = campaignTabs().map(c => {
+        const u = campaignUi(c), open = campaignOpen(c), st = campaignStarsOf(c);
+        const gate = S && S.CAMPAIGNS && S.CAMPAIGNS[c] ? S.CAMPAIGNS[c].unlockAfter : null;
+        const small = open ? st.got + ' / ' + (st.max || u.maxDefault || 0) + ' ★' : 'Complete level ' + gate;
+        return '<button class="camp-tab ' + (u.cls || '') + (c === camp ? ' active' : '') + (open ? '' : ' locked') + '" role="tab" data-camp="' + c + '" aria-selected="' + (c === camp) + '" title="' + esc(open ? u.sub : campaignLockText(c) || '') + '">' +
+          u.icon() + '<span class="ct-txt"><b>' + esc(u.name) + '</b><small data-ref="ct' + c.charAt(0).toUpperCase() + c.slice(1) + '">' + small + '</small></span><span class="ct-lock">' + icon('lock') + '</span></button>';
+      }).join('');
+    },
     buildLevelSelect() {
       const el = this.el.levels;
       const wrap = $('.chapters', el);
       wrap.innerHTML = '';
       const S = stor();
-      const camp = this.tab === 'rail' ? 'rail' : 'road';
-      const railOpen = railCampaignOpen();
-      const cs = c => { try { return S && S.campaignStars ? S.campaignStars(levelsList(), c) : { got: S ? S.totalStars() : 0, max: 150 }; } catch (e) { return { got: 0, max: 0 }; } };
-      const road = cs('road'), rail = cs('rail');
-      road.max = Math.max(0, road.max - 3 * hiddenLevelIds().length); // forces: hidden bonus levels (no stars yet)
-      const cur = camp === 'rail' ? rail : road;
+      if (!CAMPAIGN_UI[this.tab] || !campaignTabs().includes(this.tab)) this.tab = 'road';
+      const camp = this.tab, cu = campaignUi(camp);
+      const open = campaignOpen(camp);
+      const cur = campaignStarsOf(camp);
       $('[data-ref=lsStars] b', el).textContent = cur.got;
-      $('[data-ref=lsStars]', el).lastChild.textContent = ' / ' + (cur.max || (camp === 'rail' ? 60 : 150));
-      $('[data-ref=lsSub]', el).textContent = CAMPAIGNS[camp].sub;
-      $('[data-ref=ctRoad]', el).textContent = road.got + ' / ' + (road.max || 150) + ' ★';
-      $('[data-ref=ctRail]', el).textContent = railOpen ? rail.got + ' / ' + (rail.max || 60) + ' ★' : 'Complete level 10';
-      $$('[data-camp]', el).forEach(b => {
-        const on = b.dataset.camp === camp;
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      $('[data-ref=lsStars]', el).lastChild.textContent = ' / ' + (cur.max || cu.maxDefault || 0);
+      $('[data-ref=lsSub]', el).textContent = cu.sub;
+      this._renderCampaignTabs(el, camp);
+      CAMPAIGN_ORDER.forEach(c => {
+        const u = campaignUi(c);
+        el.classList.toggle('camp-' + c, c === camp);
+        if (u.modeClass) el.classList.toggle(u.modeClass, c === camp);
       });
-      $('[data-camp=rail]', el).classList.toggle('locked', !railOpen);
-      el.classList.toggle('camp-rail', camp === 'rail');
-      if (camp === 'rail' && !railOpen) {
-        wrap.appendChild(h(`<div class="camp-locked glass">
-            <div class="cl-art">${trainSvg('steam')}</div>
-            <div class="cl-text"><h3>${icon('lock')}The Iron Road is closed</h3>
-            <p>Complete level 10 to open the Iron Road: twenty railway bridges, from handcars and trams to 2000-tonne ore trains and high-speed expresses.</p></div>
-          </div>`));
+      // a campaign with its own tile panel (Famous Bridges): one panel per campaign, in place of the chapters
+      $$('.camp-panel', el).forEach(p => { if (p.dataset.camp !== camp) { p.hidden = true; p.innerHTML = ''; } });
+      if (cu.render) {
+        let panel = $('.camp-panel[data-camp="' + camp + '"]', el);
+        if (!panel) {
+          panel = h('<div class="camp-panel ' + (cu.panelClass || '') + '" data-camp="' + camp + '"></div>');
+          $('.ls-scroll', el).appendChild(panel);
+        }
+        panel.hidden = false;
+        wrap.hidden = true;
+        try { cu.render(panel, { open, stars: cur, lockText: campaignLockText(camp) }); } catch (e) { console.error(e); }
+        return;
       }
+      wrap.hidden = false;
+      if (!open && cu.locked) wrap.appendChild(h(cu.locked()));
       chaptersFor(camp).forEach(ch => {
         // forces: hidden bonus chapters stay out of the list until one of their levels is unlocked
         if (ch.hidden && hiddenLevelIds().includes(ch.from)) return;
@@ -534,19 +614,19 @@
           const lv = levelForSlot(n);
           const num = n;
           if (!lv) {
-            tiles.push(`<div class="tile soon ${camp === 'rail' ? 'is-rail' : ''}" data-id="${n}" style="--acc:${th.accent}"><div class="tile-art soon-art"><span>${num}</span></div><div class="tile-body"><div class="tile-name">Coming soon</div><div class="tile-stars dim">${starSvg()}${starSvg()}${starSvg()}</div></div></div>`);
+            tiles.push(`<div class="tile soon ${cu.cls || ''}" data-id="${n}" style="--acc:${th.accent}"><div class="tile-art soon-art"><span>${num}</span></div><div class="tile-body"><div class="tile-name">Coming soon</div><div class="tile-stars dim">${starSvg()}${starSvg()}${starSvg()}</div></div></div>`);
             continue;
           }
           const id = levelId(lv);
-          const open = unlocked(id);
+          const isOpen = unlocked(id);
           const st = starsFor(id);
           chStars += st; chMax += 3;
-          if (open) anyOpen = true;
+          if (isOpen) anyOpen = true;
           const lth = theme(lv.theme || ch.theme);
           const done = S && S.isCompleted && S.isCompleted(id);
           const rail = campaignOf(lv) === 'rail';
-          tiles.push(`<button class="tile ${open ? 'open' : 'locked'} ${done ? 'done' : ''} ${rail ? 'is-rail' : ''}" data-id="${id}" style="--acc:${lth.accent}" ${open ? '' : 'aria-disabled="true"'}>
-              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${open ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
+          tiles.push(`<button class="tile ${isOpen ? 'open' : 'locked'} ${done ? 'done' : ''} ${rail ? 'is-rail' : ''}" data-id="${id}" style="--acc:${lth.accent}" ${isOpen ? '' : 'aria-disabled="true"'}>
+              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${isOpen ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
               <div class="tile-body"><div class="tile-name">${esc(lv.name || levelLabel(lv))}</div>
               <div class="tile-stars">${[0, 1, 2].map(i => starSvg(i < st ? 'on' : '')).join('')}</div></div>
             </button>`);
@@ -565,11 +645,13 @@
       // stagger-in animation
       $$('.tile', wrap).forEach((t, i) => { t.style.animationDelay = (Math.min(i, 40) * 14) + 'ms'; });
     },
+    // every campaign's tiles carry data-id (chapter tiles and custom panels alike)
     scrollToLevel(id) {
-      let t = $('.tile[data-id="' + id + '"]', this.el.levels);
+      const find = () => $('.ls-scroll [data-id="' + id + '"]', this.el.levels);
+      let t = find();
       if (!t) {
         const lv = levelsList().find(l => l && l.id === id);
-        if (lv && campaignOf(lv) !== this.tab) { this.setCampaignTab(campaignOf(lv)); t = $('.tile[data-id="' + id + '"]', this.el.levels); }
+        if (lv && campaignOf(lv) !== this.tab) { this.setCampaignTab(campaignOf(lv)); t = find(); }
       }
       if (t && t.scrollIntoView) { try { t.scrollIntoView({ block: 'center' }); } catch (e) { /* */ } }
     },
@@ -751,14 +833,15 @@
       this._sig = {};
       const id = levelId(level);
       const camp = campaignOf(level);
-      this.el.lvlNum.textContent = displayNum(level);
-      $('.lvl-k', this.el.level).textContent = camp === 'rail' ? 'RAIL' : 'LEVEL';
-      this.el.level.classList.toggle('camp-rail', camp === 'rail');
+      const cu = campaignUi(camp);
+      this.el.lvlNum.textContent = cu.levelNum ? cu.levelNum(level) : displayNum(level);
+      $('.lvl-k', this.el.level).textContent = cu.levelK || 'LEVEL';
+      CAMPAIGN_ORDER.forEach(c => this.el.level.classList.toggle('camp-' + c, c === camp));
       this.el.lvlName.textContent = level.name || levelLabel(level);
       const t = level.terrain || {};
       const gap = (t.rightEdge != null && t.leftEdge != null) ? Math.round(t.rightEdge - t.leftEdge) : null;
       const ch = chaptersFor(camp).find(c => id >= c.from && id <= c.to);
-      this.el.lvlSub.textContent = [camp === 'rail' ? 'Iron Road' : null, ch ? ch.name : null, gap ? gap + ' m gap' : null, level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
+      this.el.lvlSub.textContent = cu.levelSub ? cu.levelSub(level, gap) : [camp !== 'road' ? cu.name : null, ch ? ch.name : null, gap ? gap + ' m gap' : null, level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
       this.el.level.style.setProperty('--acc', theme(level.theme).accent);
       this.el.budgetV.textContent = money(level.budget);
       this._shownCost = 0;
@@ -1124,7 +1207,7 @@
       this.el.resStats.innerHTML = [
         ['Cost', money(res.cost), res.cost > res.budget ? 'bad' : 'good'],
         ['Budget', money(res.budget), ''],
-        [res.campaign === 'rail' ? 'Traffic' : 'Vehicles', (res.vehiclesFinished || 0) + ' / ' + (res.vehiclesTotal || 0), res.vehiclesFinished >= res.vehiclesTotal && res.vehiclesTotal ? 'good' : 'bad'],
+        [res.campaign === 'rail' || res.rail ? 'Traffic' : 'Vehicles', (res.vehiclesFinished || 0) + ' / ' + (res.vehiclesTotal || 0), res.vehiclesFinished >= res.vehiclesTotal && res.vehiclesTotal ? 'good' : 'bad'],
         ['Peak stress', pk != null ? pk + '%' : '—', pk != null && pk >= 100 ? 'bad' : ''],
         ['Time', (res.time || 0).toFixed(1) + ' s', ''],
         ['Broken', String(res.brokenBeams || 0), res.brokenBeams ? 'bad' : 'good'],
@@ -1136,7 +1219,7 @@
       this._resultTimers.push(setTimeout(() => { rb.style.width = (clamp(pct, 0, 1) * 100) + '%'; }, 250));
       const nb = $('[data-act=next]', el);
       nb.hidden = !res.passed;
-      $('span', nb).textContent = res.hasNext ? 'Next level' : res.campaign === 'rail' ? 'All lines' : 'All levels';
+      $('span', nb).textContent = res.hasNext ? 'Next level' : (campaignUi(res.campaign).allLabel || 'All levels');
       // the sim is deterministic: retrying an unchanged failed bridge replays the same failure,
       // so after a failure the main action is going back to edit
       $('[data-act=retry]', el).classList.remove('btn-primary');
@@ -1144,27 +1227,20 @@
       $('[data-act=resEdit]', el).classList.toggle('btn-primary', !res.passed);
       $('[data-act=resEdit]', el).classList.toggle('btn-glass', !!res.passed);
       $('[data-act=retry] span', el).textContent = res.passed ? 'Replay' : 'Retry';
-      el.classList.toggle('finale', !!res.finale);
-      el.classList.toggle('finale-rail', !!res.finale && res.campaign === 'rail');
-      if (res.finale) {
-        const rail = res.campaign === 'rail';
-        let tot = 0, max = 0;
-        try {
-          const S = stor();
-          if (S && S.campaignStars) { const c = S.campaignStars(levelsList(), rail ? 'rail' : 'road'); tot = c.got; max = c.max; }
-          else { tot = S ? S.totalStars() : 0; max = levelsList().length * 3; }
-        } catch (e) { /* */ }
-        const starLine = max ? 'You hold ' + tot + ' of ' + max + ' stars' + (tot < max ? '. The three-star lines are still waiting.' : '. A perfect run.') : '';
-        if (rail) {
-          this.el.resBanner.textContent = 'Iron Road complete';
-          this.el.resTitle.textContent = 'End of the line!';
-          this.el.resReason.textContent = 'Twenty railway bridges, from a handcar over a creek to high-speed expresses on a double-deck span. ' + starLine;
-        } else {
-          this.el.resBanner.textContent = 'All crossings complete';
-          this.el.resTitle.textContent = 'You spanned them all!';
-          let railHint = '';
-          try { railHint = levelsList().some(l => campaignOf(l) === 'rail') ? ' The Iron Road is waiting on the level select.' : ''; } catch (e) { /* */ }
-          this.el.resReason.textContent = 'Fifty bridges, from a wobbly plank to a 150 m suspension span. ' + starLine + railHint;
+      // finale of a campaign (res.finaleKind: 'road' after 50, 'bonus' after 53, 'rail' after 120, 'famous' after 212):
+      // banner, title and text come from that campaign's registered look (CAMPAIGN_UI[...].finale)
+      const kind = res.finale ? (res.finaleKind || res.campaign || 'road') : null;
+      el.classList.toggle('finale', !!kind);
+      CAMPAIGN_ORDER.concat(['bonus']).forEach(c => el.classList.toggle('finale-' + c, kind === c));
+      if (kind) {
+        const camp = kind === 'bonus' ? 'road' : kind;
+        const c = campaignStarsOf(camp);
+        const starLine = c.max ? 'You hold ' + c.got + ' of ' + c.max + ' stars' + (c.got < c.max ? '. The three-star lines are still waiting.' : '. A perfect run.') : '';
+        const fin = kind === 'bonus' ? CAMPAIGN_UI.road.bonusFinale : campaignUi(camp).finale;
+        if (fin) {
+          this.el.resBanner.textContent = fin.banner;
+          this.el.resTitle.textContent = fin.title;
+          this.el.resReason.textContent = fin.text(starLine, res);
         }
       }
       this.el.pillText.textContent = res.passed ? ('★'.repeat(res.stars) + ' · ' + money(res.cost)) : (res.simOk ? 'Over budget' : 'Failed');

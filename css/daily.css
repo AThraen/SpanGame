@@ -87,3 +87,6 @@ body.dly-mode .lvl-k { font-size: 8px; letter-spacing: .1em; }
   .dly-endless { flex-direction: column; align-items: stretch; }
   .dly-e-btns .btn { flex: 1; }
 }
+/* the Endless title button (same shape as the daily one) */
+.dly-endless-btn { gap: 12px; padding: 0 22px 0 18px; }
+.dly-endless-btn .ico { width: 24px; height: 24px; color: #c9a2ff; }

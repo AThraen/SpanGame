@@ -75,7 +75,8 @@ const railLevels = [
 railLevels.forEach((l) => levels.push(l));
 if (!RAIL_OK) console.log('  (BG.Materials has no rail/masonry yet: rail levels checked with template geometry only)');
 const deckMat = (m) => /road/.test(m) || m === 'rail' || !!(BG.Materials && BG.Materials[m] && BG.Materials[m].isRail);
-const isRailLvl = (l) => l.campaign === 'rail';
+// a railway level: the Iron Road, or any level with train traffic (e.g. Famous Bridges' Forth Bridge, 205) - as in templates.js
+const isRailLvl = (l) => l.campaign === 'rail' || (l.traffic || []).some((g) => g && g.type === 'train');
 if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => { if (!BG.Requirements || BG.Requirements.met(l)) levels.push(l); }); // famous: skip stubs needing missing modules
 
 function geomOf(level, design) {

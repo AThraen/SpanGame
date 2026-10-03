@@ -5,9 +5,8 @@
   "requires": [
     "rail"
   ],
-  "stub": "Iron Road is in, but the cantilever rail crossing still needs its verified designs.",
   "theme": "snow",
-  "hint": "Three giant double cantilevers balance out from their piers, with short suspended spans between them.",
+  "hint": "Stand a tall pier tower in each of the three pier zones and grow a deep steel truss out from its top, deepest over the piers and shallow over the two shipping channels - three balanced cantilevers, like Fowler and Baker's. Keep the track smooth: the express is heavy and a sagging joint throws it off the rails.",
   "terrain": {
     "leftEdge": 0,
     "leftY": 0,
@@ -74,7 +73,7 @@
     "steel",
     "wood"
   ],
-  "budget": 250000,
+  "budget": 245000,
   "traffic": [
     {
       "type": "train",
@@ -101,6 +100,6 @@
       "It holds about 6.5 million rivets and became a UNESCO World Heritage Site in 2015."
     ],
     "why": "When it opened it had the longest cantilever spans in the world - a bold steel answer to the Tay disaster, still carrying trains today.",
-    "note": "Needs trains: this crossing unlocks when the Iron Road module is installed."
+    "note": "Scaled down from 2.5 km to 150 m: three cantilever towers, two shipping channels and a steam express, as in 1890."
   }
 }

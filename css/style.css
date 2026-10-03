@@ -437,6 +437,7 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 .camp-tab.locked { color: var(--dim); }
 .camp-tab.locked .ct-txt small { color: #ffb4a0; }
 
+.chapters[hidden], .camp-panel[hidden] { display: none !important; }
 .camp-locked { display: flex; align-items: center; gap: 22px; padding: 20px 24px; border-radius: 18px; border: 1px dashed rgba(120, 190, 255, .35); background: linear-gradient(120deg, rgba(40, 70, 110, .45), rgba(13, 19, 33, .6)); }
 .camp-locked .cl-art .veh { width: 120px; height: 48px; }
 .camp-locked h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 20px; font-weight: 800; }

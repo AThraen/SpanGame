@@ -1,19 +1,19 @@
 /* SPAN — Famous Bridges campaign (extra module). Real-world bridges, level ids 201+, campaign: 'famous'.
- *  - campaign registration + unlock rule (opens after road level 15; inside the campaign the usual
- *    "either of the two previous levels" rule, counted over playable levels only)
+ *  - the campaign's look: the third level-select tab (Roads | Iron Road | Famous Bridges), registered with
+ *    BG.Hud.registerCampaign('famous', ...) - picture tiles in an .fb-panel instead of chapters, top-bar labels,
+ *    Continue label and finale text. Its RULES (opens after road level 15, either of the two previous playable
+ *    levels inside the campaign, stubs / missing modules never open, finale after 212) are the shared campaign
+ *    table BG.Storage.CAMPAIGNS like every other campaign's.
  *  - a history card (year, place, engineer, span, type, facts, why it matters) shown before each level
- *  - a "Famous Bridges" tab in the level select's campaign tabs (Roads | Iron Road | Famous Bridges):
- *    BG.Hud.tab = 'famous' shows the .fb-panel instead of the chapters (BG.Hud.setCampaignTab('famous'))
  *  - levels whose modules are missing (level.requires) or that are still stubs (level.stub), see
  *    js/features/requirements.js, stay locked
- * Everything hooks into existing objects by wrapping methods at load time; the only shared-file change is
- *  campaignOf() in main.js / storage.js / hud.js returning 'famous' for these levels (kept out of the Roads).
+ * Hooks into existing objects by wrapping BG.Game.openLevel (history card), BG.Hud.enterLevel (history button)
+ * and BG.Templates.available (level.templates as an id list).
  * Load order: after js/main.js (BG.Game exists but has not booted yet - it boots on DOMContentLoaded). */
 (function (root) {
   'use strict';
   const BG = (root.BG = root.BG || {});
   const CAMPAIGN = 'famous';
-  const UNLOCK_AFTER = 15; // road level that opens the campaign
 
   // ------------------------------------------------------------------ helpers
   const $ = (sel, el) => (el || document).querySelector(sel);
@@ -28,21 +28,15 @@
   function money(n) { return BG.Hud && BG.Hud.money ? BG.Hud.money(n) : '$' + Math.round(n); }
   function icon(n) { return BG.Hud && BG.Hud.icon ? BG.Hud.icon(n) : ''; }
   function starSvg(on) { return '<svg class="star ' + (on ? 'on' : '') + '" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.3 6.1 20.5l1.3-6.5L2.5 9.4l6.6-.8z"/></svg>'; }
-  // challenge badges (js/features/goals*.js) earned on a famous level, in the same style as the road tiles
-  function badgeCount(id) {
-    const G = BG.Goals, st = S();
-    if (!G || !G.forLevel || !st || !st.getBadges) return '';
-    const goals = safe(() => G.forLevel(id), []) || [];
-    if (!goals.length) return '';
-    const have = (safe(() => st.getBadges(id), []) || []).filter(x => goals.some(g => g.type === x)).length;
-    return '<span class="tile-badges fb-badges' + (have === goals.length ? ' all' : have ? ' some' : '') + '" title="' + have + ' of ' + goals.length + ' challenge badges">' +
-      '<img class="gb-img gb-tile" src="assets/icons/badges/minimalist.svg" alt="" draggable="false"><b>' + have + '</b>/' + goals.length + '</span>';
-  }
   function vehName(t) { const V = BG.Vehicles && BG.Vehicles[t]; return (V && V.name) || t; }
 
   // ------------------------------------------------------------------ campaign model
+  // The rules (unlock after road 15, either-of-two-previous inside the campaign, stubs / missing modules never
+  // open, finale after 212) are BG.Storage's campaign table - this is a thin famous-flavoured view of it.
+  function conf() { const st = S(); return (st && st.CAMPAIGNS && st.CAMPAIGNS[CAMPAIGN]) || { unlockAfter: 15, last: 212 }; }
   const Famous = {
-    CAMPAIGN, UNLOCK_AFTER,
+    CAMPAIGN,
+    get UNLOCK_AFTER() { return conf().unlockAfter; },
     isFamous(lv) { return !!lv && lv.campaign === CAMPAIGN; },
     levels() { return (Array.isArray(BG.Levels) ? BG.Levels : []).filter(l => l && l.campaign === CAMPAIGN).sort((a, b) => a.id - b.id); },
     find(id) { return Famous.levels().find(l => l.id === id) || null; },
@@ -53,28 +47,18 @@
     index(lv) { return Famous.levels().indexOf(lv) + 1; },          // 1-based number shown on tiles
     campaignOpen() {
       const st = S();
-      if (!st) return true;
-      return safe(() => st.get('unlockAll', false) || st.isCompleted(UNLOCK_AFTER), false);
+      return !st || !st.isCampaignUnlocked ? true : safe(() => st.isCampaignUnlocked(CAMPAIGN), false);
     },
-    // unlocked = requirements met AND (unlockAll OR first playable after road 15 OR one of the two previous playable done)
     isUnlocked(id) {
-      const lv = Famous.find(id);
-      if (!lv || !Famous.playable(lv)) return false;
       const st = S();
-      if (!st) return true;
-      if (safe(() => st.get('unlockAll', false), false)) return true;
-      if (!Famous.campaignOpen()) return false;
-      const list = Famous.playableLevels();
-      const i = list.indexOf(lv);
-      if (i <= 0) return true;
-      const done = k => k >= 0 && safe(() => st.isCompleted(list[k].id), false);
-      return done(i - 1) || done(i - 2);
+      if (!st) return !!Famous.find(id) && Famous.playable(Famous.find(id));
+      return safe(() => st.isUnlocked(id, BG.Levels), false);
     },
     lockReason(lv) {
       const miss = Famous.missing(lv);
       if (miss.length) return 'Needs the ' + miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ') + ' module - coming with a later update.';
       if (Famous.isStub(lv)) return 'This crossing is still being surveyed - it opens with a later update.';
-      if (!Famous.campaignOpen()) return 'Famous Bridges opens after road level ' + UNLOCK_AFTER + '.';
+      if (!Famous.campaignOpen()) return 'Famous Bridges opens after road level ' + Famous.UNLOCK_AFTER + '.';
       return 'Complete one of the two famous bridges before this one to unlock it.';
     },
     nextAfter(lv) {
@@ -114,7 +98,7 @@
       const H = level.history || {};
       const t = level.terrain || {};
       const gap = Math.round((t.rightEdge || 0) - (t.leftEdge || 0));
-      const traffic = (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? (g.train || 'train') : vehName(g.type))).join(', ');
+      const traffic = (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? ((BG.Trains && BG.Trains[g.train] && BG.Trains[g.train].name) || g.train || 'train') : vehName(g.type))).join(', ');
       const miss = Famous.playable(level) ? [] : [Famous.lockReason(level)]; // whatever keeps it from being built
       const st = S();
       const stars = st ? safe(() => st.getStars(level.id), 0) : 0;
@@ -172,23 +156,18 @@
     e.stopImmediatePropagation();
   }, true);
 
-  // ------------------------------------------------------------------ level select tab
-  // The level select's campaign tabs (BG.Hud: Roads | Iron Road) get a third tab, data-camp="famous".
-  // While it is active BG.Hud.tab === 'famous'; the Roads chapters are built underneath (hidden by
-  // #screen-levels.fb-mode) and the famous panel is shown instead.
+  // ------------------------------------------------------------------ level select panel
+  // Famous Bridges is the third campaign tab of the level select (BG.Hud owns the tabs: Roads | Iron Road |
+  // Famous Bridges). Registered below with BG.Hud.registerCampaign; while it is active the Hud hides the
+  // chapters (#screen-levels.fb-mode) and calls Tab.render(panel) to fill its .fb-panel with picture tiles.
   const Tab = {
-    active() { return BG.Hud && BG.Hud.tab === 'famous' ? 'famous' : 'roads'; },
+    active() { return BG.Hud && BG.Hud.tab === CAMPAIGN ? CAMPAIGN : 'roads'; },
     // remember the tab without rebuilding (the level select is rebuilt when it is shown)
-    set(name) { if (BG.Hud && BG.Hud.setCampaignTab) BG.Hud.setCampaignTab(name === 'famous' ? 'famous' : 'road', true); },
-    ensure(screen) {
-      const tabs = $('.camp-tabs', screen);
-      if (tabs && !$('[data-camp=famous]', tabs)) {
-        tabs.appendChild(h('<button class="camp-tab is-famous" role="tab" data-camp="famous">' + fbIcon() + '<span class="ct-txt"><b>Famous Bridges</b><small data-ref="ctFamous">Complete level ' + UNLOCK_AFTER + '</small></span><span class="ct-lock">' + icon('lock') + '</span></button>'));
-      }
-      const scroll = $('.ls-scroll', screen);
-      if (scroll && !$('.fb-panel', scroll)) {
-        const panel = h('<div class="fb-panel"></div>');
-        scroll.appendChild(panel);
+    set(name) { if (BG.Hud && BG.Hud.setCampaignTab) BG.Hud.setCampaignTab(name === CAMPAIGN ? CAMPAIGN : 'road', true); },
+    render(panel, info) {
+      if (!panel) return;
+      if (!panel.__fbClick) {
+        panel.__fbClick = true;
         panel.addEventListener('click', e => {
           const t = e.target.closest('.fb-tile');
           if (!t) return;
@@ -199,38 +178,9 @@
           else { sfx('error'); t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); toast(Famous.lockReason(lv)); }
         });
       }
-    },
-    render(screen) {
-      screen = screen || (BG.Hud && BG.Hud.el && BG.Hud.el.levels);
-      if (!screen) return;
-      this.ensure(screen);
-      const has = Famous.levels().length > 0;
-      const tab = has ? this.active() : 'roads';
-      const open = Famous.campaignOpen();
+      const open = info ? info.open : Famous.campaignOpen();
       const st = S();
       const max = Famous.playableLevels().length * 3;
-      screen.classList.toggle('fb-mode', tab === 'famous');
-      const ftab = $('.camp-tab[data-camp=famous]', screen);
-      if (ftab) {
-        ftab.hidden = !has;
-        ftab.classList.toggle('locked', !open);
-        ftab.title = open ? 'Real bridges from history' : 'Opens after road level ' + UNLOCK_AFTER;
-        const small = $('[data-ref=ctFamous]', ftab);
-        if (small) small.textContent = open ? Famous.stars() + ' / ' + max + ' ★' : 'Complete level ' + UNLOCK_AFTER;
-      }
-      const panel = $('.fb-panel', screen);
-      if (tab !== 'famous') { if (panel) panel.innerHTML = ''; return; }
-      // the Hud built the Roads view underneath: point the header at the famous campaign instead
-      screen.classList.remove('camp-rail');
-      Array.from(screen.querySelectorAll('.camp-tab[data-camp]')).forEach(b => {
-        const on = b.dataset.camp === 'famous';
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-      const sub = $('[data-ref=lsSub]', screen);
-      if (sub) sub.textContent = 'Real crossings · Roman arches to record spans';
-      const chip = $('[data-ref=lsStars]', screen);
-      if (chip) chip.innerHTML = starSvg(true) + '<b>' + Famous.stars() + '</b> / ' + max;
       const tiles = Famous.levels().map((lv, i) => {
         const H = lv.history || {};
         const miss = Famous.missing(lv);
@@ -240,10 +190,10 @@
         const done = st && safe(() => st.isCompleted(lv.id), false);
         const badge = miss.length ? '<span class="fb-need">Needs ' + esc(miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ')) + '</span>'
           : blocked ? '<span class="fb-need">Coming soon</span>' : '';
-        return `<button class="fb-tile ${unlocked ? 'open' : 'locked'} ${done ? 'done' : ''} ${blocked ? 'stub' : ''}" data-fbid="${lv.id}" ${unlocked ? '' : 'aria-disabled="true"'} style="animation-delay:${Math.min(i, 20) * 22}ms">
+        return `<button class="fb-tile ${unlocked ? 'open' : 'locked'} ${done ? 'done' : ''} ${blocked ? 'stub' : ''}" data-fbid="${lv.id}" data-id="${lv.id}" ${unlocked ? '' : 'aria-disabled="true"'} style="animation-delay:${Math.min(i, 20) * 22}ms">
             <span class="fb-tile-art"><img src="${esc(H.art || '')}" alt="" draggable="false" loading="lazy" onerror="this.style.display='none'"><span class="fb-tile-year">${esc(H.year || '')}</span>${unlocked ? '' : '<span class="fb-tile-lock">' + icon('lock') + '</span>'}${badge}</span>
             <span class="fb-tile-body"><span class="fb-tile-num">${i + 1}</span><span class="fb-tile-txt"><b>${esc(lv.name)}</b><small>${esc(H.location || '')}</small></span>
-            <span class="fb-tile-stars">${blocked ? '' : [0, 1, 2].map(k => starSvg(k < stars)).join('')}</span>${blocked ? '' : badgeCount(lv.id)}</span>
+            <span class="fb-tile-stars">${blocked ? '' : [0, 1, 2].map(k => starSvg(k < stars)).join('')}</span></span>
           </button>`;
       }).join('');
       panel.innerHTML = `
@@ -251,13 +201,16 @@
           <div><h3>Build the bridges that made history</h3><p>Each crossing is a scaled-down version of a real bridge - its gap, its piers, its shipping channel. Read the story, then find out why the engineers chose the shape they did.</p></div>
           <span class="chip chip-lg">${starSvg(true)}<b>${Famous.stars()}</b> / ${max}</span>
         </div>
-        ${open ? '' : '<p class="fb-gate">' + icon('lock') + '<span>Complete road level ' + UNLOCK_AFTER + ' to open Famous Bridges.</span></p>'}
+        ${open ? '' : '<p class="fb-gate">' + icon('lock') + '<span>Complete road level ' + Famous.UNLOCK_AFTER + ' to open Famous Bridges.</span></p>'}
         <div class="fb-grid">${tiles}</div>`;
     },
   };
   Famous.tab = Tab;
 
-  // ------------------------------------------------------------------ hooks into Storage / Game / Hud
+  // ------------------------------------------------------------------ hooks into Templates / Game / Hud
+  // Unlocking, "Next level", the finale, Continue and the tab itself are the shared campaign system
+  // (BG.Storage.CAMPAIGNS + BG.Hud.registerCampaign); only the history card, the history button and the
+  // per-level template list are famous-specific.
   function wrap(obj, name, make) {
     if (!obj || typeof obj[name] !== 'function' || obj[name].__famous) return;
     const orig = obj[name];
@@ -265,13 +218,6 @@
     w.__famous = true;
     obj[name] = w;
   }
-
-  // unlock rule for famous ids; everything else unchanged
-  wrap(BG.Storage, 'isUnlocked', orig => function (id, levels) {
-    const lv = Famous.find(id);
-    if (lv) return Famous.isUnlocked(id);
-    return orig.call(this, id, levels);
-  });
 
   // level.templates may list the history-appropriate template ids; the HUD only offers 'ok' ones
   wrap(BG.Templates, 'available', orig => function (level) {
@@ -292,64 +238,24 @@
     Card.show(lv, { mode: 'intro', onBuild: () => orig.call(self, id, Object.assign({}, opts, { force: true, skipCard: true })) });
     return true;
   });
-  // next level inside the campaign (skipping stubs), not road level / rail level by array order
-  wrap(G, 'nextLevel', orig => function () {
-    if (Famous.isFamous(this.level)) {
-      const nx = Famous.nextAfter(this.level);
-      if (nx) return this.openLevel(nx.id);
-      Tab.set('famous');
-      return this.goLevelSelect();
-    }
-    return orig.apply(this, arguments);
-  });
 
   const Hud = BG.Hud;
-  wrap(Hud, 'showResults', orig => function (res) {
-    const lv = G && G.level;
-    if (!Famous.isFamous(lv) || !res) return orig.call(this, res);
-    const nx = Famous.nextAfter(lv);
-    res.hasNext = !!nx;
-    res.finale = !!res.passed && !nx;
-    if (G.lastResult === res) { G.lastResult.hasNext = res.hasNext; G.lastResult.finale = res.finale; }
-    const out = orig.call(this, res);
-    if (res.finale && this.el) {
-      const n = Famous.playableLevels().length;
-      this.el.resBanner.textContent = 'Famous Bridges complete';
-      this.el.resTitle.textContent = 'A builder for the ages!';
-      this.el.resReason.textContent = 'From Roman arches to the Millau Viaduct - ' + n + ' famous crossings rebuilt. You hold ' + Famous.stars() + ' of ' + (n * 3) + ' Famous Bridges stars.';
-    }
-    return out;
-  });
-  // campaign tab 'famous' (the Hud itself knows 'road' and 'rail'); noBuild = just remember it, and
-  // never land on the locked famous tab when coming back from a level
-  wrap(Hud, 'setCampaignTab', orig => function (campaign, noBuild) {
-    if (campaign !== 'famous' || !Famous.levels().length) return orig.apply(this, arguments);
-    if (noBuild && !Famous.campaignOpen()) return orig.call(this, 'road', noBuild);
-    this.tab = 'famous';
-    if (!noBuild && this.el && this.el.levels) {
-      this.buildLevelSelect();
-      const sc = $('.ls-scroll', this.el.levels);
-      if (sc) sc.scrollTop = 0;
-    }
-  });
-  // the Hud builds the Roads chapters (hidden while the famous tab is on), then the famous panel goes on top
-  wrap(Hud, 'buildLevelSelect', orig => function () {
-    const fam = this.tab === 'famous';
-    if (fam) this.tab = 'road';
-    let out;
-    try { out = orig.apply(this, arguments); } finally { if (fam) this.tab = 'famous'; }
-    safe(() => Tab.render(this.el.levels));
-    return out;
-  });
-  wrap(Hud, 'scrollToLevel', orig => function (id) {
-    if (Famous.find(id)) {
-      if (this.tab !== 'famous') this.setCampaignTab('famous');
-      const t = this.el.levels && this.el.levels.querySelector('.fb-tile[data-fbid="' + id + '"]');
-      if (t && t.scrollIntoView) { try { t.scrollIntoView({ block: 'center' }); } catch (e) { /* */ } }
-      return;
-    }
-    return orig.apply(this, arguments);
-  });
+  // the third campaign tab: looks, labels and finale (rules: BG.Storage.CAMPAIGNS.famous)
+  if (Hud && Hud.registerCampaign) {
+    Hud.registerCampaign(CAMPAIGN, {
+      name: 'Famous Bridges', sub: 'Real crossings · Roman arches to record spans', icon: fbIcon, cls: 'is-famous',
+      allLabel: 'All bridges', maxDefault: 36, modeClass: 'fb-mode', panelClass: 'fb-panel',
+      render: (panel, info) => Tab.render(panel, info),
+      continueLabel: lv => lv.name,
+      levelNum: lv => Famous.index(lv),
+      levelSub: (lv, gap) => { const H = lv.history || {}; return ['Famous Bridges', H.year, H.location, gap ? gap + ' m gap' : null].filter(Boolean).join(' · '); },
+      finale: {
+        banner: 'Famous Bridges complete', title: 'A builder for the ages!',
+        text: starLine => 'From Roman arches to the Millau Viaduct - ' + Famous.playableLevels().length + ' famous crossings rebuilt. ' + starLine,
+      },
+    });
+  }
+  // the history button in the top bar of a famous level
   wrap(Hud, 'enterLevel', orig => function (level) {
     const out = orig.apply(this, arguments);
     safe(() => {
@@ -364,28 +270,6 @@
       const fam = Famous.isFamous(level);
       if (btn) btn.hidden = !fam;
       if (this.el.level) this.el.level.classList.toggle('fb-level', fam);
-      if (fam) {
-        const H = level.history || {};
-        const t = level.terrain || {};
-        const gap = Math.round((t.rightEdge || 0) - (t.leftEdge || 0));
-        this.el.lvlNum.textContent = Famous.index(level);
-        this.el.lvlSub.textContent = ['Famous Bridges', H.year, H.location, gap ? gap + ' m gap' : null].filter(Boolean).join(' · ');
-      }
-    });
-    return out;
-  });
-  wrap(Hud, 'refreshTitle', orig => function () {
-    const out = orig.apply(this, arguments);
-    safe(() => {
-      const target = G && G.continueTarget && G.continueTarget();
-      const lbl = this.el.title && this.el.title.querySelector('[data-act=continue] .lbl');
-      if (target && Famous.isFamous(target) && lbl) lbl.textContent = 'Continue · ' + target.name;
-      const chip = this.el.title && this.el.title.querySelector('[data-ref=titleStars]');
-      const st = S();
-      // the Hud counts every level; stub famous levels have nothing to earn yet
-      const stubs = Famous.levels().filter(l => !Famous.playable(l)).length;
-      const hidden = this.hiddenLevelIds ? safe(() => this.hiddenLevelIds().length, 0) : 0;
-      if (chip && st && stubs && chip.lastChild) chip.lastChild.textContent = ' / ' + (((BG.Levels || []).length - hidden - stubs) * 3);
     });
     return out;
   });
