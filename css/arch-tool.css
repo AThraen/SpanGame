@@ -1,0 +1,58 @@
+/* SPAN — Arch & Curve tool: the contextual bar (js/ui/arch-tool.js, SPEC §18).
+ * Desktop / tablet: two rows under the top bar, centred over the sky (the banks and their anchors stay clear; the level
+ * hint, which sits there too, is hidden while the bar shows). Phones: a strip above the material chip. Touch rules are
+ * scoped under .m-touch / .m-phone (css/mobile.css stays the last stylesheet). */
+.arch-bar { position: absolute; z-index: 4; top: calc(var(--gap) * 2 + var(--top-h) + 2px); left: 50%; transform: translateX(-50%); width: min(660px, calc(100% - 210px)); padding: 8px 10px; display: none; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text); }
+.arch-bar.show { display: flex; animation: ab-in .28s var(--ease); }
+#screen-level.active .arch-bar.show { pointer-events: auto; }
+.mode-sim .arch-bar, .mode-results .arch-bar { display: none !important; }
+@keyframes ab-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translateX(-50%); } }
+
+.ab-sec { display: none; flex-flow: row wrap; align-items: center; gap: 6px 14px; }
+.arch-bar.mode-arch .ab-arch, .arch-bar.mode-select .ab-select { display: flex; }
+.ab-head { flex: 1 1 180px; display: flex; flex-direction: column; gap: 1px; padding: 0 2px; min-width: 0; }
+.ab-head b { font-size: 13px; font-weight: 750; letter-spacing: .01em; }
+.ab-head small { color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+.ab-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+.ab-shapes { flex: 0 1 300px; gap: 4px; }
+.ab-segs, .ab-conn, .ab-brace, .ab-cmat { flex: 1 1 auto; }
+.ab-segs::before, .ab-conn::before, .ab-brace::before, .ab-cmat::before { content: ""; width: 1px; align-self: stretch; margin: 2px 4px 2px 0; background: var(--line); }
+.ab-segs::before { display: none; }
+.ab-chip { flex: 1; min-width: 0; height: 30px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: var(--text); font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; transition: background .18s, border-color .18s, color .18s; outline: none; }
+.ab-chip:hover { background: rgba(255, 255, 255, .12); }
+.ab-chip:focus-visible { border-color: var(--blue); }
+.ab-chip.on { background: linear-gradient(160deg, rgba(73, 198, 242, .3), rgba(58, 123, 255, .22)); border-color: rgba(73, 198, 242, .55); color: #e5f8ff; }
+.ab-chip.ab-sq { flex: none; width: 30px; padding: 0; font-size: 17px; line-height: 1; }
+.ab-segs > span, .ab-conn > span, .ab-brace > span, .ab-cmat > span { color: var(--muted); white-space: nowrap; }
+.ab-segs b { min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 750; white-space: nowrap; }
+.ab-conn, .ab-brace { cursor: pointer; }
+.ab-cmat select { font: inherit; font-size: 12.5px; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 9px; height: 30px; padding: 0 6px; max-width: 120px; outline: none; }
+.ab-cmat select option { background: #141b2c; }
+.ab-brace.dim, .ab-cmat.dim { opacity: .45; }
+.ab-select { justify-content: center; }
+.ab-smooth { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ab-smooth .ico { width: 18px; height: 18px; }
+.ab-select small { color: var(--muted); text-align: center; }
+
+/* touch: 44 px targets */
+.m-touch .ab-row { min-height: 44px; }
+.m-touch .ab-chip { height: 44px; font-size: 13px; }
+.m-touch .ab-chip.ab-sq { width: 44px; font-size: 20px; }
+.m-touch .ab-cmat select { height: 44px; }
+.m-touch .ab-smooth { min-height: 44px; }
+
+/* phones: one row under the top bar, right of the floating rail, scrolling sideways (BG.Mobile.scrollers) */
+.m-phone .arch-bar { position: fixed; top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); bottom: auto; transform: none; animation: none; left: calc(var(--gap) + var(--sa-l) + 62px); right: calc(var(--gap) + var(--sa-r)); width: auto; max-width: max-content; padding: 4px 6px; flex-direction: row; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-x; }
+.m-phone .arch-bar::-webkit-scrollbar { display: none; }
+.m-phone.m-landscape .arch-bar { left: calc(var(--gap) + var(--sa-l) + 112px); }
+.m-phone .ab-sec { flex-wrap: nowrap; gap: 6px; }
+.m-phone .ab-head { display: none; }
+.m-phone .ab-shapes, .m-phone .ab-segs, .m-phone .ab-conn, .m-phone .ab-brace, .m-phone .ab-cmat { flex: none; }
+.m-phone .ab-chip { padding: 0 10px; }
+.m-phone .ab-chip.ab-sq { padding: 0; }
+.m-phone .ab-segs > span { display: none; }
+.m-phone .ab-segs b { min-width: 34px; }
+.m-phone .ab-segs::before { display: block; }
+.m-phone .ab-shapes::before { display: none; }
+.m-phone .ab-cmat > span { display: none; }
+.m-phone .ab-select small { white-space: nowrap; align-self: center; }

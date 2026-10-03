@@ -19,7 +19,7 @@
     cable: { id: 'cable', name: 'Steel Cable', maxLength: 40, costPerMeter: 60, tensionOnly: true },
   };
   const ORDER = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable'];
-  const TOOLS = ['build', 'erase', 'pier', 'select'];
+  const TOOLS = ['build', 'erase', 'pier', 'select', 'arch']; // arch-tool: 'arch' = Arch & Curve tool (js/ui/arch-tool.js)
 
   const MAGNET = 0.6;        // m: joint magnet radius (spec)
   const MIN_LEN = 0.25;      // m: shortest beam the editor will create
@@ -1532,6 +1532,7 @@
         const p = local(e);
         let dy = e.deltaY || 0;
         if (e.deltaMode === 1) dy *= 16; else if (e.deltaMode === 2) dy *= 400;
+        if (ed._archWheel && ed._archWheel(dy)) return; // arch-tool: the wheel sets the segment count while placing a curve
         const f = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015));
         ed.zoomAt(p.sx, p.sy, f);
         const w = ed._s2w(p.sx, p.sy);
@@ -1553,6 +1554,7 @@
           if (!e.repeat) { dom.space = true; dom.spaceUsed = false; dom.spaceState = ed._gameState(); dom.updateCursor(); }
           return;
         }
+        if (!e.ctrlKey && !e.metaKey && ed._archKey && ed._editable() && ed._archKey(k)) { if (e.preventDefault) e.preventDefault(); return; } // arch-tool: +/- = segments
         // camera keys
         const cam = ed._cam();
         const W = canvas.clientWidth || canvas.width || 800, H = canvas.clientHeight || canvas.height || 600;

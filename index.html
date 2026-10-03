@@ -21,6 +21,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SPAN">
+  <link rel="stylesheet" href="css/arch-tool.css"><!-- arch-tool: contextual bar -->
   <link rel="stylesheet" href="css/pwa.css">
   <link rel="stylesheet" href="css/history.css"><!-- history: run history, bests, save export -->
   <link rel="stylesheet" href="css/mobile.css"><!-- mobile: responsive touch HUD, loupe, bottom sheet -->
@@ -40,6 +41,7 @@
   <script src="js/core/events.js"></script><!-- forces: BG.Forces (level.events: wind / quake) -->
   <script src="js/core/levels.js"></script>
   <script src="js/core/templates.js"></script>
+  <script src="js/core/curves.js"></script><!-- arch-tool: BG.Curves (curve geometry) -->
   <!-- daily-challenge: procedural level generator -->
   <script src="js/core/generator.js"></script>
   <!-- rendering -->
@@ -52,6 +54,7 @@
   <script src="js/ui/railinfo.js"></script>
   <script src="js/ui/hud.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/ui/arch-tool.js"></script><!-- arch-tool: Arch & Curve tool (after main.js: hooks the editor, HUD and game) -->
   <!-- features -->
   <script src="js/features/terrain-fix.js"></script><!-- terrain-fix: waterline build limit overlay -->
   <!-- goals: badges (pure logic, generated data, UI + storage hooks; boot runs on DOMContentLoaded, after these) -->

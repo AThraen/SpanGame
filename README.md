@@ -17,7 +17,7 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
 - **Stars and challenge badges:** up to three stars per level for staying under budget, plus 2–3 optional badges per level (Minimalist, Penny Pincher, Featherweight, Cool Head, Symmetric, No Steel, Timber Only, No Piers, Smooth Ride). Every badge is proven achievable.
 - **Daily Challenge and Endless:** a new generated crossing every day, the same for everyone, with streaks and a shareable result; Endless keeps generating harder crossings. The generator proves every crossing solvable before you see it.
 - **History and personal bests:** every test run is recorded; per-level bests, a cost sparkline, lifetime stats, one-tap **Load** of any earlier design, autosave and **Resume** where you left off, and save export / import.
-- **Templates and tools:** nine bridge templates from level 4 (beam, Warren, Pratt and Howe trusses, deck and through arches, suspension, cable-stayed, viaduct), mirror building, select / move / delete, undo / redo, piers and a build grid. Every level keeps your last design.
+- **Templates and tools:** nine bridge templates from level 4 (beam, Warren, Pratt and Howe trusses, deck and through arches, suspension, cable-stayed, viaduct), an **Arch & Curve** tool that lays properly rounded arches and hanging cables in one gesture, mirror building, select / move / delete / smooth, undo / redo, piers and a build grid. Every level keeps your last design.
 - **Plays anywhere:** mouse and keyboard on desktop. On phones and tablets there are touch gestures, a magnifier, a bottom-sheet palette and haptics. Served over http(s), SPAN installs as an app and works offline (PWA).
 - **Polished presentation:** themed scenery for every region (meadow to volcanic), animated weather and quakes, trains with signals and catenary, procedural audio, slow-motion derailments, and a results card that reveals stars and badges one by one.
 
@@ -34,6 +34,7 @@ The top bar of a level states only facts about that level: chapter number (or th
    - A new joint that lands on an existing beam joins it: the beam is split there. So a strut that stops on the road is connected to the road.
    - Joints must stay at least 0.5 m clear of the ground (only anchors and piers bear on rock), and beams may not pass through it.
    - **Building on the banks.** Some crossings have *inland anchors*: concrete deadman blocks buried in a bank top, or anchor blocks set into a hillside behind the road, each with a steel bolt plate where members attach. Their *land pier zones* (striped on the bank) take **land pylons**: concrete towers on a footing that the road passes through. A land pylon is not a fixed point like a pier in the valley: its footing only resists a small push, so a pylon pulled by its stays must be **guyed back** with a backstay to an inland anchor behind it, or it topples. On these levels the bank road also has a **clearance envelope** (the amber "keep clear" band, as tall as the tallest vehicle plus 0.5 m): no joint or member may go inside it, except the road deck itself and stays that end at an inland anchor. The editor marks a violating beam red and says "Keep the road clear".
+   - **Arches and cables: the Arch & Curve tool** (`A`, the arch button on the tool rail). Press on the start point (a bolt, a pier top, a joint or an empty grid point), drag to the end point and release; then move the pointer up or down to set the rise (below the line, the curve sags like a cable) and click to place it. The tool picks the fewest segments that fit the material's maximum length, keeps the joints on the grid and shows the curve, its joints, the span, rise, segment count and cost before you click; a red segment says why it can't go there. `+`/`−` or the wheel change the number of segments, `Esc` or right-click cancels. The bar under the top bar picks the shape: **Parabolic** (the ideal arch under an evenly loaded deck), **Circular** (the Roman arch, up to a half circle) or **Catenary** (a hanging cable; drag it below the line for a suspension main cable). With **Connect to deck** on, the curve's joints line up under (or over) the deck joints and every joint gets a vertical post (arch below the road) or hanger (arch or cable above it); **Brace panels** adds the diagonals a pin-jointed arch needs so it doesn't sway. Rope and cable can only hang below the line, stone can only arch above it. In mirror mode an arch on one side of the gap is mirrored. Each placement is one undo step. With the **Select** tool, **Smooth** fits a curve through three or more selected joints and spaces them evenly along it.
    - **Road** and **reinforced road** are what vehicles drive on. The road must run continuously from bank to bank, and it bends at its joints: it needs a supported joint (a strut, hanger or chord) about every 5–6 m. **Wood** and **steel** are structural members. **Rope** and **cable** only carry tension. Pier tops are rigid concrete supports.
 4. **Test** (Space). Beams are coloured by live stress, from cool through yellow to red, and glow when above 85%. Hover a beam to see its force, stress and (for road) how much of it is bending. Overloaded members snap; the results say which member gave way first and why.
 5. **Optimise.** After a run, **Inspect** shows the peak stress each member reached, drawn on the bridge as built, with broken members marked. Back in the editor, hovering a beam shows its peak from the last test. Trim the members that stay white or green and reinforce the red ones.
@@ -85,6 +86,7 @@ The **Daily Challenge** button on the title screen opens a new generated crossin
 | `S` | Select tool: box-select, then `Delete`; `Ctrl+A` selects all |
 | `B` | Build tool |
 | `1`–`6` | Choose a material (in palette order) |
+| `A` | Arch & Curve tool: drag start to end, release, move up/down for the rise, click to place; `+`/`−` or wheel = segments, `Esc` / right-click cancels |
 | `M` | Mirror symmetry around the gap centre |
 | `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`) | Undo / redo |
 | Templates button | Start from a Warren, Pratt, Howe, deck arch, through arch, suspension or cable-stayed bridge (ordinary editable beams) |
@@ -119,6 +121,7 @@ The HUD adapts on touch screens: a compact top bar, the tools as floating button
 | Tap a joint | Start building from it; tap the last joint again to stop |
 | Hold, then drag | Move a joint |
 | Hold and lift | Menu: delete the joint / beam / pier under the finger, stop building, undo, fit view |
+| Arch tool: drag start to end, then drag the handle | Set the rise; tap to place the curve, two-finger tap cancels, − / + in the bar change the segments |
 | Drag empty space / two fingers | Pan |
 | Pinch | Zoom (also while the test runs) |
 
@@ -167,6 +170,7 @@ js/core/                 simulation core - runs in the browser AND in Node, no D
   physics.js             BG.Simulation - deterministic XPBD, fixed 1/60 s step with substeps
   levels.js              BG.Levels - level definitions
   templates.js           BG.Templates - bridge-type generators
+  curves.js              BG.Curves - curve geometry for the Arch & Curve tool (parabola / circle / catenary, equal segments, grid)
   events.js              BG.Forces - wind and earthquake events (level.events), plugged in via BG.SimHooks
   generator.js           BG.Generator - deterministic procedural levels, each proven solvable (daily / endless)
 js/render/
@@ -178,6 +182,7 @@ js/ui/
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
   railinfo.js            BG.RailInfo - derailment explainer, track recording strip, ride-quality card (display only)
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
+  arch-tool.js           BG.ArchTool - the Arch & Curve tool + Smooth (extends BG.Editor, contextual bar, hint; loaded after main.js)
 js/features/
   terrain-fix.js         BG.TerrainFix - draws the waterline build limit in edit mode
   goals.js               BG.Goals - badge evaluation (pure, Node-testable)
@@ -187,6 +192,7 @@ js/features/
   daily.js               BG.Daily - Daily Challenge + Endless mode (title button, panel, share card, streak/history; wraps BG.Game / BG.Hud / BG.Storage)
   requirements.js        BG.Requirements - which optional modules a level needs (level.requires, stub levels); also loaded headless
   famous.js              BG.Famous - Famous Bridges campaign: its level-select tab (BG.Hud.registerCampaign), history cards
+css/arch-tool.css        the Arch & Curve contextual bar
 css/goals.css            styles for the above
 css/forces.css           styles for the Forces of Nature HUD
 css/daily.css            styles for the daily panel, loader and share card
@@ -217,6 +223,7 @@ tools/                   Node tooling (not loaded by the game)
   e2e.js                 headless-Chrome end-to-end check of the real game
   test-terrain-fix.js    underwater build rule + drawn terrain matches the model (Node + headless Chrome)
   test-anchors.js        inland anchors, land pylons, roadway clearance envelope (SPEC §17)
+  test-arch-tool.js      Arch & Curve tool: curve geometry, editor gesture + rules, levels 15 / 106 / 208 built with it (Node + headless Chrome)
   e2e-events.js          headless-Chrome check of the Forces of Nature levels and HUD
   test-generator.js      365 dailies + 200 random seeds: valid, road-only, solvable, deterministic; distribution + timing
   test-daily.js          daily/endless records, streaks, share text (Node) + headless-browser daily/endless flow
@@ -245,6 +252,7 @@ node tools/test-unlock.js      # campaign unlock rule: skip one level, chapter-f
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
 node tools/test-terrain-fix.js # underwater rule, editor feedback, drawn cliffs vs model (--no-browser: Node only)
+node tools/test-arch-tool.js [--node-only] # Arch & Curve tool: geometry, editor, levels 15 / 106 / 208 built with it and passing, touch
 node tools/test-anchors.js     # inland anchors, land pylons (guyed stands / unguyed topples), roadway envelope, templates, editor, Anchorages 54-58
 node tools/test-goals.js       # every badge goal re-verified by simulation (tools/gen-goals.js regenerates them)
 node tools/test-events.js      # wind / quake events (add --full for the bit-identity check on every road and rail design)
