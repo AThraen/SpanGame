@@ -215,16 +215,16 @@
     const crack = (x0, y0, dx, dy, n, step) => {
       const pts = [[x0, y0]];
       let x = x0, y = y0;
-      for (let i = 0; i < n; i++) { x += dx * step + (rnd() - 0.5) * step * 0.9; y += dy * step + (rnd() - 0.5) * step * 0.9; pts.push([x, y]); }
+      for (let i = 0; i < n; i++) { x += dx * step + (rnd() - 0.5) * step * 0.6; y += dy * step + (rnd() - 0.5) * step * 0.45; pts.push([x, y]); }
       return pts;
     };
     for (const side of [-1, 1]) {
       const edge = side < 0 ? T.le : T.re, top = side < 0 ? T.ly : T.ry;
-      for (let k = 0; k < 4; k++) out.push({ pts: crack(edge + side * (1.2 + k * 2.6 + rnd() * 1.5), top + 0.02, side * 0.25, -1, 7 + (rnd() * 5 | 0), 0.5), at: k * 0.18 });
+      for (let k = 0; k < 4; k++) out.push({ pts: crack(edge + side * (1.2 + k * 2.6 + rnd() * 1.5), top - 0.05, side * 0.2, -1, 4 + (rnd() * 3 | 0), 0.45), at: k * 0.18 });
       // a fissure opening along the bank top, back from the edge
-      out.push({ pts: crack(edge + side * 2, top - 0.45, side, -0.05, 9, 0.7), at: 0.3 });
-      out.push({ pts: crack(edge - side * 0.15, top - 0.6, -side * 0.15, -1, 10, 0.7), at: 0.1 });
-      out.push({ pts: crack(edge - side * 0.3, top - 3, -side * 0.25, -1, 8, 0.8), at: 0.4 });
+      out.push({ pts: crack(edge + side * 2, top - 0.45, side, -0.05, 7, 0.6), at: 0.3 });
+      out.push({ pts: crack(edge + side * 0.4, top - 0.6, side * 0.1, -1, 7, 0.6), at: 0.1 });
+      out.push({ pts: crack(edge + side * 0.5, top - 3, side * 0.1, -1, 6, 0.7), at: 0.4 });
     }
     return out;
   }
@@ -237,13 +237,15 @@
     if (grow <= 0) return;
     if (!st.cracks) st.cracks = makeCracks(r.terrain);
     ctx.save();
+    // cracks belong in the rock: clip them to the ground so none hangs in the air over the gap
+    if (r.terrainPath) ctx.clip(r.terrainPath);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     for (const c of st.cracks) {
       const g = clamp((grow - c.at) / (1 - c.at), 0, 1);
       if (g <= 0) continue;
       const n = Math.max(1, Math.round((c.pts.length - 1) * g));
-      for (const pass of [[0.3, 'rgba(255,240,220,0.3)', 0.04], [0.17, 'rgba(25,14,8,0.9)', 0]]) {
-        ctx.strokeStyle = pass[1]; ctx.lineWidth = Math.max(pass[0], 1.6 * lw);
+      for (const pass of [[0.18, 'rgba(255,240,220,0.28)', 0.04], [0.1, 'rgba(25,14,8,0.85)', 0]]) {
+        ctx.strokeStyle = pass[1]; ctx.lineWidth = Math.max(pass[0], 1.2 * lw);
         ctx.beginPath(); ctx.moveTo(c.pts[0][0] + pass[2], c.pts[0][1] - pass[2]);
         for (let i = 1; i <= n; i++) ctx.lineTo(c.pts[i][0] + pass[2], c.pts[i][1] - pass[2]);
         ctx.stroke();

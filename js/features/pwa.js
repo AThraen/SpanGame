@@ -206,6 +206,9 @@
     if (!Hud || Hud._pwaHooked || typeof Hud.init !== 'function') return false;
     const init = Hud.init;
     Hud.init = function () { const r = init.apply(this, arguments); try { mountSettings(); } catch (e) { /* never break the HUD */ } return r; };
+    // the install / offline rows are re-checked every time Settings opens (the prompt can arrive or go away later)
+    const openSettings = Hud.openSettings;
+    if (typeof openSettings === 'function') Hud.openSettings = function () { const r = openSettings.apply(this, arguments); try { refreshRows(); } catch (e) { /* */ } return r; };
     Hud._pwaHooked = true;
     return true;
   }

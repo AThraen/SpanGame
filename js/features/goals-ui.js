@@ -241,7 +241,22 @@
     panelOpen = !!open && goals.length > 0;
     lastSig = '';
     refreshPanel(true);
+    // the panel must never hide where the bridge starts: when it would cover one of the level's anchors (the far
+    // bank of a long gap on a desktop window), it starts closed for this level (the saved preference stays as it is)
+    if (panelOpen) root.setTimeout(() => safe(keepAnchorsClear), 60);
   });
+  function keepAnchorsClear() {
+    const g = BG.Game, r = g && g.renderer, lv = Hud.level;
+    if (!panelOpen || !panel || !r || typeof r.worldToScreen !== 'function' || !lv || Hud.screen !== 'level') return;
+    const pr = panel.getBoundingClientRect();
+    if (!pr.width || !pr.height) return;
+    const cr = g.canvas.getBoundingClientRect(), pad = 24;
+    const covered = (lv.anchors || []).some(a => {
+      const p = r.worldToScreen(a.x, a.y), x = p.x + cr.left, y = p.y + cr.top;
+      return x > pr.left - pad && x < pr.right + pad && y > pr.top - pad && y < pr.bottom + pad;
+    });
+    if (covered) setPanel(false, true);
+  }
   wrap('update', function () {
     if (Hud.screen !== 'level' || !panel) return;
     const now = root.performance ? performance.now() : Date.now();

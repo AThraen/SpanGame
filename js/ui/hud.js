@@ -61,6 +61,7 @@
     next: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
     chevDown: '<path d="M6 9l6 6 6-6"/>',
     trophy: '<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M17 5h3a3 3 0 01-3 4M7 5H4a3 3 0 003 4"/>',
+    save: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/>',
     coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.6 0-2.7.8-2.7 2s1.1 1.6 2.7 2 2.7.9 2.7 2.1-1.1 1.9-2.7 1.9c-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5"/>',
     road: '<path d="M4 21L9 3M20 21L15 3"/><path d="M12 5v2.5M12 11v2.5M12 17v2.5"/>',
     train: '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13" r=".6" fill="currentColor"/><circle cx="15" cy="13" r=".6" fill="currentColor"/><path d="M8 16l-3 5M16 16l3 5M6.5 19h11"/>',
@@ -285,6 +286,13 @@
     return level && level.campaign && level.campaign !== 'road' ? level.campaign : 'road';
   }
   function campaignUi(campaign) { return CAMPAIGN_UI[campaign] || CAMPAIGN_UI.road; }
+  // the level-select subtitle; the Roads mention their hidden bonus chapter once it is revealed
+  function campaignSub(campaign) {
+    const sub = campaignUi(campaign).sub || '';
+    if (campaign !== 'road') return sub;
+    const bonus = CHAPTERS.filter(ch => ch.hidden && levelsList().some(l => l && l.id >= ch.from && l.id <= ch.to));
+    return bonus.length && !hiddenLevelIds().length ? sub + ' · bonus: ' + bonus.map(ch => ch.name).join(', ') : sub;
+  }
   function chaptersFor(campaign) { const c = campaignUi(campaign); return c.chapters ? c.chapters() : []; }
   function campaignOpen(campaign) {
     const S = stor();
@@ -315,6 +323,26 @@
     return id == null ? '?' : id;
   }
   function levelLabel(level) { return 'Level ' + displayNum(level); }
+  // the short name a campaign uses for one of its levels (title Continue / Resume, history): famous bridges by name
+  function shortLabel(level) {
+    const cu = campaignUi(campaignOf(level));
+    return cu.continueLabel ? cu.continueLabel(level) : levelLabel(level);
+  }
+  // the number on the level badge (famous bridges count 1-12 within their campaign)
+  function badgeNum(level) {
+    const cu = campaignUi(campaignOf(level));
+    return cu.levelNum ? cu.levelNum(level) : displayNum(level);
+  }
+  // top-bar subtitle: only facts that are true of THIS level. Chapter names describe a whole chapter ("Piers & Cables"
+  // has levels without piers or cables), so the bar names the chapter by number and lists the level's own gap, piers
+  // and time limit; a themed bonus chapter (every level shares the theme) keeps its name.
+  function levelSubText(level, camp, cu, ch, gap) {
+    const piers = level.maxPiers | 0;
+    const chap = ch ? (ch.hidden ? ch.name : (camp === 'rail' ? 'Line ' : 'Chapter ') + ch.n) : null;
+    return [camp !== 'road' ? cu.name : null, chap, gap ? gap + ' m gap' : null,
+      piers > 0 ? piers + (piers === 1 ? ' pier' : ' piers') : null,
+      level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
+  }
   const CHAPTERS = [
     { n: 1, name: 'First Crossings', from: 1, to: 5, desc: '10–20 m gaps · cars & vans · road, wood and triangles', theme: 'meadow' },
     { n: 2, name: 'Timber & Steel', from: 6, to: 10, desc: '20–28 m · cars, vans & buses · trusses, then steel', theme: 'autumn' },
@@ -484,8 +512,8 @@
       const has = prog && (prog.lastLevel != null || Object.keys(prog.levels || {}).length);
       if (has && target) {
         cont.hidden = false;
-        const camp = campaignOf(target), cu = campaignUi(camp);
-        $('.lbl', cont).textContent = 'Continue · ' + (cu.continueLabel ? cu.continueLabel(target) : levelLabel(target));
+        const camp = campaignOf(target);
+        $('.lbl', cont).textContent = 'Continue · ' + shortLabel(target);
         CAMPAIGN_ORDER.forEach(c => { const k = campaignUi(c).cls; if (k) cont.classList.toggle(k, c === camp); });
       } else cont.hidden = true;
     },
@@ -567,7 +595,7 @@
         const u = campaignUi(c), open = campaignOpen(c), st = campaignStarsOf(c);
         const gate = S && S.CAMPAIGNS && S.CAMPAIGNS[c] ? S.CAMPAIGNS[c].unlockAfter : null;
         const small = open ? st.got + ' / ' + (st.max || u.maxDefault || 0) + ' ★' : 'Complete level ' + gate;
-        return '<button class="camp-tab ' + (u.cls || '') + (c === camp ? ' active' : '') + (open ? '' : ' locked') + '" role="tab" data-camp="' + c + '" aria-selected="' + (c === camp) + '" title="' + esc(open ? u.sub : campaignLockText(c) || '') + '">' +
+        return '<button class="camp-tab ' + (u.cls || '') + (c === camp ? ' active' : '') + (open ? '' : ' locked') + '" role="tab" data-camp="' + c + '" aria-selected="' + (c === camp) + '" title="' + esc(open ? campaignSub(c) : campaignLockText(c) || '') + '">' +
           u.icon() + '<span class="ct-txt"><b>' + esc(u.name) + '</b><small data-ref="ct' + c.charAt(0).toUpperCase() + c.slice(1) + '">' + small + '</small></span><span class="ct-lock">' + icon('lock') + '</span></button>';
       }).join('');
     },
@@ -582,7 +610,7 @@
       const cur = campaignStarsOf(camp);
       $('[data-ref=lsStars] b', el).textContent = cur.got;
       $('[data-ref=lsStars]', el).lastChild.textContent = ' / ' + (cur.max || cu.maxDefault || 0);
-      $('[data-ref=lsSub]', el).textContent = cu.sub;
+      $('[data-ref=lsSub]', el).textContent = campaignSub(camp);
       this._renderCampaignTabs(el, camp);
       CAMPAIGN_ORDER.forEach(c => {
         const u = campaignUi(c);
@@ -841,7 +869,7 @@
       const t = level.terrain || {};
       const gap = (t.rightEdge != null && t.leftEdge != null) ? Math.round(t.rightEdge - t.leftEdge) : null;
       const ch = chaptersFor(camp).find(c => id >= c.from && id <= c.to);
-      this.el.lvlSub.textContent = cu.levelSub ? cu.levelSub(level, gap) : [camp !== 'road' ? cu.name : null, ch ? ch.name : null, gap ? gap + ' m gap' : null, level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
+      this.el.lvlSub.textContent = cu.levelSub ? cu.levelSub(level, gap) : levelSubText(level, camp, cu, ch, gap);
       this.el.level.style.setProperty('--acc', theme(level.theme).accent);
       this.el.budgetV.textContent = money(level.budget);
       this._shownCost = 0;
@@ -1272,7 +1300,7 @@
             <label class="set-row"><span>${icon('grid')}Build grid</span><input type="checkbox" class="switch" data-set="showGrid"></label>
             <div class="set-row keys"><span>Shortcuts</span><div class="kb">
               <span><kbd>1</kbd>–<kbd>6</kbd> material</span><span><kbd>B</kbd> build</span><span><kbd>E</kbd> erase</span><span><kbd>P</kbd> pier</span><span><kbd>S</kbd> select</span><span><kbd>M</kbd> mirror</span>
-              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo</span><span><kbd>Shift</kbd> fine snap</span><span><kbd>Ctrl</kbd>+drag move joint</span><span><kbd>Del</kbd> delete selection</span><span><kbd>Space</kbd> test / stop</span><span><kbd>R</kbd> restart test</span><span><kbd>P</kbd> pause (test)</span><span><kbd>Wheel</kbd> zoom · <kbd>F</kbd> fit</span><span><kbd>F</kbd> follow traffic (test)</span><span><kbd>T</kbd> track recording (rail test)</span><span>Right-drag pan</span><span><kbd>Esc</kbd> back</span></div></div>
+              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo</span><span><kbd>Shift</kbd> fine snap</span><span><kbd>Ctrl</kbd>+drag move joint</span><span><kbd>Del</kbd> delete selection</span><span><kbd>Space</kbd> test / stop</span><span><kbd>R</kbd> restart test</span><span><kbd>P</kbd> pause (test)</span><span><kbd>Wheel</kbd> zoom · <kbd>F</kbd> fit (build)</span><span><kbd>F</kbd> follow traffic (test)</span><span><kbd>T</kbd> track recording (rail test)</span><span>Right-drag pan</span><span><kbd>Esc</kbd> back</span></div></div>
             <div class="modal-foot"><button class="btn btn-ghost danger" data-act="reset">Reset progress</button><button class="btn btn-primary" data-act="close">Done</button></div>
           </div>
         </div>`);
@@ -1342,7 +1370,7 @@
 
     // exposed helpers
     icon, money, theme, vehSvg, trainSvg, material, materials, levelMaterials, CHAPTERS, RAIL_CHAPTERS, THEMES,
-    campaignOf, displayNum, levelLabel, hiddenLevelIds,
+    campaignOf, displayNum, levelLabel, shortLabel, badgeNum, hiddenLevelIds,
   };
 
   function budgetColor(r) {

@@ -313,9 +313,14 @@ html, body { overscroll-behavior: none; }
 .m-phone.m-portrait .fb-tile-body { flex-wrap: wrap; gap: 4px 8px; padding: 8px 9px 9px; }
 .m-phone.m-portrait .fb-tile-txt { flex: 1 1 calc(100% - 38px); }
 .m-phone.m-portrait .fb-tile-txt b { font-size: 13px; }
-.m-phone.m-portrait .fb-tile-stars { flex: 1 1 100%; align-items: center; }
+.m-phone.m-portrait .fb-tile-stars { flex: 1 1 100%; align-items: center; max-width: none; justify-content: flex-start; }
 .m-phone.m-portrait .fb-tile-stars .tile-badges { margin-left: auto; }
 .m-phone.m-portrait .fb-intro .chip { align-self: flex-start; }
+/* the header already shows this campaign's stars: the intro is one compact line of text on phones */
+.m-phone .fb-intro .chip { display: none; }
+.m-phone .fb-intro { margin-bottom: 10px; }
+.m-phone .fb-intro h3 { font-size: 15.5px; }
+.m-phone.m-landscape .fb-intro p { font-size: 12px; line-height: 1.35; }
 .m-phone .fb-tile-body { min-height: 48px; }
 
 /* goals: 44 px top-bar button; on phones the panel is a sheet under the top bar (closes when the canvas is touched) */
@@ -333,7 +338,17 @@ html, body { overscroll-behavior: none; }
 
 /* results card on phones: the feature blocks stack, the action row stays reachable at the bottom */
 .m-phone .res-actions { position: sticky; bottom: -14px; z-index: 2; margin: 8px -16px -14px; padding: 10px 16px 14px;
-  background: linear-gradient(180deg, rgba(13, 19, 33, 0), rgba(13, 19, 33, .97) 22%); }
+  background: rgb(15, 21, 36); border-top: 1px solid var(--line); box-shadow: 0 -10px 18px rgba(8, 12, 22, .55); }
+/* phone landscape: the badge reveal is one row (title + count on the left, icon-beside-text badges) so the
+   whole result fits above the action footer */
+.m-phone.m-landscape .res-badges { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+.m-phone.m-landscape .res-badges .rb-title { flex: none; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 4px; font-size: 10px; letter-spacing: .1em; }
+.m-phone.m-landscape .res-badges .rb-row { flex: 1; min-width: 0; flex-wrap: nowrap; justify-content: flex-start; gap: 4px; }
+.m-phone.m-landscape .res-badges .rb { width: auto; flex: 0 1 auto; min-width: 0; display: grid; grid-template-columns: 34px auto; column-gap: 7px; row-gap: 1px; align-items: center; justify-items: start; text-align: left; padding: 4px 8px 4px 4px; }
+.m-phone.m-landscape .res-badges .rb .gb-img { grid-row: 1 / span 2; width: 34px; height: 34px; }
+.m-phone.m-landscape .res-badges .rb b { white-space: nowrap; }
+.m-phone.m-landscape .res-badges .rb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.m-phone.m-landscape .res-badges .rb.new.pop::after { left: 21px; top: 21px; }
 .m-phone.m-portrait .res-actions .btn { flex: 1 1 calc(50% - 6px); min-width: 0; padding: 0 10px; }
 .m-phone .res-rail { margin-bottom: 10px; }
 .m-phone .rv { padding: 7px 9px; }
@@ -413,4 +428,6 @@ html, body { overscroll-behavior: none; }
 /* ------------------------------------------------------------ low-performance mode */
 .m-lowperf .glass, .m-lowperf .btn-glass, .m-lowperf #screen-levels, .m-lowperf .title-meta .chip { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .m-lowperf .glass { background: rgba(13, 19, 33, .9); }
+/* without the backdrop blur, cards and dialogs need a near-solid background or the screen behind reads through the text */
+.m-lowperf .modal .glass, .m-lowperf .results-card, .m-lowperf .fb-card, .m-lowperf .dly-card, .m-lowperf .goals-panel { background: rgb(14, 20, 34); }
 .m-lowperf .test-btn::before { animation: none; display: none; }

@@ -248,7 +248,9 @@
       render: (panel, info) => Tab.render(panel, info),
       continueLabel: lv => lv.name,
       levelNum: lv => Famous.index(lv),
-      levelSub: (lv, gap) => { const H = lv.history || {}; return ['Famous Bridges', H.year, H.location, gap ? gap + ' m gap' : null].filter(Boolean).join(' · '); },
+      levelK: 'BRIDGE',
+      // the place is on the history card; the bar keeps to what fits: year, gap, piers
+      levelSub: (lv, gap) => { const H = lv.history || {}, p = lv.maxPiers | 0; return ['Famous Bridges', H.year, gap ? gap + ' m gap' : null, p ? p + (p === 1 ? ' pier' : ' piers') : null].filter(Boolean).join(' · '); },
       finale: {
         banner: 'Famous Bridges complete', title: 'A builder for the ages!',
         text: starLine => 'From Roman arches to the Millau Viaduct - ' + Famous.playableLevels().length + ' famous crossings rebuilt. ' + starLine,

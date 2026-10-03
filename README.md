@@ -1,8 +1,24 @@
 # SPAN: Bridge Builder
 
-SPAN is a physics bridge-construction puzzle game that runs in the browser. You build a bridge across a gap from road, wood, steel, rope and cable, stay under budget, then press **Test** to watch real traffic drive across. If the bridge is too weak it sags, beams snap, and the bus ends up in the river. A second campaign, the **Iron Road**, swaps the traffic for trains, from a handcar to 2000-tonne ore trains and 150 km/h expresses.
+SPAN is a physics bridge-construction puzzle game that runs in the browser. You build a bridge across a gap from road, wood, steel, rope and cable, stay under budget, then press **Test** to watch real traffic drive across. If the bridge is too weak it sags, beams snap, and the bus ends up in the river.
 
-It is plain HTML, CSS and JavaScript, with no build step and no runtime dependencies. Double-click `index.html`; it works straight from `file://`.
+It is plain HTML, CSS and JavaScript, with no build step and no runtime dependencies. Double-click `index.html`; it works straight from `file://`, on desktop, tablet and phone.
+
+## The game at a glance
+
+- **Three campaigns, 85 hand-made levels**, one tab each on the level select:
+  - **Roads** (levels 1–50 in six chapters): from a 10 m creek crossed with two planks to a 150 m span carrying tankers and heavy haulers. Finishing the Roads reveals the bonus chapter **Forces of Nature** (51–53): a hurricane, an earthquake and a galloping deck in pulsing wind.
+  - **Iron Road** (101–120, opens after level 10): railway bridges for handcars, trams, steam, 2000-tonne ore trains and 150 km/h expresses. Trains derail on kinks, steep grades and broken rails, and a track recording and ride-quality grade show why.
+  - **Famous Bridges** (201–212, opens after level 15): scaled-down versions of real crossings, from the Pont du Gard to the Golden Gate, the Forth Bridge, Tacoma Narrows and the Millau Viaduct. Each one opens with a history card: who built it, when, and why the engineers chose that shape.
+- **Real physics:** every member carries tension, compression and bending; road decks flex between supports; members turn yellow, then red, then snap. **Inspect** shows the peak stress each member reached, and the results name the first member that gave way and why.
+- **Stars and challenge badges:** up to three stars per level for staying under budget, plus 2–3 optional badges per level (Minimalist, Penny Pincher, Featherweight, Cool Head, Symmetric, No Steel, Timber Only, No Piers, Smooth Ride). Every badge is proven achievable.
+- **Daily Challenge and Endless:** a new generated crossing every day, the same for everyone, with streaks and a shareable result; Endless keeps generating harder crossings. The generator proves every crossing solvable before you see it.
+- **History and personal bests:** every test run is recorded; per-level bests, a cost sparkline, lifetime stats, one-tap **Load** of any earlier design, autosave and **Resume** where you left off, and save export / import.
+- **Templates and tools:** nine bridge templates from level 4 (beam, Warren, Pratt and Howe trusses, deck and through arches, suspension, cable-stayed, viaduct), mirror building, select / move / delete, undo / redo, piers and a build grid. Every level keeps your last design.
+- **Plays anywhere:** mouse and keyboard on desktop. On phones and tablets there are touch gestures, a magnifier, a bottom-sheet palette and haptics. Served over http(s), SPAN installs as an app and works offline (PWA).
+- **Polished presentation:** themed scenery for every region (meadow to volcanic), animated weather and quakes, trains with signals and catenary, procedural audio, slow-motion derailments, and a results card that reveals stars and badges one by one.
+
+The top bar of a level states only facts about that level: chapter number (or the bonus chapter's name), gap, how many piers it allows and the time limit. The chapter names on the level select describe a whole region, and not every level in a region uses every feature its name mentions.
 
 ## How to play
 

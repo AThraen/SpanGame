@@ -382,9 +382,20 @@
     const lv = findLevel(id);
     // daily / endless levels (string ids, js/features/daily.js): their name, not 'Level daily-20261003'
     if (lv && typeof id === 'string' && /^(daily|endless)-/.test(id)) return (/^daily-/.test(id) ? 'Daily' : 'Endless') + (lv.name ? ' · ' + lv.name : '');
+    // campaigns name their own levels the way the title's Continue does (famous bridges by name)
+    if (lv && Hud.shortLabel) return Hud.shortLabel(lv);
     return (lv && Hud.levelLabel ? Hud.levelLabel(lv) : 'Level ' + id);
   }
+  // the number shown in front of a level's name in the lists: the top-bar badge number (famous bridges 1-12),
+  // D / E for daily and endless crossings (their ids are strings)
+  function lvNum(id) {
+    if (typeof id === 'string' && /^(daily|endless)-/.test(id)) return /^daily-/.test(id) ? 'D' : 'E';
+    const lv = findLevel(id);
+    return String(lv && Hud.badgeNum ? Hud.badgeNum(lv) : id);
+  }
   function lvName(id) { const lv = findLevel(id); return lv ? (lv.name || '') : ''; }
+  // label + name, without saying the name twice (famous / daily labels already are the name)
+  function lvFull(id) { const a = lvLabel(id), n = lvName(id); return n && a.indexOf(n) < 0 ? a + ' · ' + n : a; }
   function matName(m) { const d = BG.Materials && BG.Materials[m]; return d ? d.name : m; }
   function stars(n) { return '★'.repeat(n | 0) + '<span class="hs-dim">' + '★'.repeat(3 - (n | 0)) + '</span>'; }
   function fmtDur(ms) {
@@ -782,7 +793,7 @@
     const card = hud.el.settings && hud.el.settings.querySelector('.modal-card');
     const foot = card && card.querySelector('.modal-foot');
     if (card) {
-      const row = el(`<div class="set-row hist-save"><span>${icon('coin')}Save data</span>
+      const row = el(`<div class="set-row hist-save"><span>${icon('save')}Save data</span>
           <div class="hist-save-btns">
             <button class="btn btn-glass sm" data-hsave="export" title="Download your progress as a file">Export</button>
             <button class="btn btn-glass sm" data-hsave="import" title="Load progress from a file">Import</button>
@@ -846,7 +857,7 @@
     const filters = ov.querySelector('[data-href=filters]');
     filters.hidden = UI.tab !== 'runs';
     const sel = ov.querySelector('[data-hfilter=level]');
-    sel.innerHTML = '<option value="all">All levels</option>' + played.map(id => '<option value="' + id + '">' + esc(lvLabel(id) + ' · ' + lvName(id)) + '</option>').join('');
+    sel.innerHTML = '<option value="all">All levels</option>' + played.map(id => '<option value="' + id + '">' + esc(lvFull(id)) + '</option>').join('');
     if (UI.level !== 'all' && played.indexOf(+UI.level) < 0) UI.level = 'all';
     sel.value = String(UI.level);
     ov.querySelector('[data-hfilter=result]').value = UI.result;
@@ -863,7 +874,7 @@
       list = list.filter(r => r.l === id);
       const lv = findLevel(id);
       head = '<div class="hist-lvhead">' + sparkline(list, lv ? lv.budget : null, 260, 48) +
-        '<div class="hist-lvmeta"><b>' + esc(lvLabel(id)) + '</b> ' + esc(lvName(id)) + '<br><small>' + esc(tileTip(id)) + '</small></div></div>';
+        '<div class="hist-lvmeta"><b>' + esc(lvFull(id)) + '</b><br><small>' + esc(tileTip(id)) + '</small></div></div>';
     }
     if (UI.result === 'pass') list = list.filter(r => r.ok);
     else if (UI.result === 'fail') list = list.filter(r => !r.ok);
@@ -873,7 +884,7 @@
       const res = r.ok ? '<span class="hr-ok">' + stars(r.s) + '</span>' : '<span class="hr-bad">' + esc(reasonText(r.f)) + '</span>';
       const load = r.k ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + esc(r.k) + '" data-l="' + r.l + '" title="Open this design in the editor">Load</button>' : '';
       return '<li class="hist-run ' + (r.ok ? 'ok' : 'bad') + '">' +
-        '<div class="hr-lv"><b>' + esc(String(r.l)) + '</b><span>' + esc(lvName(r.l)) + '</span></div>' +
+        '<div class="hr-lv"><b>' + esc(lvNum(r.l)) + '</b><span>' + esc(lvName(r.l)) + '</span></div>' +
         '<div class="hr-res">' + res + '<small>' + esc(ago(r.t)) + '</small></div>' +
         '<div class="hr-num"><b>' + money(r.c) + '</b><small>' + r.n + ' members' + (r.p != null ? ' · ' + Math.round(r.p * 100) + '%' : '') + '</small></div>' +
         '<div class="hr-act">' + load + '</div></li>';
@@ -888,9 +899,9 @@
       const lv = findLevel(id);
       const bestK = b.cost && b.cost.k && H.hasSnapshot(b.cost.k) ? b.cost.k : null;
       return '<li class="hist-level">' +
-        '<button class="hl-name" data-hact="level" data-l="' + id + '" title="Show the runs of this level"><b>' + id + '</b><span>' + esc(lvName(id)) + '</span></button>' +
+        '<button class="hl-name" data-hact="level" data-l="' + id + '" title="Show the runs of this level"><b>' + esc(lvNum(id)) + '</b><span>' + esc(lvName(id)) + '</span></button>' +
         '<div class="hl-spark">' + sparkline(lr, lv ? lv.budget : null, 140, 30) + '</div>' +
-        '<div class="hl-best">' + (b.cost ? '<b>' + money(b.cost.v) + '</b>' : '<b class="hs-dim">—</b>') + '<small>' + (b.stars ? '<span class="hr-ok">' + stars(b.stars.v) + '</span> · ' : '') + (b.runs | 0) + ' runs</small></div>' +
+        '<div class="hl-best">' + (b.cost ? '<b>' + money(b.cost.v) + '</b>' : '<b class="hs-dim">—</b>') + '<small>' + (b.stars ? '<span class="hr-ok">' + stars(b.stars.v) + '</span> · ' : '') + (b.runs | 0) + ((b.runs | 0) === 1 ? ' run' : ' runs') + '</small></div>' +
         '<div class="hr-act">' + (bestK ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + bestK + '" data-l="' + id + '" title="Open your cheapest passing design">Load best</button>' : '') + '</div></li>';
     }).join('') + '</ul>';
   }
