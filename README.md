@@ -123,7 +123,7 @@ tools/                   Node tooling (not loaded by the game)
   test-terrain-fix.js    underwater build rule + drawn terrain matches the model (Node + headless Chrome)
   shot.js                headless screenshot helper
   test-railinfo.js       derailment explainer tests
-  gen-goals.js           picks + proves 2-3 achievable goals per level -> js/features/goals-data.js
+  gen-goals.js           picks + proves 2-3 achievable goals per level (roads and Iron Road) -> js/features/goals-data.js
   test-goals.js          re-verifies every shipped goal against its saved design
   solutions/goals/       level-NN-<goal>.json: one verifying design per goal
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level

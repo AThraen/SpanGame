@@ -426,7 +426,7 @@ tools/solutions/goals/level-NN-<goal>.json   a design that passes the level AND 
 ### 11.2 Evaluation
 `BG.Goals.evaluate(level, design, simSummary)` -> `{ passed, metrics, goals:[{id,type,name,icon,desc,met,candidate,text,frac}], earned:[ids] }`.
 `passed` = sim success AND cost <= budget; **no badge without a pass** (`candidate` = condition currently satisfied).
-`BG.Goals.register(levelId, specs)` adds/overrides specs at runtime (Iron Road ids 101-120); `BG.Goals.TYPES` holds
+`BG.Goals.register(levelId, specs)` adds/overrides specs at runtime (overrides `BG.GoalsData`); `BG.Goals.TYPES` holds
 the goal catalogue. A goal id is its type, unique per level.
 
 | type | params | met when |
@@ -445,6 +445,9 @@ the goal catalogue. A goal id is its type, unique per level.
 templates, material substitutions, mirror rebuilds and greedy member pruning; every candidate must pass the level
 (valid, in budget, editor-buildable, no floppy parts, peak <= 0.99). A goal is only offered if a candidate meets it;
 thresholds come from the best candidate plus slack (members +8 %, mass +6 %). 2 goals on levels 1-5, 2-3 later.
+Iron Road levels 101-120 are covered the same way (generated at the merge with `--only 101,...,120`; 58 goals): the
+rail sim decides the pass (derailments fail it), `timber_only` is never offered there (the deck needs `rail`).
+The level select shows tile counts on both campaign tabs; the total chip counts all 70 levels (191 goals).
 
 ### 11.4 Storage
 `BG.Storage.getBadges(id)`, `recordBadges(id, ids)` -> newly earned, `totalBadges()`, `maxBadges()`; key `span.v1.badges` =

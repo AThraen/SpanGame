@@ -53,6 +53,26 @@
   47: [{"type":"symmetric"},{"type":"minimalist","max":164},{"type":"featherweight","maxMass":62250}],
   48: [{"type":"symmetric"},{"type":"minimalist","max":102},{"type":"featherweight","maxMass":39480}],
   49: [{"type":"symmetric"},{"type":"minimalist","max":118},{"type":"featherweight","maxMass":51260}],
-  50: [{"type":"symmetric"},{"type":"minimalist","max":241},{"type":"featherweight","maxMass":74710}]
+  50: [{"type":"symmetric"},{"type":"minimalist","max":241},{"type":"featherweight","maxMass":74710}],
+  101: [{"type":"symmetric"},{"type":"cool_head","max":0.5},{"type":"minimalist","max":3}],
+  102: [{"type":"symmetric"},{"type":"penny","ratio":0.6},{"type":"minimalist","max":9}],
+  103: [{"type":"symmetric"},{"type":"cool_head","max":0.5},{"type":"minimalist","max":10}],
+  104: [{"type":"minimalist","max":11},{"type":"featherweight","maxMass":6630}],
+  105: [{"type":"symmetric"},{"type":"minimalist","max":21},{"type":"featherweight","maxMass":10560}],
+  106: [{"type":"cool_head","max":0.5},{"type":"minimalist","max":31},{"type":"featherweight","maxMass":38800}],
+  107: [{"type":"no_steel"},{"type":"symmetric"},{"type":"minimalist","max":29}],
+  108: [{"type":"cool_head","max":0.5},{"type":"symmetric"},{"type":"minimalist","max":53}],
+  109: [{"type":"symmetric"},{"type":"minimalist","max":49},{"type":"featherweight","maxMass":63670}],
+  110: [{"type":"symmetric"},{"type":"minimalist","max":51},{"type":"featherweight","maxMass":65650}],
+  111: [{"type":"symmetric"},{"type":"minimalist","max":55},{"type":"featherweight","maxMass":23490}],
+  112: [{"type":"minimalist","max":58},{"type":"featherweight","maxMass":26690}],
+  113: [{"type":"symmetric"},{"type":"minimalist","max":79},{"type":"featherweight","maxMass":38880}],
+  114: [{"type":"symmetric"},{"type":"minimalist","max":60},{"type":"featherweight","maxMass":63330}],
+  115: [{"type":"symmetric"},{"type":"minimalist","max":114},{"type":"featherweight","maxMass":102530}],
+  116: [{"type":"symmetric"},{"type":"minimalist","max":58},{"type":"featherweight","maxMass":31410}],
+  117: [{"type":"penny","ratio":0.65},{"type":"minimalist","max":94},{"type":"featherweight","maxMass":43930}],
+  118: [{"type":"symmetric"},{"type":"minimalist","max":106},{"type":"featherweight","maxMass":54820}],
+  119: [{"type":"symmetric"},{"type":"minimalist","max":160},{"type":"featherweight","maxMass":76890}],
+  120: [{"type":"symmetric"},{"type":"minimalist","max":201},{"type":"featherweight","maxMass":194780}]
   };
 })(typeof window !== 'undefined' ? window : globalThis);
