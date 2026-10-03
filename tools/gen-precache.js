@@ -2,6 +2,7 @@
 // Usage: node tools/gen-precache.js          rewrite sw.js
 //        node tools/gen-precache.js --check  exit 1 if sw.js is stale (list or version)
 //        node tools/gen-precache.js --list   print the list
+// Every run also reports the precache size (what a first visit downloads for offline play).
 // Scans the repo for the shipped game: index.html, manifest.webmanifest, css/, js/, assets/.
 // Excludes tools/, node_modules/, .worktrees/, .git/, .github/, docs (.md/.txt) and dotfiles.
 // The version is a hash of every precached file (plus sw.js's own logic), so any shipped change
@@ -44,7 +45,8 @@ function collect() {
   for (const f of files) { h.update(f + '\0'); h.update(bytes(f)); }
   // the worker's own logic counts too (minus the generated block, which holds the version itself)
   if (fs.existsSync(SW)) h.update(lf(fs.readFileSync(SW, 'utf8')).replace(RE, ''));
-  return { files, version: h.digest('hex').slice(0, 12) };
+  const bytesTotal = files.reduce((n, f) => n + fs.statSync(path.join(ROOT, f)).size, 0);
+  return { files, version: h.digest('hex').slice(0, 12), bytes: bytesTotal };
 }
 
 function block({ files, version }) {
@@ -53,6 +55,8 @@ function block({ files, version }) {
     'const PRECACHE = [\n' + files.map(f => "  '" + f + "',").join('\n') + '\n];\n' +
     '// </precache>';
 }
+
+const mb = b => (b / 1048576).toFixed(2) + ' MB';
 
 function main() {
   const arg = process.argv[2] || '';
@@ -63,11 +67,11 @@ function main() {
   const next = src.replace(RE, () => block(data));
   if (arg === '--check') {
     if (lf(next) !== lf(src)) { console.error('sw.js precache is STALE - run: node tools/gen-precache.js'); process.exit(1); }
-    console.log('sw.js precache up to date (' + data.files.length + ' files, version ' + data.version + ')');
+    console.log('sw.js precache up to date (' + data.files.length + ' files, ' + mb(data.bytes) + ', version ' + data.version + ')');
     return;
   }
   if (next !== src) fs.writeFileSync(SW, next);
-  console.log((next !== src ? 'updated' : 'unchanged') + ' sw.js: ' + data.files.length + ' files, version ' + data.version);
+  console.log((next !== src ? 'updated' : 'unchanged') + ' sw.js: ' + data.files.length + ' files, ' + mb(data.bytes) + ', version ' + data.version);
 }
 if (require.main === module) main();
 module.exports = { collect, RE };

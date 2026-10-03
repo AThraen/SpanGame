@@ -800,4 +800,13 @@ working from `file://` and without storage.
   action rows must be on screen and tappable.
 - `tools/test-pwa.js`: install, precache freshness, offline reload incl. a deep link, update toast,
   install UI, `file://` no-op.
+- `tools/test-offline-tour.js`: offline guarantee. Installs online (waits for the full precache), then
+  `context.setOffline(true)` and tours title, every level-select tab (all famous art forced to load), level 1
+  run + results badges, bonus 52 quake FX, rail 106 + 120 (smoke, track strip), famous 208 + 209 cards + runs,
+  daily (generated offline), endless, history, settings (install row, save export download) on desktop
+  1440x900 and a touch phone 844x390. Fails on any page request not answered by the service worker, any
+  worker network fetch other than the index.html probe (= precache miss), console / page errors, images with
+  naturalWidth 0, failed sprites; static: every literal `assets/` path, every theme background and badge icon
+  is in the precache. Also checks the update path and reports the precache size. `--drop=<file>` serves a
+  precache without that file to prove the detector fails.
 - `tools/test-history.js`: Node (fake storage) + browser (desktop, phones, tablet); `--node-only` skips the browser.

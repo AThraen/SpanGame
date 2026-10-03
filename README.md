@@ -138,7 +138,7 @@ Every mode works by touch. On phones the **Goals** panel opens from its top-bar 
 Served over **http(s)**, SPAN is an installable Progressive Web App that works offline. From `file://` the game runs exactly as before, just without these extras.
 
 - **Install:** on Android/desktop Chrome or Edge, open Settings and press **Install SPAN** (or use the browser's install icon). On iPhone/iPad, Settings shows how: tap **Share**, then **Add to Home Screen**. The app opens full-screen in any orientation.
-- **Offline:** the first visit precaches every game file (about 2.6 MB). After that the game, all levels and your saved progress work with no connection.
+- **Offline:** the first visit precaches every game file (about 2.9 MB, 132 files; `node tools/gen-precache.js` prints the current size). After that everything works with no connection: all three campaigns and the bonus chapter, daily challenge and endless (generated on the device), history, settings and save export, and your saved progress. `node tools/test-offline-tour.js` proves it by touring every screen offline.
 - **Updates:** when a new version is deployed, a **New version available — tap to reload** toast appears. Your designs are saved, so reloading is safe.
 - **Serve locally:** `node tools/serve.js [port]` (no dependencies) serves the repo at `http://localhost:8080/`. Service workers only run on `localhost` or https, so a phone on your network can play from it but won't install it.
 
@@ -249,6 +249,7 @@ node tools/test-daily.js       # daily/endless: Node records + headless browser 
 node tools/test-famous.js      # Famous Bridges campaign (add --node-only to skip the browser part)
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 node tools/test-pwa.js [outDir] # PWA: SW install, precache, offline reload, update toast, install UI (phones/tablets)
+node tools/test-offline-tour.js [outDir] [--no-shots] # offline guarantee: install once, go offline, tour every screen + campaign (desktop + phone); fails on any request not served by the SW, console errors, broken images
 node tools/test-mobile.js [outDir] # touch: phone/tablet layouts, touch-built level 1, loupe, long-press menu, pinch, History + Install rows, every feature screen (goals, Iron Road, daily/endless, famous, forces) (headless)
 node tools/test-history.js [--node-only]     # history: migration, bests, retention, export/import, autosave + resume in the browser
 node tools/gen-precache.js [--check]   # refresh / verify the service worker's precache list
