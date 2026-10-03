@@ -1,4 +1,4 @@
-# pwa: deploy SPAN to GitHub Pages from main.
+# pwa: deploy SPAN to GitHub Pages on every push/merge to main and on release tags (v*).
 # Pages must be enabled once in the repo (Settings > Pages > Source: "GitHub Actions").
 # Only the shipped game is published (index.html, sw.js, manifest, css/, js/, assets/) - never tools/.
 name: Deploy to GitHub Pages
@@ -6,6 +6,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
