@@ -7,7 +7,7 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
 ## How to play
 
 1. **Pick a crossing** on the level select screen. A level opens once either of the two levels before it is complete, so one hard crossing can be skipped and revisited. Each level awards 0–3 stars.
-2. **Read the gap.** The top bar shows the cost/budget bar (with ★★★ and ★★ thresholds) and the traffic waiting to cross. The dashed rectangle is the build area. Hatched zones are no-build areas, such as ship clearance. Yellow-striped floor bands are pier zones.
+2. **Read the gap.** The top bar shows the cost/budget bar (with ★★★ and ★★ thresholds) and the traffic waiting to cross. The dashed rectangle is the build area. Hatched zones are no-build areas, such as ship clearance. Yellow-striped floor bands are pier zones. Nothing but piers and anchors may go under the water (or lava): joints must stay at or above the waterline. Where the build area reaches below the water, the waterline is drawn as a dashed limit over a hatched "piers only" band.
 3. **Build.**
    - Pick a material in the bottom palette.
    - Drag from any anchor (the concrete bolts) or joint to place a beam. The beam stops at the material's maximum length and snaps to a 1 m grid and to nearby joints.
@@ -96,6 +96,8 @@ js/ui/
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
   railinfo.js            BG.RailInfo - derailment explainer, track recording strip, ride-quality card (display only)
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
+js/features/
+  terrain-fix.js         BG.TerrainFix - draws the waterline build limit in edit mode
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint; rail/ holds the rolling stock
 assets/icons/            SVG UI icons
@@ -109,6 +111,7 @@ tools/                   Node tooling (not loaded by the game)
   test-editor.js         editor tests (fake DOM / renderer)
   test-templates.js      template generator tests (--verbose, --svg out.html)
   e2e.js                 headless-Chrome end-to-end check of the real game
+  test-terrain-fix.js    underwater build rule + drawn terrain matches the model (Node + headless Chrome)
   shot.js                headless screenshot helper
   test-railinfo.js       derailment explainer tests
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level
@@ -128,6 +131,7 @@ node tools/verify-levels.js    # all 70 levels, reference + best design each (se
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
+node tools/test-terrain-fix.js # underwater rule, editor feedback, drawn cliffs vs model (--no-browser: Node only)
 node tools/e2e.js [outDir]     # full browser run incl. the Iron Road; screenshots go to %TEMP%/span-e2e by default
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```

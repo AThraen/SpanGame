@@ -151,6 +151,15 @@
    *  (Trains already derail above level.rail.maxGrade, default 6 %.) */
   const RAIL_MAX_SLOPE = 0.25;
 
+  // terrain-fix: nothing but piers and anchors may stand below the waterline (water or lava).
+  /** True when (x,y) lies below the level's water surface (false on dry levels). */
+  function belowWater(level, x, y, tol) {
+    const t = (level && level.terrain) || {};
+    if (typeof t.waterY !== 'number' || !isFinite(t.waterY)) return false;
+    return y < t.waterY - (tol == null ? EPS : tol);
+  }
+  const UNDERWATER_MSG = "Can't build under water — use a pier";
+
   /** The two main road anchors (left/right bank edge) -> {left:'a<i>', right:'a<j>'} */
   function roadAnchors(level) {
     const t = (level && level.terrain) || {};
@@ -254,6 +263,9 @@
       }
       if (inTerrain(lv, n.x, n.y, 0.05)) errors.push({ type: 'in_terrain', msg: 'Joint is inside the ground', nodeId: n.id });
       else if (terrainDistance(lv, n.x, n.y) < TERRAIN_CLEARANCE - EPS) errors.push({ type: 'near_terrain', msg: 'Joints must stay ' + TERRAIN_CLEARANCE + ' m clear of the ground (use an anchor or a pier)', nodeId: n.id });
+      // terrain-fix: user joints may not go below the waterline (a beam's lowest point is an endpoint,
+      // so this also keeps beams out of the water unless they end on an anchor or a pier top)
+      if (belowWater(lv, n.x, n.y)) errors.push({ type: 'underwater', msg: UNDERWATER_MSG, nodeId: n.id });
     }
 
     // piers
@@ -403,5 +415,6 @@
     beamLength, beamCost, pierCost, segmentHitsRect, pointInRect, inTerrain, roadAnchors,
     segmentInTerrain, terrainDistance, TERRAIN_CLEARANCE, RAIL_MAX_SLOPE,
     nextNodeId, trafficSummary, roadConnected, railConnected, deckConnected, trafficKinds, railRules,
+    belowWater, UNDERWATER_MSG, // terrain-fix
   };
 })(typeof window !== 'undefined' ? window : globalThis);
