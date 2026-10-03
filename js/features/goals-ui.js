@@ -95,11 +95,11 @@
       setPanel(!panelOpen);
     });
   }
-  function setPanel(open) {
+  function setPanel(open, noSave) {
     panelOpen = open;
     if (panel) panel.classList.toggle('open', open);
     if (btn) btn.classList.toggle('on', open);
-    safe(() => S.set('goalsPanelOpen', open));
+    if (!noSave) safe(() => S.set('goalsPanelOpen', open));
     lastSig = '';
     refreshPanel(true);
   }
@@ -237,6 +237,7 @@
     const goals = levelGoals(Hud.level);
     let open = safe(() => S.get('goalsPanelOpen', true), true);
     if (root.innerWidth < 760) open = false;
+    if (BG.Mobile && BG.Mobile.env && BG.Mobile.env.phone) open = false; // mobile: phones open the panel on demand (it would cover the build area)
     panelOpen = !!open && goals.length > 0;
     lastSig = '';
     refreshPanel(true);
@@ -258,5 +259,6 @@
   wrap('buildLevelSelect', decorateTiles);
   wrap('refreshTitle', refreshChips);
 
-  BG.GoalsUI = { refresh: () => { refreshPanel(true); refreshChips(); }, evaluateCurrent: currentEval };
+  BG.GoalsUI = { refresh: () => { refreshPanel(true); refreshChips(); }, evaluateCurrent: currentEval,
+    isOpen: () => panelOpen, setOpen: (open, noSave) => setPanel(!!open, noSave) }; // mobile: setOpen(false, true) closes without saving the preference
 })(typeof window !== 'undefined' ? window : globalThis);

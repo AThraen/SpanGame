@@ -1,0 +1,84 @@
+/* history: run history overlay, personal bests on the results card, save export / import (js/features/history.js) */
+.hist-modal .btn.sm, .hist-save .btn.sm { height: 32px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; }
+
+/* results card: personal bests line */
+.hist-res { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 12px 0 2px; }
+.hist-res[hidden] { display: none; }
+.hist-res .hb { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 3px 10px; border-radius: 99px; font-size: 12.5px; color: var(--muted); background: rgba(255, 255, 255, .06); border: 1px solid var(--line); }
+.hist-res .hb .ico { width: 14px; height: 14px; }
+.hist-res .hb b { color: var(--good); font-variant-numeric: tabular-nums; }
+.hist-res .hb-new { color: var(--text); background: rgba(62, 224, 143, .14); border-color: rgba(62, 224, 143, .45); font-weight: 650; animation: hist-pop .5s var(--spring) .9s both; }
+.hist-res .hb-up { color: #c9f6de; border-color: rgba(62, 224, 143, .3); }
+.hist-res .hb-dim { opacity: .75; }
+@keyframes hist-pop { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* history overlay (re-uses the .modal shell of the settings dialog) */
+.hist-modal { z-index: 46; }
+.hist-card { width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 12px; }
+.hist-tabs { display: flex; gap: 4px; padding: 3px; margin: 2px 0 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); }
+.hist-tab { flex: 1; height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-weight: 650; font-size: 13.5px; cursor: pointer; }
+.hist-tab.active { background: rgba(255, 255, 255, .12); color: var(--text); }
+.hist-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.hist-filters[hidden] { display: none; }
+.hist-filters label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.hist-filters select { height: 34px; max-width: 260px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: rgba(10, 16, 30, .9); color: var(--text); font: inherit; font-size: 13px; }
+.hist-body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; min-height: 120px; margin: 0 -6px; padding: 0 6px; }
+.hist-empty { color: var(--muted); text-align: center; padding: 28px 10px; font-size: 14px; }
+.hist-lvhead { display: flex; align-items: center; gap: 14px; padding: 10px 12px; margin-bottom: 8px; border-radius: 12px; background: rgba(255, 255, 255, .05); }
+.hist-lvmeta { font-size: 14px; }
+.hist-lvmeta small { color: var(--muted); font-size: 12px; }
+
+.hist-runs, .hist-levels { list-style: none; margin: 0; padding: 0; }
+.hist-run, .hist-level { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 84px; align-items: center; gap: 10px; padding: 8px 6px; border-top: 1px solid rgba(255, 255, 255, .07); font-size: 13.5px; }
+.hist-level { grid-template-columns: minmax(0, 1.4fr) 140px minmax(0, 1fr) 96px; }
+.hr-lv, .hl-name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.hl-name { border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; }
+.hl-name:hover span { text-decoration: underline; }
+.hr-lv b, .hl-name b { flex: 0 0 auto; min-width: 28px; font-family: var(--font-display); font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hr-lv span, .hl-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hr-res, .hr-num, .hl-best { display: flex; flex-direction: column; min-width: 0; }
+.hr-res small, .hr-num small, .hl-best small { color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-num b, .hl-best b { font-variant-numeric: tabular-nums; }
+.hr-ok { color: var(--star); letter-spacing: 1px; }
+.hr-bad { color: #ff9aa4; font-weight: 600; }
+.hs-dim { opacity: .3; }
+.hr-act { text-align: right; }
+
+.hist-spark { display: block; overflow: visible; }
+.hist-spark polyline { fill: none; stroke: var(--blue); stroke-width: 1.6; stroke-linejoin: round; opacity: .85; }
+.hist-spark .sp-budget { stroke: rgba(255, 255, 255, .28); stroke-width: 1; stroke-dasharray: 3 3; }
+.hist-spark .sp-ok { fill: var(--good); }
+.hist-spark .sp-bad { fill: var(--bad); }
+
+.hist-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 4px 0; }
+.hst { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07); }
+.hst small { color: var(--muted); font-size: 12px; }
+.hst b { font-family: var(--font-display); font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.hist-since { color: var(--dim); font-size: 12px; text-align: center; margin: 12px 0 2px; }
+
+/* settings: save data row */
+.hist-save { cursor: default; }
+.hist-save-btns { display: flex; gap: 8px; }
+
+@media (max-width: 640px) {
+  .hist-card { width: calc(100vw - 16px); padding: 14px 12px 10px; }
+  .hist-run { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "lv num" "res act"; row-gap: 4px; }
+  .hist-run .hr-lv { grid-area: lv; } .hist-run .hr-num { grid-area: num; text-align: right; }
+  .hist-run .hr-res { grid-area: res; flex-direction: row; gap: 8px; align-items: baseline; } .hist-run .hr-act { grid-area: act; }
+  .hist-level { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name best" "spark act"; row-gap: 4px; }
+  .hist-level .hl-name { grid-area: name; } .hist-level .hl-best { grid-area: best; text-align: right; }
+  .hist-level .hl-spark { grid-area: spark; } .hist-level .hr-act { grid-area: act; }
+  .hist-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hist-lvhead { flex-direction: column; align-items: flex-start; }
+  .hist-lvhead .hist-spark { width: 100%; height: auto; }
+  .hist-filters select { max-width: 60vw; }
+  .hist-modal .btn.sm, .hist-save .btn.sm { height: 36px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .hist-tab { height: 40px; }
+  .hist-modal .btn.sm, .hist-save .btn.sm { min-height: 36px; }
+}
+
+/* title Resume button: long level names never push it off screen */
+.hist-resume { max-width: calc(100vw - 32px); }
+.hist-resume .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

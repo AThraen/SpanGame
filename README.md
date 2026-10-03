@@ -43,6 +43,14 @@ The **Daily Challenge** button on the title screen opens a new generated crossin
 - Daily and endless results are stored apart from the campaigns (Roads, the bonus chapter, the Iron Road and Famous Bridges), so they never change campaign stars, unlocks or badges. Today's level is cached, and your design for each daily is saved like any other level.
 - URL helpers: `?daily` plays today's daily, `?daily=20261002` plays a given date, `?endless` continues the endless run, and `?today=20261005` pretends it is that day (for testing).
 
+<!-- history: -->
+### History, personal bests and resume
+
+- **Autosave and resume:** the design is saved shortly after every change and whenever the tab is hidden or closed. On reload the game returns to the level (design and camera) or the level-select screen you were on; the title shows **Resume · Level N**. A test in progress comes back in edit mode. Resume is skipped after 72 hours or when the URL has `?level`, `?screen` or `?noresume`.
+- **Personal bests:** each level tracks your lowest cost, fewest members, lowest peak stress, fastest crossing and most stars over passing runs. The results card says "First pass on this level" or "New best! −$420 vs your previous $X" and shows the attempt number; level tiles list your bests in their tooltip.
+- **History screen** (clock button on the title and level-select screens): **Runs** (every test, filterable by level and pass/fail, with a cost sparkline against the budget), **Levels** (bests per level, **Load best**) and **Stats** (runs, bridges that held, collapses, beams placed, budget spent, favourite material, play time, levels passed). **Load** opens a stored design in the editor as one undo step. The latest 500 runs are kept, plus a few design snapshots per level (always the ones that hold a best).
+- **Save export / import:** Settings → **Save data** → **Export** downloads `span-save-YYYYMMDD.json` with all your progress, designs, history and settings; **Import** checks the file, replaces the save on this device and reloads. Use it to move progress between browsers or devices. **Reset progress** also clears history and stats.
+
 ## Controls
 
 ### Building (edit mode)
@@ -80,6 +88,24 @@ The **Daily Challenge** button on the title screen opens a new generated crossin
 | `T` / **Track** button | Track recording strip on railway levels (on by default there): grade per rail segment and kink per joint, against red limit bands. The kink band slides with the train's speed; a red bar is over the limit, a white tick is that joint's peak so far, and the right-hand readout shows the worst grade and the worst kink with the speed it was judged at |
 | `Enter` (results) | Next level if passed, otherwise back to editing |
 
+<!-- mobile: touch controls -->
+### Touch (phones and tablets)
+
+The HUD adapts on touch screens: a compact top bar, the tools as floating buttons, and on phones the materials in a bottom sheet behind the current-material chip. Portrait works; landscape gives the bridge more room.
+
+| Gesture | Action |
+|---|---|
+| Drag from a joint | Build a beam (a magnifier shows the spot under your finger) |
+| Tap a joint | Start building from it; tap the last joint again to stop |
+| Hold, then drag | Move a joint |
+| Hold and lift | Menu: delete the joint / beam / pier under the finger, stop building, undo, fit view |
+| Drag empty space / two fingers | Pan |
+| Pinch | Zoom (also while the test runs) |
+
+Settings has touch options: magnifier, offset cursor (aim above the finger), vibration, performance mode (Auto / On / Off: fewer particles and background layers, lower pixel density on slow devices) and fullscreen.
+
+Every mode works by touch. On phones the **Goals** panel opens from its top-bar button as a sheet and closes when you touch the bridge. On the Iron Road the track recording sits just above the test controls (in portrait, under the top bar), and a derailment explanation appears under the top bar. The daily panel's 14-day history scrolls sideways. A Famous Bridges history card shows the picture and the story side by side in landscape. On Forces of Nature levels a forecast chip under the top bar lists the coming wind and quakes. On a long results card the buttons stay pinned to the bottom.
+
 ## Running it
 
 - **Play:** open `index.html` in a modern browser (Chrome, Edge, Firefox or Safari). No server is needed.
@@ -87,6 +113,26 @@ The **Daily Challenge** button on the title screen opens a new generated crossin
   - `index.html?level=3` jumps straight into level 3.
   - `?screen=levels` opens level select.
   - `?unlockall` unlocks every level.
+  - `?touchui=1` / `?touchui=0` forces the touch layout on or off (it normally follows the device's pointer).
+  - `?noresume` starts on the title screen instead of resuming the last session.
+
+## Install and offline play (PWA)
+
+<!-- pwa: -->
+Served over **http(s)**, SPAN is an installable Progressive Web App that works offline. From `file://` the game runs exactly as before, just without these extras.
+
+- **Install:** on Android/desktop Chrome or Edge, open Settings and press **Install SPAN** (or use the browser's install icon). On iPhone/iPad, Settings shows how: tap **Share**, then **Add to Home Screen**. The app opens full-screen in any orientation.
+- **Offline:** the first visit precaches every game file (about 2.6 MB). After that the game, all levels and your saved progress work with no connection.
+- **Updates:** when a new version is deployed, a **New version available — tap to reload** toast appears. Your designs are saved, so reloading is safe.
+- **Serve locally:** `node tools/serve.js [port]` (no dependencies) serves the repo at `http://localhost:8080/`. Service workers only run on `localhost` or https, so a phone on your network can play from it but won't install it.
+
+How it works: `manifest.webmanifest` describes the app, and the icons live in `assets/icons/app/` (they are regenerated by `node tools/gen-icons.js`). `sw.js` precaches a versioned file list. It serves css, js and assets cache-first, serves `index.html` network-first (falling back to the cached copy when offline or after 3.5 s), deletes old caches on activate, and waits for the player's tap before switching versions. `js/features/pwa.js` registers the worker (on http(s) only) and drives the toast and the Settings rows.
+
+**After changing any shipped file, run `node tools/gen-precache.js`.** It rescans `index.html`, `css/`, `js/` and `assets/`, then rewrites the list and content-hash version in `sw.js`. `--check` reports a stale list without rewriting it.
+
+### Deploying to GitHub Pages
+
+`.github/workflows/pages.yml` deploys on every push to `main` (or when run manually). It runs the physics and level checks, regenerates the precache, and publishes only the game files (`index.html`, `sw.js`, `manifest.webmanifest`, `css/`, `js/`, `assets/`). To turn it on, go to **Settings → Pages → Source: GitHub Actions** in the repository. Every path is relative, so the site works at `https://<user>.github.io/<repo>/`.
 
 ## Project structure
 
@@ -126,6 +172,14 @@ css/forces.css           styles for the Forces of Nature HUD
 css/daily.css            styles for the daily panel, loader and share card
 css/famous.css           Famous Bridges tiles and history card
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
+js/features/pwa.js       BG.PWA - service-worker registration, update toast, install button / iOS hint
+css/pwa.css              styles for the above
+js/features/history.js   BG.History - run history, personal bests, stats, autosave / resume, save export / import (data part also runs in Node)
+css/history.css          History screen, results bests line, Save data row
+js/features/mobile.js    BG.Mobile + BG.Perf - touch layer (loupe, long-press menu, bottom sheet, rotate prompt, haptics), performance mode
+css/mobile.css           touch / phone / tablet layout (only active under .m-touch on <html>)
+sw.js                    service worker (precache list generated by tools/gen-precache.js)
+manifest.webmanifest     web app manifest; icons in assets/icons/app/
 assets/famous/           hand-made SVG illustrations, one per famous bridge
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint; rail/ holds the rolling stock
 assets/icons/            SVG UI icons
@@ -178,6 +232,12 @@ node tools/test-generator.js   # generator batch: 365 days + 200 seeds (--quick 
 node tools/test-daily.js       # daily/endless: Node records + headless browser flow (--node-only)
 node tools/test-famous.js      # Famous Bridges campaign (add --node-only to skip the browser part)
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
+node tools/test-pwa.js [outDir] # PWA: SW install, precache, offline reload, update toast, install UI (phones/tablets)
+node tools/test-mobile.js [outDir] # touch: phone/tablet layouts, touch-built level 1, loupe, long-press menu, pinch, History + Install rows, every feature screen (goals, Iron Road, daily/endless, famous, forces) (headless)
+node tools/test-history.js [--node-only]     # history: migration, bests, retention, export/import, autosave + resume in the browser
+node tools/gen-precache.js [--check]   # refresh / verify the service worker's precache list
+node tools/gen-icons.js        # re-render the app icons
+node tools/serve.js [port]     # static http server (PWA features need http(s))
 ```
 
 ## Levels

@@ -1,0 +1,416 @@
+/* SPAN — mobile / touch layer (js/features/mobile.js sets the classes on <html>):
+ *   .m-touch    coarse primary pointer (phones, tablets)
+ *   .m-phone    touch + short side <= 520 px      .m-tablet  touch + bigger
+ *   .m-portrait / .m-landscape                    .m-lowperf BG.Perf low mode
+ * Desktop (no .m-touch) is untouched: every rule here is scoped under one of these classes,
+ * except the harmless gesture guards in the first block. */
+
+/* ------------------------------------------------------------ gesture guards (all devices) */
+html, body { overscroll-behavior: none; }
+#game-canvas { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.m-touch button, .m-touch .tile, .m-touch [data-act], .m-touch [data-mat], .m-touch [data-tool] { touch-action: manipulation; -webkit-touch-callout: none; }
+.m-touch #game-canvas { height: 100vh; height: 100dvh; }
+.m-touch #ui { -webkit-touch-callout: none; }
+
+:root {
+  --sa-t: env(safe-area-inset-top, 0px);
+  --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-l: env(safe-area-inset-left, 0px);
+  --m-test-w: 124px;
+  --m-test-h: 56px;
+}
+
+/* elements created by mobile.js: hidden unless the layer turns them on */
+.m-mat-chip, .m-sheet-scrim, .m-fs-btn, .m-gestures, .m-touch-only { display: none; }
+
+/* ------------------------------------------------------------ touch (phones + tablets) */
+.m-touch .tb-lbl small, .m-touch .mat .kbd, .m-touch .title-foot .m-kbd { display: none; }
+.m-touch .set-row.keys { display: none; }
+.m-touch .m-gestures { display: flex; }
+.m-touch .m-touch-only { display: flex; }
+.m-touch .btn { min-height: 44px; }
+.m-touch .btn-icon { min-width: 44px; min-height: 44px; }
+.m-touch .btn-icon.sm { width: 44px; height: 44px; }
+.m-touch .sb-btn { min-width: 44px; min-height: 44px; }
+.m-touch .seg button { min-height: 44px; min-width: 44px; }
+.m-touch .set-row { min-height: 52px; }
+.m-touch .switch { width: 52px; height: 30px; }
+.m-touch .switch::after { width: 24px; height: 24px; }
+.m-touch .switch:checked::after { transform: translateX(22px); }
+.m-touch input[type=range]::-webkit-slider-thumb { width: 28px; height: 28px; }
+.m-touch .m-fs-btn.m-fs-ok { display: inline-flex; }
+.m-touch .topbar { top: calc(var(--gap) + var(--sa-t)); left: calc(var(--gap) + var(--sa-l)); right: calc(var(--gap) + var(--sa-r)); }
+.m-touch .rail { left: calc(var(--gap) + var(--sa-l)); top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); }
+.m-touch .test-btn { right: calc(var(--gap) + var(--sa-r)); bottom: calc(var(--gap) + var(--sa-b)); }
+.m-touch .dock { bottom: calc(var(--gap) + var(--sa-b)); }
+.m-touch .title-meta { top: calc(18px + var(--sa-t)); right: calc(18px + var(--sa-r)); }
+.m-touch .ls-scroll { padding-bottom: calc(40px + var(--sa-b)); }
+
+/* settings: touch rows */
+.m-set-row select { font: inherit; font-size: 14px; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 10px; height: 40px; padding: 0 10px; }
+.m-set-row select option { background: #141b2c; }
+.m-gestures { align-items: flex-start; cursor: default; }
+.m-gestures > span:first-child { flex: 0 0 auto !important; }
+.m-gest-list { flex: 3; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12.5px; color: var(--muted); }
+.m-gest-list b { color: var(--text); font-weight: 650; white-space: nowrap; }
+.m-phone.m-portrait .m-gestures { flex-direction: column; gap: 8px; }
+.m-phone.m-portrait .m-gest-list { width: 100%; }
+
+/* ------------------------------------------------------------ overlays (loupe, offset reticle, context menu, rotate prompt) */
+.m-loupe { position: fixed; left: 0; top: 0; z-index: 25; width: 132px; height: 132px; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(.6); transition: opacity .12s, transform .16s var(--spring);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .92), 0 0 0 5px rgba(10, 16, 30, .55), 0 12px 30px rgba(0, 0, 0, .45); background: #223; }
+.m-loupe.show { opacity: 1; transform: none; }
+.m-reticle { position: fixed; left: 0; top: 0; z-index: 24; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .1s;
+  border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(10, 16, 30, .5), inset 0 0 0 2px rgba(10, 16, 30, .35); }
+.m-reticle::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #ffd166; }
+.m-reticle.show { opacity: 1; }
+
+.m-ctx { position: fixed; z-index: 42; min-width: 190px; max-height: calc(100vh - 16px); overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; opacity: 0; visibility: hidden; transform: scale(.94); transform-origin: top left; transition: opacity .14s, transform .2s var(--spring), visibility 0s .2s; pointer-events: none; background: var(--glass-strong); }
+.m-ctx.show { opacity: 1; visibility: visible; transform: none; pointer-events: auto; transition: opacity .14s, transform .2s var(--spring), visibility 0s; }
+.m-ctx-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; padding: 6px 10px 4px; }
+.m-ctx button { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; font-weight: 600; cursor: pointer; }
+.m-ctx button:active { background: rgba(255, 255, 255, .1); }
+.m-ctx button.danger { color: #ffb3bb; }
+.m-ctx .m-ctx-note { font-size: 12px; color: var(--muted); padding: 4px 12px 8px; line-height: 1.35; max-width: 230px; }
+
+.m-rotate { position: fixed; z-index: 41; left: 50%; top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); width: min(360px, calc(100vw - 24px)); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; transform: translate(-50%, -16px); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, transform .4s var(--spring), visibility 0s .3s; border-color: rgba(73, 198, 242, .35); }
+.m-rotate.show { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0); transition: opacity .25s, transform .4s var(--spring), visibility 0s; }
+.m-rotate .m-rot-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: rgba(73, 198, 242, .14); color: #bfeeff; }
+.m-rotate .m-rot-ico svg { width: 28px; height: 28px; animation: m-rot 2.4s var(--ease) infinite; }
+@keyframes m-rot { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+.m-rotate p { margin: 0; flex: 1; font-size: 13px; line-height: 1.35; color: #e6eefb; }
+.m-rotate p b { display: block; font-size: 14px; }
+.m-rotate .m-rot-btns { display: flex; flex-direction: column; gap: 6px; }
+.m-rotate .btn { height: 38px; padding: 0 12px; font-size: 13px; }
+
+/* ------------------------------------------------------------ phones */
+.m-phone { --gap: 8px; --top-h: 50px; }
+
+/* top bar: compact */
+.m-phone .topbar { gap: 6px; padding: 0 4px; border-radius: 14px; }
+.m-phone .topbar .btn-icon { width: 44px; height: 44px; border-radius: 12px; }
+.m-phone .lvl-badge { min-width: 42px; height: 40px; padding: 0 6px; border-radius: 11px; }
+.m-phone .lvl-k { font-size: 7.5px; }
+.m-phone .lvl-n { font-size: 17px; }
+.m-phone .lvl-title { flex: 0 1 170px; }
+.m-phone .lvl-name { font-size: 14.5px; }
+.m-phone .lvl-sub, .m-phone .traffic, .m-phone .budget-k { display: none; }
+.m-phone .budget { flex: 1 1 auto; min-width: 0; max-width: 360px; padding: 0 4px; }
+.m-phone .budget-row { justify-content: flex-start; }
+.m-phone .budget-v { font-size: 12px; white-space: nowrap; }
+.m-phone .budget-v b { font-size: 15px; }
+.m-phone .budget-bar { height: 8px; margin-top: 5px; }
+.m-phone .tick-lbl { top: 10px; font-size: 7.5px; }
+.m-phone.m-portrait .lvl-title { display: none; }
+
+/* tool rail: compact floating buttons */
+.m-phone .rail { padding: 4px; gap: 4px; border-radius: 16px; max-height: none; overflow: visible; }
+.m-phone .tool { width: 46px; height: 46px; border-radius: 13px; }
+.m-phone .tool span { display: none; }
+.m-phone .tool .ico { width: 22px; height: 22px; }
+.m-phone .rail-sep { margin: 1px 6px; }
+.m-phone.m-landscape .rail { display: grid; grid-template-columns: 46px 46px; grid-auto-rows: 46px; }
+.m-phone.m-landscape .rail-sep { display: none; }
+.m-phone .tool[data-tool=pier]::after { content: attr(data-m-count); position: absolute; right: 2px; bottom: 2px; font-size: 9px; font-weight: 800; color: var(--muted); line-height: 1; }
+
+/* material palette -> bottom sheet; a chip shows the current material */
+.m-phone .dock { left: 0; right: 0; bottom: 0; height: 0; }
+.m-phone #screen-level .palette {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 8; max-width: none; max-height: 62vh; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px;
+  padding: 26px calc(10px + var(--sa-r)) calc(12px + var(--sa-b)) calc(10px + var(--sa-l));
+  border-radius: 22px 22px 0 0; border-bottom: 0; background: var(--glass-strong);
+  transform: translateY(108%); opacity: 0; pointer-events: none !important; touch-action: pan-y;
+}
+.m-phone #screen-level .palette::before { content: ""; position: absolute; left: 50%; top: 9px; width: 42px; height: 5px; margin-left: -21px; border-radius: 5px; background: rgba(255, 255, 255, .28); }
+.m-phone #screen-level.m-sheet-open.mode-edit .palette { transform: none; opacity: 1; pointer-events: auto !important; }
+.m-phone.m-landscape #screen-level .palette { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); max-height: 72vh; left: calc(12px + var(--sa-l)); right: calc(12px + var(--sa-r)); }
+.m-phone .mat { min-width: 0; height: 74px; flex: none; }
+.m-phone .mat:hover { transform: none; }
+.m-phone .m-sheet-scrim { display: block; position: fixed; inset: 0; z-index: 7; background: rgba(4, 8, 16, .35); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.m-phone #screen-level.m-sheet-open.mode-edit .m-sheet-scrim { opacity: 1; pointer-events: auto; }
+
+.m-phone .m-mat-chip {
+  display: flex; position: fixed; z-index: 4; left: calc(var(--gap) + var(--sa-l)); bottom: calc(var(--gap) + var(--sa-b));
+  height: var(--m-test-h); min-width: 150px; max-width: calc(100vw - var(--m-test-w) - 3 * var(--gap) - var(--sa-l) - var(--sa-r));
+  align-items: center; gap: 10px; padding: 0 12px 0 10px; border-radius: 16px; cursor: pointer; text-align: left; color: var(--text);
+  transition: transform .45s var(--ease), opacity .3s;
+}
+#screen-level.active .m-mat-chip { pointer-events: auto; }
+.m-mat-chip .m-chip-sw { width: 40px; height: 24px; flex: none; }
+.m-mat-chip .m-chip-sw svg { width: 40px; height: 24px; display: block; }
+.m-mat-chip .m-chip-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; flex: 1; }
+.m-mat-chip .m-chip-txt b { font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-mat-chip .m-chip-txt small { font-size: 11.5px; color: #ffd38a; font-weight: 700; white-space: nowrap; }
+.m-mat-chip .ico { width: 18px; height: 18px; color: var(--muted); transform: rotate(180deg); transition: transform .25s var(--ease); }
+.m-sheet-open .m-mat-chip .ico { transform: none; }
+.m-mat-chip.m-tool-mode .m-chip-txt small { color: var(--muted); }
+.mode-sim .m-mat-chip, .mode-results .m-mat-chip { transform: translateY(160%); opacity: 0; pointer-events: none !important; }
+
+/* Test / Build button */
+.m-phone .test-btn { width: var(--m-test-w); height: var(--m-test-h); border-radius: 18px; gap: 8px; }
+.m-phone .tb-ico { width: 34px; height: 34px; }
+.m-phone .tb-ico .ico { width: 18px; height: 18px; }
+.m-phone .tb-lbl b { font-size: 20px; }
+
+/* sim controls */
+.m-phone #screen-level .simbar {
+  position: fixed; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--m-test-w) + 2 * var(--gap) + var(--sa-r)); bottom: calc(var(--gap) + var(--sa-b));
+  height: auto; min-height: var(--m-test-h); padding: 4px 6px; gap: 2px; justify-content: center; flex-wrap: wrap; border-radius: 16px;
+  transform: translateY(160%);
+}
+.m-phone #screen-level.mode-sim .simbar, .m-phone #screen-level.mode-results .simbar { transform: none; }
+.m-phone .simbar [data-act=edit], .m-phone .simbar .sb-sep { display: none; }
+.m-phone .simbar .btn-icon, .m-phone .simbar .sb-btn { width: 44px; height: 44px; padding: 0; }
+.m-phone .simbar .sb-btn span { display: none; }
+.m-phone .seg { padding: 2px; }
+.m-phone .seg button { min-width: 44px; height: 44px; font-size: 12.5px; padding: 0 2px; }
+.m-phone .sb-stat { padding: 0 5px; }
+.m-phone .sb-stat span { display: none; }
+.m-phone .sb-stat b { font-size: 15px; min-width: 0; }
+.m-phone.m-portrait #screen-level .simbar { right: calc(var(--gap) + var(--sa-r)); bottom: calc(var(--m-test-h) + 2 * var(--gap) + var(--sa-b)); }
+.m-phone.m-portrait .simbar [data-act=step] { display: none; }
+
+/* hint, toasts, tooltip */
+.m-phone .hint { top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); width: calc(100% - 2 * var(--gap) - var(--sa-l) - var(--sa-r)); max-width: 560px; padding: 8px 6px 8px 10px; gap: 8px; z-index: 6; }
+.m-phone .hint-ico { width: 30px; height: 30px; }
+.m-phone .hint p { font-size: 13px; line-height: 1.4; padding-top: 5px; }
+.m-phone .toasts { bottom: calc(var(--m-test-h) + 3 * var(--gap) + var(--sa-b)); max-width: calc(100vw - 24px); }
+.m-phone.m-portrait .toasts { top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); bottom: auto; }
+.m-phone.m-portrait .hint { top: auto; bottom: calc(var(--m-test-h) + 2 * var(--gap) + var(--sa-b) + 4px); transform: translate(-50%, 14px); }
+.m-phone.m-portrait .hint.show { transform: translate(-50%, 0); }
+.m-phone .toast { font-size: 13px; padding: 9px 14px; border-radius: 16px; max-width: 100%; }
+.m-phone .tooltip { max-width: 220px; font-size: 12px; }
+
+/* templates menu -> sheet */
+.m-phone .tpl-menu { left: calc(var(--gap) + var(--sa-l)) !important; right: calc(var(--gap) + var(--sa-r)); top: auto !important; bottom: calc(var(--gap) + var(--sa-b)) !important; width: auto; max-height: 64vh; grid-template-columns: 1fr; z-index: 9; transform: translateY(12px); }
+.m-phone .tpl-menu.open { transform: none; }
+.m-phone.m-landscape .tpl-menu { grid-template-columns: 1fr 1fr; top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)) !important; max-height: none; left: calc(116px + var(--sa-l)) !important; }
+.m-phone .tpl-item { min-height: 52px; }
+
+/* results */
+.m-phone .results-card { padding: 16px 16px 14px; max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px - var(--sa-t) - var(--sa-b)); border-radius: 18px; }
+.m-phone .res-stars { height: 54px; margin: 10px 0 4px; }
+.m-phone .res-stars .star { width: 40px; height: 40px; }
+.m-phone .res-stars .star.mid { width: 52px; height: 52px; }
+.m-phone .results-card h2 { font-size: 23px; }
+.m-phone .res-reason { font-size: 13px; margin-bottom: 10px; }
+.m-phone .res-stats { gap: 6px; margin-bottom: 10px; }
+.m-phone .rs { padding: 6px 4px; }
+.m-phone .rs span { font-size: 9.5px; }
+.m-phone .rs b { font-size: 14.5px; }
+.m-phone .res-budget { margin-bottom: 16px; }
+.m-phone .res-actions { margin-top: 12px; gap: 6px; }
+.m-phone .res-actions .btn { height: 46px; padding: 0 14px; }
+.m-phone .res-pill { top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); max-width: calc(100vw - 24px); font-size: 13px; }
+.m-phone.m-landscape .results-card { width: min(780px, calc(100vw - 24px - var(--sa-l) - var(--sa-r))); display: grid; grid-template-columns: 1fr 1.05fr; column-gap: 18px; align-items: start; text-align: center; }
+.m-phone.m-landscape .res-banner { grid-column: 1; grid-row: 1; justify-self: center; }
+.m-phone.m-landscape .res-stars { grid-column: 1; grid-row: 2; margin-top: 6px; }
+.m-phone.m-landscape .results-card h2 { grid-column: 1; grid-row: 3; }
+.m-phone.m-landscape .res-reason { grid-column: 1; grid-row: 4; }
+.m-phone.m-landscape .res-stats { grid-column: 2; grid-row: 1 / span 2; }
+.m-phone.m-landscape .res-budget { grid-column: 2; grid-row: 3; }
+.m-phone.m-landscape .res-actions { grid-column: 2; grid-row: 4; margin-top: 4px; }
+
+/* settings */
+.m-phone .modal-card { max-height: calc(100dvh - 24px - var(--sa-t) - var(--sa-b)); padding: 14px 16px; }
+.m-phone .set-row { padding: 9px 2px; gap: 10px; }
+.m-phone .set-row > span:first-child { font-size: 14px; }
+.m-phone input[type=range] { width: 120px; }
+
+/* level select */
+.m-phone .ls-head { height: 58px; margin: calc(var(--gap) + var(--sa-t)) calc(var(--gap) + var(--sa-r)) 0 calc(var(--gap) + var(--sa-l)); gap: 6px; padding: 0 6px; }
+.m-phone .camp-tabs { padding: 3px; gap: 3px; }
+.m-phone .camp-tab { height: 44px; padding: 0 10px 0 9px; gap: 7px; }
+.m-phone .camp-tab .ct-txt b { font-size: 14px; }
+.m-phone .chip-lg { height: 36px; padding: 0 10px; font-size: 12.5px; white-space: nowrap; }
+.m-phone .chip-lg b { font-size: 14px; }
+.m-phone.m-portrait .camp-tab .ico { display: none; }
+.m-phone.m-portrait .ls-right [data-act=settings] { display: none; }
+.m-phone.m-portrait .ls-right { margin-left: auto; }
+.m-phone .ls-scroll { padding-left: calc(var(--gap) + var(--sa-l)); padding-right: calc(var(--gap) + var(--sa-r)); }
+.m-phone .chapters { gap: 20px; padding-top: 12px; }
+.m-phone .ch-head { gap: 10px; }
+.m-phone .ch-num { width: 38px; height: 38px; font-size: 17px; }
+.m-phone .ch-text h3 { font-size: 16.5px; }
+.m-phone .ch-text p { font-size: 12px; }
+.m-phone .tiles { gap: 8px; }
+.m-phone.m-portrait .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.m-phone .tile-name { font-size: 12.5px; }
+.m-phone .camp-locked { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+
+/* title */
+.m-phone .title-meta { top: calc(10px + var(--sa-t)); right: calc(10px + var(--sa-r)); }
+.m-phone .btn-xl { height: 54px; min-width: 170px; font-size: 17px; }
+.m-phone .title-foot { bottom: calc(12px + var(--sa-b)); font-size: 12px; padding: 0 16px; }
+.m-phone.m-portrait .tagline { padding: 0 18px; font-size: 15px; }
+.m-phone.m-landscape .title-wrap { margin-top: -20vh; }
+.m-phone.m-landscape .logo-art { width: min(360px, 44vw); margin-bottom: -10px; }
+.m-phone.m-landscape .logo { font-size: 74px; }
+.m-phone.m-landscape .tagline { margin-top: 8px; font-size: 14px; }
+.m-phone.m-landscape .title-buttons { margin-top: 14px; }
+.m-phone.m-landscape .btn-xl { height: 48px; }
+.m-phone.m-landscape .title-foot { display: none; }
+
+/* landscape phone: notch side padding for the bars */
+.m-phone.m-landscape .topbar { left: calc(var(--gap) + var(--sa-l)); right: calc(var(--gap) + var(--sa-r)); }
+
+/* fullscreen button in the top bar only where there is room */
+.m-phone.m-portrait .topbar .m-fs-btn { display: none !important; }
+
+/* ------------------------------------------------------------ tablets */
+.m-tablet .tool { width: 60px; height: 54px; }
+.m-tablet .mat { height: 80px; }
+.m-tablet .hint { z-index: 6; }
+
+/* ------------------------------------------------------------ history screen + PWA rows (css/history.css, css/pwa.css) */
+.m-phone.m-landscape .results-card .hist-res { grid-column: 1; grid-row: 5; margin-top: 4px; }
+.m-phone.m-landscape .results-card .res-actions { grid-row: 4 / span 2; }
+.m-touch .hist-tab { height: 44px; }
+.m-touch .hist-filters select { height: 44px; font-size: 14px; }
+.m-touch .hist-modal .btn.sm, .m-touch .hist-save .btn.sm, .m-touch .pwa-btn { height: 44px; min-height: 44px; padding: 0 14px; font-size: 13.5px; }
+.m-touch .hl-name { min-height: 44px; align-items: center; }
+.m-touch .hist-run, .m-touch .hist-level { padding: 6px; }
+.m-phone .hist-card { max-height: calc(100dvh - 16px - var(--sa-t) - var(--sa-b)); }
+.m-phone.m-landscape .hist-card { width: min(720px, calc(100vw - 24px - var(--sa-l) - var(--sa-r))); padding-top: 10px; }
+.m-phone.m-landscape .hist-card .modal-head { margin-bottom: 4px; }
+.m-phone.m-landscape .hist-tabs { margin-bottom: 6px; }
+.m-phone .hist-filters { gap: 8px; }
+.m-phone .hist-filters label { flex: 1 1 140px; min-width: 0; }
+.m-phone .hist-filters select { flex: 1; min-width: 0; max-width: none; }
+.m-phone .pwa-update { top: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); max-width: calc(100vw - 24px); padding: 10px 16px; }
+
+/* ------------------------------------------------------------ phase 2: screens added by the other features
+ * goals (panel + badge reveal), Iron Road (campaign tabs, track strip, derail callout, ride-quality results),
+ * Daily / Endless (panel, share card), Famous Bridges (history card, tiles), Forces of Nature (banner, forecast) */
+:root { --m-top-free: calc(var(--gap) * 2 + var(--top-h) + var(--sa-t)); }
+.m-phone.m-portrait body.track-on { --m-strip: 68px; }
+
+/* title: compact meta chips, stacked entry buttons in portrait */
+.m-phone .title-meta { gap: 6px; }
+.m-phone .title-meta .chip { white-space: nowrap; padding: 0 10px; }
+.m-phone.m-portrait .title-meta .chip { height: 40px; padding: 0 9px; gap: 5px; font-size: 12.5px; }
+.m-phone.m-portrait .title-meta .chip b { font-size: 14px; }
+.m-phone.m-portrait .title-meta .chip .gb-img, .m-phone.m-portrait .title-meta .chip .star { width: 18px; height: 18px; }
+.m-phone.m-portrait .title-buttons { flex-direction: column; align-items: center; gap: 10px; margin-top: 26px; }
+.m-phone.m-portrait .title-buttons .btn-xl { width: min(300px, calc(100vw - 64px)); justify-content: center; }
+.m-phone.m-landscape .title-buttons { gap: 8px; margin-top: 10px; max-width: calc(100vw - 32px - var(--sa-l) - var(--sa-r)); margin-left: auto; margin-right: auto; }
+.m-phone.m-landscape .title-buttons .btn-xl { min-width: 0; height: 46px; padding: 0 16px; font-size: 16px; }
+.m-phone.m-landscape .dly-btn-txt small { font-size: 11px; }
+
+/* level select: campaign tabs (Roads | Iron Road | Famous Bridges) */
+.m-touch .camp-tab { min-height: 44px; }
+.m-phone .camp-tabs { overflow-x: auto; scrollbar-width: none; }
+.m-phone .camp-tabs::-webkit-scrollbar { display: none; }
+.m-phone.m-portrait .camp-tab { padding: 0 6px; justify-content: center; text-align: center; }
+.m-phone.m-portrait .camp-tab .ct-txt b { font-size: 13.5px; line-height: 1.1; }
+.m-phone .camp-locked .cl-art .veh { width: 96px; height: 38px; }
+.m-phone .fb-intro { padding: 12px 14px; gap: 10px; }
+.m-phone .fb-intro p { font-size: 12.5px; }
+.m-phone.m-landscape .fb-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.m-phone.m-portrait .fb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.m-phone.m-portrait .fb-tile-body { flex-wrap: wrap; gap: 4px 8px; padding: 8px 9px 9px; }
+.m-phone.m-portrait .fb-tile-txt { flex: 1 1 calc(100% - 38px); }
+.m-phone.m-portrait .fb-tile-txt b { font-size: 13px; }
+.m-phone.m-portrait .fb-tile-stars { flex: 1 1 100%; align-items: center; }
+.m-phone.m-portrait .fb-tile-stars .tile-badges { margin-left: auto; }
+.m-phone.m-portrait .fb-intro .chip { align-self: flex-start; }
+.m-phone .fb-tile-body { min-height: 48px; }
+
+/* goals: 44 px top-bar button; on phones the panel is a sheet under the top bar (closes when the canvas is touched) */
+.m-touch .goals-btn { height: 44px; min-width: 44px; justify-content: center; }
+.m-phone .goals-btn { padding: 0 8px; flex: none; }
+.m-phone .goals-panel { position: fixed; top: var(--m-top-free); right: calc(var(--gap) + var(--sa-r)); left: auto; z-index: 9;
+  width: min(340px, calc(100vw - 2 * var(--gap) - var(--sa-l) - var(--sa-r)));
+  max-height: calc(100dvh - var(--m-top-free) - var(--m-test-h) - 3 * var(--gap) - var(--sa-b)); overscroll-behavior: contain; }
+.m-phone .gp-row { padding: 6px 8px; }
+.m-phone .gp-row .gb-img { width: 34px; height: 34px; }
+.m-phone .res-badges { margin-bottom: 10px; padding: 8px 6px 10px; }
+.m-phone .rb-row { gap: 6px; }
+.m-phone .rb { width: 88px; }
+.m-phone .rb .gb-img { width: 46px; height: 46px; }
+
+/* results card on phones: the feature blocks stack, the action row stays reachable at the bottom */
+.m-phone .res-actions { position: sticky; bottom: -14px; z-index: 2; margin: 8px -16px -14px; padding: 10px 16px 14px;
+  background: linear-gradient(180deg, rgba(13, 19, 33, 0), rgba(13, 19, 33, .97) 22%); }
+.m-phone.m-portrait .res-actions .btn { flex: 1 1 calc(50% - 6px); min-width: 0; padding: 0 10px; }
+.m-phone .res-rail { margin-bottom: 10px; }
+.m-phone .rv { padding: 7px 9px; }
+.m-phone .ride-card { padding: 7px 8px 8px; }
+.m-phone .rc-t b { font-size: 14.5px; }
+.m-phone .results.is-rail .res-stars { height: 50px; margin: 8px 0 0; }
+.m-phone.m-landscape .results-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-content: start; }
+.m-phone.m-landscape .res-stats { grid-column: 2; grid-row: 1 / span 3; }
+.m-phone.m-landscape .res-budget { grid-column: 2; grid-row: 4; margin-bottom: 8px; }
+.m-phone.m-landscape .results-card .res-rail, .m-phone.m-landscape .results-card .res-badges,
+.m-phone.m-landscape .results-card .dly-res, .m-phone.m-landscape .results-card .hist-res { grid-column: 1 / -1; grid-row: auto; }
+.m-phone.m-landscape .results-card .res-actions { grid-column: 1 / -1; grid-row: auto; order: 10; }
+.m-phone.m-landscape .results.is-rail .res-stats { grid-template-columns: repeat(3, 1fr); }
+
+/* Iron Road: track strip above the sim bar (landscape) / under the top bar (portrait), derail callout docked */
+.m-phone #screen-level .track-strip { position: fixed; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--gap) + var(--sa-r)); width: auto; height: 60px;
+  bottom: calc(var(--m-test-h) + 2 * var(--gap) + var(--sa-b)); padding: 3px 4px; border-radius: 12px; z-index: 3; }
+.m-phone.m-portrait #screen-level .track-strip { top: var(--m-top-free); bottom: auto; }
+.m-phone.m-landscape body.track-on .toasts { bottom: calc(var(--m-test-h) + 3 * var(--gap) + var(--sa-b) + 64px); }
+.m-phone.m-portrait body.track-on .toasts { top: calc(var(--m-top-free) + var(--m-strip, 0px)); }
+.m-phone .derail-callout { position: fixed; left: 50%; top: calc(var(--m-top-free) + var(--m-strip, 0px)); transform: translateX(-50%) !important; z-index: 31; }
+.m-phone .derail-callout .dc-stem { display: none; }
+.m-phone .dc-card { width: min(380px, calc(100vw - 2 * var(--gap) - var(--sa-l) - var(--sa-r))); padding: 9px 12px 10px; }
+.m-phone .dc-cause { font-size: 14.5px; margin: 4px 0 3px; }
+.m-phone .dc-advice { font-size: 12px; line-height: 1.35; }
+
+/* Forces of Nature: banner fits the phone, forecast as a chip under the top bar while building */
+.m-phone .fx-banner { top: calc(var(--m-top-free) + var(--m-strip, 0px)); min-width: 0; width: max-content; max-width: calc(100vw - 2 * var(--gap) - var(--sa-l) - var(--sa-r)); padding: 8px 12px 10px 10px; gap: 10px; }
+.m-phone .fx-banner b { font-size: 15px; }
+.m-phone .fx-banner .fx-ico { width: 32px; height: 32px; }
+.m-phone .fx-forecast { display: flex; position: absolute; top: calc(100% + 6px); right: 0; max-width: calc(100vw - 2 * var(--gap) - 120px); padding: 4px 6px; border-radius: 12px; background: var(--glass-strong); border-color: var(--line-strong); pointer-events: none; }
+.m-phone .fx-forecast .fx-k { display: none; }
+.m-phone .fx-forecast .fx-item em { display: inline; }
+.m-phone #screen-level:not(.mode-edit) .fx-forecast, .m-phone #screen-level.m-sheet-open .fx-forecast { display: none; }
+.m-phone .fx-timeline { width: 72px; margin: 0 4px; }
+.m-tablet .fx-timeline { width: 96px; }
+
+/* tablets: the sim bar (Iron Road adds Track, Forces of Nature a timeline) spans the width left of the Test button and
+   may wrap; in portrait the track strip sits under the top bar */
+:root { --m-tb-w: 176px; }
+@media (max-width: 1100px) { :root { --m-tb-w: 148px; } }
+.m-tablet #screen-level .simbar { position: fixed; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--m-tb-w) + 2 * var(--gap) + var(--sa-r)); bottom: calc(var(--gap) + var(--sa-b));
+  height: auto; min-height: 58px; flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+.m-tablet.m-portrait .simbar [data-act=step] { display: none; }
+.m-tablet .simbar .sb-btn span { display: none; }
+.m-tablet .simbar .sb-btn { width: 46px; padding: 0; }
+.m-tablet.m-landscape #screen-level .track-strip { position: fixed; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--m-tb-w) + 2 * var(--gap) + var(--sa-r)); width: auto; bottom: calc(var(--gap) + var(--sa-b) + 66px); }
+.m-tablet.m-portrait #screen-level .track-strip { position: fixed; top: var(--m-top-free); bottom: auto; left: calc(var(--gap) + var(--sa-l)); right: calc(var(--gap) + var(--sa-r)); width: auto; z-index: 3; }
+.m-tablet .derail-callout.m-clamped .dc-stem { display: none; }
+
+/* Daily / Endless: 44 px days (a sideways strip on phones), buttons, share card */
+.m-touch .dly-e-btns .btn, .m-touch .dly-res .btn { height: 44px; min-height: 44px; }
+.m-touch .dly-hist { display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding-bottom: 2px; }
+.m-touch .dly-hist::-webkit-scrollbar { display: none; }
+.m-touch .dly-day { flex: 1 0 44px; min-width: 44px; height: 50px; scroll-snap-align: center; }
+.m-tablet .dly-card { width: min(740px, calc(100vw - 32px)); }
+.m-phone .dly-card { width: calc(100vw - 16px - var(--sa-l) - var(--sa-r)); }
+.m-phone .dly-stats { gap: 6px; }
+.m-phone .dly-stat { padding: 8px; }
+.m-phone .dly-res { margin-top: 10px; padding: 10px; }
+.m-phone .dly-share-text { font-size: 12px; margin: 8px auto; }
+.m-phone.m-landscape .dly-hero { margin-bottom: 10px; }
+
+/* Famous Bridges: history card fits the phone; landscape keeps art and story side by side */
+.m-phone .fb-overlay { padding: calc(8px + var(--sa-t)) calc(8px + var(--sa-r)) calc(8px + var(--sa-b)) calc(8px + var(--sa-l)); }
+.m-phone .fb-card { max-height: 100%; border-radius: 18px; overscroll-behavior: contain; }
+.m-phone .fb-row { font-size: 13px; }
+.m-phone .fb-facts li, .m-phone .fb-why p { font-size: 13px; }
+.m-phone.m-landscape .fb-card { grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); height: 100%; overflow: hidden; }
+.m-phone.m-landscape .fb-art { aspect-ratio: auto; min-height: 0; }
+.m-phone.m-landscape .fb-art::after { background: linear-gradient(90deg, transparent 70%, rgba(13, 19, 33, .9)); }
+.m-phone.m-landscape .fb-body { overflow-y: auto; overscroll-behavior: contain; padding: 16px 18px 20px; gap: 9px; }
+.m-phone.m-landscape .fb-body h2 { font-size: 22px; }
+.m-phone.m-landscape .fb-year { font-size: 32px; }
+.m-phone.m-landscape .fb-actions { margin: 4px -18px -20px; padding: 10px 18px 14px; }
+
+/* ------------------------------------------------------------ low-performance mode */
+.m-lowperf .glass, .m-lowperf .btn-glass, .m-lowperf #screen-levels, .m-lowperf .title-meta .chip { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.m-lowperf .glass { background: rgba(13, 19, 33, .9); }
+.m-lowperf .test-btn::before { animation: none; display: none; }

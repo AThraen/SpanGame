@@ -14,6 +14,16 @@
   <!-- daily-challenge: daily / endless panel -->
   <link rel="stylesheet" href="css/daily.css">
   <link rel="stylesheet" href="css/famous.css"><!-- famous: Famous Bridges campaign -->
+  <!-- pwa: manifest, app icons, iOS home-screen meta -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/app/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SPAN">
+  <link rel="stylesheet" href="css/pwa.css">
+  <link rel="stylesheet" href="css/history.css"><!-- history: run history, bests, save export -->
+  <link rel="stylesheet" href="css/mobile.css"><!-- mobile: responsive touch HUD, loupe, bottom sheet -->
 </head>
 <body data-screen="boot">
   <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
@@ -54,5 +64,9 @@
   <!-- famous: Famous Bridges campaign (extra module; hooks into BG.Game / BG.Hud / BG.Storage before boot) -->
   <script src="js/features/requirements.js"></script>
   <script src="js/features/famous.js"></script>
+  <!-- mobile-pwa: always after main.js and every feature script above -->
+  <script src="js/features/history.js"></script><!-- history: run history, personal bests, stats, autosave / resume, save export -->
+  <script src="js/features/pwa.js"></script><!-- pwa: service worker, install prompt, update toast -->
+  <script src="js/features/mobile.js"></script><!-- mobile: touch layer, BG.Mobile, BG.Perf -->
 </body>
 </html>

@@ -17,6 +17,7 @@
 .goals-panel { position: absolute; top: calc(var(--gap) * 2 + var(--top-h)); right: var(--gap); width: min(318px, calc(100vw - 2 * var(--gap))); padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px;
   transform: translateX(24px); opacity: 0; visibility: hidden; transition: transform .4s var(--spring), opacity .25s, visibility 0s .3s; max-height: calc(100% - var(--top-h) - 150px); overflow-y: auto; scrollbar-width: thin; z-index: 3; }
 .goals-panel.open { transform: none; opacity: 1; visibility: visible; transition-delay: 0s; pointer-events: auto; }
+#screen-level:not(.active) .goals-panel.open { visibility: hidden; pointer-events: none; } /* never shows through (or catches taps on) other screens */
 body[data-state="sim"] .goals-panel.open, body[data-state="results"] .goals-panel.open { opacity: .0; visibility: hidden; pointer-events: none; }
 .gp-head { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .gp-head b { font-family: var(--font-display); font-weight: 900; letter-spacing: .02em; }

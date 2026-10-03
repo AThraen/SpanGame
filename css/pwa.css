@@ -1,0 +1,25 @@
+/* pwa: update toast + install / Add to Home Screen rows in Settings (js/features/pwa.js) */
+.pwa-update {
+  position: fixed; left: 50%; top: calc(var(--top-h, 62px) + 12px + env(safe-area-inset-top, 0px)); z-index: 60;
+  display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px);
+  padding: 12px 18px; border-radius: 99px; border: 1px solid var(--line-strong, rgba(255, 255, 255, .22));
+  background: var(--glass-strong, rgba(13, 19, 33, .82)); color: var(--text, #eef3fb);
+  font: 600 14px/1.25 var(--font, sans-serif); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow, 0 10px 34px rgba(0, 0, 0, .35));
+  opacity: 0; transform: translate(-50%, -12px) scale(.96); pointer-events: none;
+  transition: opacity .25s, transform .35s var(--spring, ease);
+}
+.pwa-update.in { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.pwa-update:hover { border-color: var(--primary, #ffb547); }
+.pwa-update.busy { opacity: .7; cursor: progress; }
+.pwa-update .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--primary, #ffb547); box-shadow: 0 0 10px var(--primary, #ffb547); animation: pwa-pulse 1.6s ease-in-out infinite; }
+@keyframes pwa-pulse { 50% { opacity: .35; } }
+
+.pwa-row { cursor: default; flex-wrap: wrap; }
+.pwa-row[hidden] { display: none; }
+.pwa-row small { color: var(--muted, #9aabc4); font-size: 13px; line-height: 1.4; }
+.pwa-ios small { flex: 1 1 100%; padding-left: 30px; }
+.pwa-ios b { color: var(--text, #eef3fb); font-weight: 650; }
+.pwa-share { vertical-align: -3px; color: var(--blue, #49c6f2); }
+.pwa-ok { color: var(--good, #3ee08f) !important; font-weight: 650; }
+.pwa-btn { height: 36px; padding: 0 16px; font-size: 14px; }

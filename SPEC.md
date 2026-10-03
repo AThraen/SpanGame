@@ -37,7 +37,8 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 
 ```
 index.html               loads scripts in the order below
-css/style.css            (+ feature stylesheets: css/goals.css, css/forces.css, css/daily.css, css/famous.css)
+css/style.css            (+ feature stylesheets: css/goals.css, css/forces.css, css/daily.css, css/famous.css,
+                         then css/pwa.css, css/history.css and css/mobile.css - mobile.css is always the last stylesheet)
 js/core/materials.js     BG.Materials
 js/core/vehicles.js      BG.Vehicles (definitions)
 js/core/model.js         BG.Model (design helpers, cost, validation, serialization)
@@ -57,7 +58,9 @@ js/features/*.js         optional feature modules, loaded last (core → render 
                          e.g. terrain-fix.js = BG.TerrainFix (§10), goals*.js = BG.Goals (§11),
                          forces-fx.js = Forces of Nature visuals / HUD / audio (§12),
                          daily.js = BG.Daily (Daily Challenge + Endless, §13.2),
-                         requirements.js = BG.Requirements + famous.js = BG.Famous (Famous Bridges, §14)
+                         requirements.js = BG.Requirements + famous.js = BG.Famous (Famous Bridges, §14),
+                         then history.js, pwa.js, mobile.js = BG.History / BG.PWA / BG.Mobile (§16) -
+                         always after main.js and every other feature script
 tools/harness.js         Node loader for js/core/* + runHeadless()
 tools/test-physics.js    physics unit/behaviour tests
 tools/verify-levels.js   runs every level against its reference + best designs
@@ -701,3 +704,100 @@ campaign logic that each feature had grown separately was folded into one system
   the keyboard while open (capture-phase listeners), so Enter / Esc never reach the game underneath.
 - Tests: `tools/e2e.js` (campaign tabs, unlock gates, Next / finale per campaign, Continue across campaigns, title
   entry points, results layering), `tools/test-famous.js`, `tools/e2e-goals.js`, `tools/test-daily.js`.
+
+## 16. Mobile, PWA, History (extension)
+
+Three feature modules, each a classic script in `js/features/` (+ a stylesheet in `css/`), loaded after
+`js/main.js` **and after every other feature script** in this order: `history.js`, `pwa.js`, `mobile.js`
+(stylesheets after every other stylesheet: `pwa.css`, `history.css`, `mobile.css` - `mobile.css` is always the
+last stylesheet, so its touch rules win over feature styles of equal specificity). New features keep this order. They **hook** the core by wrapping existing methods (each wrapper calls
+through to the original, so wrappers stack) and do not edit core files; desktop with a mouse is unchanged.
+Shared-file touch points are commented `// mobile:` / `// pwa:` / `// history:`. Everything must keep
+working from `file://` and without storage.
+
+### 16.1 Touch layer — `BG.Mobile`, `BG.Perf` (`js/features/mobile.js`, `css/mobile.css`)
+- Classes on `<html>`: `m-touch` (coarse primary pointer, or `?touchui=1`; `?touchui=0` forces it off),
+  `m-phone` (touch + short side <= 520 px) / `m-tablet`, `m-portrait` / `m-landscape`, `m-lowperf`.
+  **All touch CSS is scoped under these classes.** HUD elements added by other features must work under
+  them: visible buttons >= 44 px, nothing outside the viewport (respect `env(safe-area-inset-*)`), and long
+  lists scroll inside a container the touch guard accepts (`BG.Mobile.scrollers`: `.ls-scroll`, `.tpl-menu`,
+  `.modal-card`, `.results-card`, `.palette`, `.rail`, `.simbar`, `.m-ctx`, `.goals-panel`, `.fb-card`, `.fb-body`,
+  `.dly-hist`, `.camp-tabs`, `.hist-body`); every other touchmove is prevented. Visible wording goes through
+  `BG.Mobile.touchText` on touch (hints, toasts, the derail callout): no keys, clicks or hover.
+- Phones: compact top bar, tool rail as 46 px floating buttons (two columns in landscape), material palette
+  as a bottom sheet behind a "current material" chip, sim controls beside the Test button, two-column
+  results card in landscape, templates as a sheet, a once-per-session rotate prompt in portrait (edit / sim).
+- Building: magnifier loupe while dragging, optional offset cursor (aim 64 px above the finger), larger
+  touch snap / pick radius (wraps `Editor.prototype._magR` / `_pickR`), long-press + lift = context menu
+  (delete joint / beam / pier, stop chain, undo, erase tool, fit view); long-press + drag still moves a joint.
+- Camera: pinch / two-finger pan in the editor; one-finger pan and pinch in the sim view.
+- Haptics via `navigator.vibrate` on snap / place / break; fullscreen button (title, top bar except phone
+  portrait, Settings); hints and toasts reworded for touch (`BG.Mobile.touchText`); Settings shows a
+  gesture guide instead of keyboard shortcuts. Settings keys: `loupe`, `offsetCursor`, `haptics`, `perfMode`.
+- `BG.Perf {mode: 'auto'|'on'|'off', low, dprCap, particleScale, maxParticles, cheapBackground, setMode(m)}`.
+  Auto = on for phones / low-end devices, or after 3 s of slow frames on a touch device. Low mode: fewer
+  particles, no ambient particles / vignette, fewer parallax layers, no glass blur, DPR cap 1.5 on slow
+  devices (else 2). `BG.Renderer.resize` reads `BG.Perf.dprCap` (the one core edit).
+
+- **Phase 2 - the other features' screens** (all in the "phase 2" block of `css/mobile.css` + small hooks in
+  `mobile.js`): title meta chips compact, entry buttons stacked in portrait / wrapping in landscape; campaign tabs
+  44 px (Famous Bridges tiles one column in portrait, three in landscape); Goals button 44 px, on phones the goals
+  panel starts closed (`BG.GoalsUI.setOpen(open, noSave)`), is a sheet under the top bar and closes when the canvas
+  is touched; results card on phones: rail verdicts / ride card, badge reveal, daily share card / endless score and
+  bests line stack full width (landscape: title column + stats column above them) and the action row is sticky at
+  the bottom of the scrolling card; Iron Road track strip docked above the sim bar (landscape) or under the top bar
+  (portrait, `--m-strip` pushes toasts / callouts / the forces banner down), derail callout docked under the top bar
+  without its stem; daily panel days >= 44 px (a sideways strip on phones that keeps the selected day in view,
+  one 14-day row on tablets), endless / copy buttons 44 px; famous history card within the safe area, art and story
+  side by side in phone landscape (the story scrolls); Forces of Nature forecast as a chip under the top bar while
+  building on phones, warning banner sized to the phone.
+
+### 16.2 PWA shell — `BG.PWA` (`js/features/pwa.js`, `sw.js`, `manifest.webmanifest`)
+- Registers `sw.js` only on http(s) (no-op on `file://`). The worker precaches a **generated** file list:
+  navigations network-first (cached copy when offline or after 3.5 s), everything else cache-first, an
+  uncached file offline -> 504. Old `span-precache-*` caches are deleted on activate.
+- **Every change to a shipped file (`index.html`, `css/`, `js/`, `assets/`) requires
+  `node tools/gen-precache.js`** (rewrites the list + content-hash version in `sw.js`; `--check` only
+  verifies). `tools/test-pwa.js` fails on a stale list. On a merge conflict in the list block, take either
+  side and re-run the generator.
+- Updates: a waiting worker shows "New version available — tap to reload"; tap -> `SKIP_WAITING` -> reload.
+- Install: Settings row "Install SPAN" once `beforeinstallprompt` fired; on iOS an "Add to Home Screen"
+  hint; "Offline play: Ready" once precached. Icons in `assets/icons/app/` (`tools/gen-icons.js`).
+- `.github/workflows/pages.yml` deploys `main` to GitHub Pages (runs physics + level checks, regenerates
+  the precache, publishes only game files). All paths are relative.
+
+### 16.3 History, bests, autosave — `BG.History` (`js/features/history.js`, `css/history.css`)
+- Storage goes through `BG.Storage` (prefix `span.v1.`; legacy keys are never rewritten);
+  `BG.Storage.SCHEMA = 2`. Keys: `hist.meta {schema, migratedAt, from}`; `hist.runs` (<= 500, newest last,
+  `{i, t, l, c, n, ok, f, s, p, d, b, k?}` = id, time, level, cost, members, passed, fail reason, stars,
+  peak stress, sim time, broken beams, snapshot key); `hist.bests {[levelId]: {cost, members, peak, time,
+  stars: {v, t, k?}, runs, passes, first, last}}`; `hist.stats`; `hist.snaps` + `hist.s.<k>` (compact
+  design snapshots: 8 latest passing + 3 latest failing per level + any holding a best, 1.2 MB budget,
+  oldest dropped on quota errors); `hist.session` (screen, level, camera, tab, scroll, follow, viewport, time).
+- Migration from schema 1 (no `hist.meta`) fills bests and run counts from `progress.levels`.
+- Data API (also runs in Node): `migrate, recordRun(info), getRuns, runsFor, getBests, getStats, summary,
+  encodeDesign / decodeDesign, loadSnapshot, hasSnapshot, getSession, saveSession, resumePlan,
+  exportSave / exportString, validateSave, importSave, resetAll`; UI: `open(tab), close(), isOpen()`.
+- Browser hooks: wraps `Game.init / _finishRun / _setState / openLevel / continueGame / resetProgress`,
+  `Editor.prototype.undo / redo / load`, `Hud.init / refreshTitle / buildLevelSelect / setCampaignTab`;
+  defines `Game.onDesignChanged` and `Game.resumeSession`.
+- Autosave 350 ms after each design change and on pagehide / hidden tab / beforeunload. On load the game
+  resumes the level (design + camera; a running sim comes back in edit mode) or level select; skipped when
+  the session is > 72 h old or the URL has `?level`, `?screen` or `?noresume`. The camera is not restored
+  if the viewport changed by > 15 % (rotation).
+- UI: results-card bests line ("First pass on this level", "New best! −$X vs your previous $Y", attempt N),
+  tile tooltips, History screen (Runs with level / result filters and a cost sparkline; Levels with
+  "Load best"; Stats); "Load" is one undo step. Settings "Save data": Export `span-save-YYYYMMDD.json`
+  (all `span.v1.*` keys); Import validates (rejects junk and newer schemas), replaces, migrates, reloads.
+  Reset progress also clears history.
+
+### 16.4 Tests
+- `tools/test-mobile.js`: phones / tablets in both orientations with touch emulation; overflow and 44 px
+  targets on every screen including History and the Install / Save data rows; level 1 built by touch;
+  loupe, context menu, pinch, history list scroll; phase 2: campaign tabs + famous tiles, goals panel + badge
+  reveal, famous history card (finger scroll) + famous top bar, Iron Road track strip / derail callout / ride-quality
+  results, forces forecast + banner, daily panel / share card, endless score, title with every entry point; result
+  action rows must be on screen and tappable.
+- `tools/test-pwa.js`: install, precache freshness, offline reload incl. a deep link, update toast,
+  install UI, `file://` no-op.
+- `tools/test-history.js`: Node (fake storage) + browser (desktop, phones, tablet); `--node-only` skips the browser.
