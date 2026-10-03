@@ -1,5 +1,8 @@
 # SPAN: Bridge Builder
 
+### ▶ [Play SPAN in your browser](https://athraen.github.io/SpanGame/)
+Free, no install. Works on desktop, tablet and phone, and can be installed as an app that plays offline.
+
 SPAN is a physics bridge-construction puzzle game that runs in the browser. You build a bridge across a gap from road, wood, steel, rope and cable, stay under budget, then press **Test** to watch real traffic drive across. If the bridge is too weak it sags, beams snap, and the bus ends up in the river.
 
 It is plain HTML, CSS and JavaScript, with no build step and no runtime dependencies. Double-click `index.html`; it works straight from `file://`, on desktop, tablet and phone.
