@@ -1,0 +1,112 @@
+{
+  "id": 206,
+  "name": "Tower Bridge",
+  "campaign": "famous",
+  "theme": "city",
+  "hint": "Nothing may stand in the river except the two towers. Hang the side spans from chains over the towers, and carry the middle from above - like the high-level walkways.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 90,
+    "rightY": 0,
+    "floorY": -16,
+    "waterY": -12
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 90,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 90,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 32,
+      "x1": 34
+    },
+    {
+      "x0": 56,
+      "x1": 58
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 4,
+      "x1": 31.5,
+      "y0": -12,
+      "y1": -1.5
+    },
+    {
+      "x0": 34.5,
+      "x1": 55.5,
+      "y0": -12,
+      "y1": -1.5
+    },
+    {
+      "x0": 58.5,
+      "x1": 86,
+      "y0": -12,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 90,
+    "y0": -12,
+    "y1": 18
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "cable"
+  ],
+  "budget": 60000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 3,
+      "interval": 2
+    },
+    {
+      "type": "bus",
+      "count": 4,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 50,
+  "templates": [
+    "suspension"
+  ],
+  "history": {
+    "name": "Tower Bridge",
+    "art": "assets/famous/tower-bridge.svg",
+    "year": "1894",
+    "built": "1886–1894",
+    "location": "London, England",
+    "crosses": "River Thames",
+    "engineer": "Sir Horace Jones (architect), Sir John Wolfe Barry (engineer)",
+    "span": "Central span 61 m · side spans 82 m",
+    "type": "Bascule and suspension",
+    "facts": [
+      "The two bascules of the central span lift so tall ships can reach the Pool of London; steam-driven hydraulics raised them until the 1970s.",
+      "On 30 December 1952 bus driver Albert Gunter accelerated his No. 78 bus across a widening gap as the bridge began to open - and landed safely.",
+      "The high-level walkways, 44 m above high water, tie the two towers together; they closed in 1910 and reopened as an exhibition in 1982."
+    ],
+    "why": "London needed a low road and a tall ship channel at the same place. Tower Bridge solved it with a road that lifts between towers that also anchor suspension spans.",
+    "note": "The game cannot lift a bascule: the tall ship channel is the no-build zone, and the walkways inspire the structure above the deck."
+  }
+}

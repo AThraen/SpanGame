@@ -37,13 +37,13 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 
 ```
 index.html               loads scripts in the order below
-css/style.css            (+ feature stylesheets: css/goals.css, css/forces.css, css/daily.css)
+css/style.css            (+ feature stylesheets: css/goals.css, css/forces.css, css/daily.css, css/famous.css)
 js/core/materials.js     BG.Materials
 js/core/vehicles.js      BG.Vehicles (definitions)
 js/core/model.js         BG.Model (design helpers, cost, validation, serialization)
 js/core/physics.js       BG.Simulation (+ BG.SimHooks extension points, §12.2)
 js/core/events.js        BG.Forces (wind / quake level events, §12)
-js/core/levels.js        BG.Levels (array of 50 level objects)
+js/core/levels.js        BG.Levels (generated: roads 1-53, Iron Road 101-120, Famous Bridges 201-212)
 js/core/templates.js     BG.Templates (bridge-type generators)
 js/core/generator.js     BG.Generator (procedural, proven-solvable road levels for daily / endless, §13.1)
 js/render/effects.js     BG.Effects (particles, debris, shake)
@@ -56,7 +56,8 @@ js/main.js               BG.Game (state machine + main loop)
 js/features/*.js         optional feature modules, loaded last (core → render → ui → main → features);
                          e.g. terrain-fix.js = BG.TerrainFix (§10), goals*.js = BG.Goals (§11),
                          forces-fx.js = Forces of Nature visuals / HUD / audio (§12),
-                         daily.js = BG.Daily (Daily Challenge + Endless, §13.2)
+                         daily.js = BG.Daily (Daily Challenge + Endless, §13.2),
+                         requirements.js = BG.Requirements + famous.js = BG.Famous (Famous Bridges, §14)
 tools/harness.js         Node loader for js/core/* + runHeadless()
 tools/test-physics.js    physics unit/behaviour tests
 tools/verify-levels.js   runs every level against its reference + best designs
@@ -125,6 +126,8 @@ Keyed by type: `car` (~1.2 t), `van` (~2.5 t), `bus` (~12 t), `truck` (~20 t), `
   timeLimit: 40,                      // seconds of sim time
   templates: true,                    // whether template tool is offered
   events: [ ... ]                     // optional wind / quake events (§12.1); absent = no weather
+  // campaign: 'rail' (Iron Road, §9) | 'famous' (Famous Bridges, §14); absent = Roads.
+  // Famous levels also carry history, requires, stub (§14.1); templates may then be an array of template ids.
 }
 ```
 Vehicles spawn on the left bank at `leftEdge - 25`, drive right, finish when the rear passes `rightEdge + 15`.
@@ -454,7 +457,10 @@ Iron Road levels 101-120 are covered the same way (generated at the merge with `
 rail sim decides the pass (derailments fail it), `timber_only` is never offered there (the deck needs `rail`).
 Bonus levels 51-53 (§12.4) were added the same way at their merge (`--only 51,52,53`; 8 goals, proven with
 the level's wind / quake events on, seed 1 as in the game).
-The level select shows tile counts on both campaign tabs; the total chip counts all 73 levels (199 goals).
+The 10 playable Famous Bridges levels (§14) were added at their merge (`--only 201,...,212` without the stubs 205/209;
+28 goals); stub levels get goals when they are finished.
+The level select shows tile counts on every campaign tab (famous tiles too); the total chip counts all 83 playable
+levels (227 goals).
 
 ### 11.4 Storage
 `BG.Storage.getBadges(id)`, `recordBadges(id, ids)` -> newly earned, `totalBadges()`, `maxBadges()`; key `span.v1.badges` =
@@ -584,3 +590,65 @@ BG.Generator.dailySeed(date), dailyDifficulty(seed), weekdayOf(seed) /* 0 = Mon 
 - Generation in the browser runs time-sliced on `requestAnimationFrame` (6 ms slices while prefetching on the
   title screen, 80 ms while the player waits behind the loader); no Web Worker, because `file://` pages
   cannot load worker scripts reliably in every browser (slicing never changes the result). `node tools/test-daily.js` covers records + the headless browser flow.
+
+## 14. Famous Bridges — real-world campaign (extension module)
+
+A separate campaign of real bridges, each preceded by a history card. Lives in new files
+(`js/features/requirements.js`, `js/features/famous.js`, `css/famous.css`, `assets/famous/*.svg`,
+`tools/test-famous.js`); shared files only get small, commented (`// famous:`) hook lines. `campaignOf()` in
+`js/main.js`, `js/ui/storage.js` and `js/ui/hud.js` returns `'famous'` for these levels, so they are never part of
+the Roads (unlocking, "next level", continue, star totals).
+
+### 14.1 Levels
+- Ids **201+**, `tools/levels/level-2NN.json`, `campaign: 'famous'`, built into `BG.Levels` by `build-levels`
+  like every other level (sorted by id, after road and rail levels). Solutions `tools/solutions/level-2NN(-best).json`;
+  same verification rules as road levels (ref peak ≤ 0.92 and ≤ ≈ 88 % of budget, best ≤ 70 %, no template ★★★ —
+  checked over *all* templates, not only the offered ones, by `tools/test-famous.js`).
+- Each level is a scaled-down but faithful version of the real crossing (span ratios, pier positions, ship channel,
+  traffic) set up so the historical structural type is the efficient answer.
+- Extra level fields:
+  - `history: { name, year, built, location, crosses, engineer, span, type, facts: [2–3 strings], why, note?, art }`
+    where `art` is the SVG illustration path (`assets/famous/<slug>.svg`, 400 × 200, used on the card and the tile).
+  - `requires: ['wind' | 'rail' | 'masonry' ...]` — optional modules the level needs (see 14.3).
+  - `stub: true | 'what is missing'` — the level is not finished (no verified solutions yet) even though its
+    modules may be installed: it is locked and skipped exactly like a level with a missing module (14.3).
+  - `templates` may be an **array of template ids**: only those (history-appropriate) templates are offered.
+    `famous.js` wraps `BG.Templates.available` in the browser to flag the others `ok: false`; `true`/`false` keep
+    their old meaning.
+- Playable now: 201 Pont du Gard, 202 Ponte Vecchio, 203 Iron Bridge, 204 Brooklyn, 206 Tower Bridge, 207 Sydney
+  Harbour, 208 Golden Gate, 210 Akashi Kaikyō, 211 Øresund, 212 Millau. Stubs (history card + terrain, no solutions,
+  `stub` set): 205 Forth Bridge (`requires: ['rail']`, traffic `{type:'train', train:'steam_express'}` in the §9.1
+  form) and 209 Tacoma Narrows (`requires: ['wind']`, plus a free-form `wind` hint object; to finish it, turn the
+  hint into §12.1 `events`). Both modules are now merged; finishing a stub = add solutions (+ goals, §11.3) and
+  remove `stub`.
+- Badge goals (§11) exist for every playable famous level (`node tools/gen-goals.js --only 201,...`); the famous
+  tiles show the same badge count as road tiles.
+- Pont du Gard is historically masonry: once §9.2 `masonry` exists, add it to level 201's `materials`
+  and re-verify (the current solutions use wood/steel).
+
+### 14.2 Campaign rules (`BG.Famous`, js/features/famous.js)
+- Unlock: the first playable famous level opens when **road level 15** is completed (or `?unlockall`); inside the
+  campaign a level opens when either of the two previous *playable* famous levels is complete (stubs are skipped).
+  Implemented by wrapping `BG.Storage.isUnlocked` for famous ids only.
+- `BG.Game.openLevel(famousId)` shows the history card first (Build it / Back; Enter/Space = build, Esc = back);
+  `opts.skipCard` skips it. Levels with unmet requirements never open, even with `force` / `?unlockall` —
+  their card explains which module is missing (or that the crossing is still a stub).
+- `nextLevel` / results `hasNext` / finale stay inside the campaign (next playable famous id; after the last one the
+  finale card, then back to the Famous Bridges tab).
+- Level select: a third campaign tab **Famous Bridges** (`.camp-tab[data-camp=famous]`) next to the Hud's Roads |
+  Iron Road tabs (§9.4). `famous.js` wraps `BG.Hud.setCampaignTab` so `BG.Hud.tab` can be `'famous'` (never landing
+  on it while it is locked when returning from a level), and `buildLevelSelect`: the Hud builds the Roads chapters
+  underneath, then `BG.Famous.tab.render(screen)` adds the `.fb-panel`, which replaces the chapters
+  (`#screen-levels.fb-mode`), and points the header (active tab, subtitle, star chip) at the famous campaign.
+  `BG.Game.goLevelSelect()` reopens the tab of the level just played, as for the other campaigns.
+- In a famous level the top bar badge shows the campaign number (1–12), the subtitle "Famous Bridges · year · place",
+  and a history button reopens the card.
+
+### 14.3 Requirements (`BG.Requirements`, js/features/requirements.js — browser and Node)
+- `has(req)`, `missing(level)`, `isStub(level)`, `met(level)` (= not a stub and nothing missing), `label(req)`,
+  `provide(req)`, `register(req, checkFn, label)`.
+- Default detection: `wind` → `BG.Forces` (§12.2; also `BG.Events || BG.Weather || BG.Wind`); `rail` →
+  `BG.Trains && BG.Materials.rail` (§9); `masonry` → `BG.Materials.masonry`. A module may also call
+  `BG.Requirements.provide('wind')`.
+- `tools/harness.js` loads it; `verify-levels`, `test-templates`, `test-goals` and `e2e-goals` skip levels that are
+  not `met` (stubs).

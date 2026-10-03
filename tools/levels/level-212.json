@@ -1,0 +1,113 @@
+{
+  "id": 212,
+  "name": "Millau Viaduct",
+  "campaign": "famous",
+  "theme": "canyon",
+  "hint": "The valley is deep, so every pier is costly - and masts may rise only a little above the slim deck. Use all seven piers as short masts with fans of stays.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 150,
+    "rightY": 0,
+    "floorY": -45,
+    "waterY": -42
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 150,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -2
+    },
+    {
+      "x": 150,
+      "y": -2
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 11,
+      "x1": 14
+    },
+    {
+      "x0": 32,
+      "x1": 35
+    },
+    {
+      "x0": 53,
+      "x1": 56
+    },
+    {
+      "x0": 73.5,
+      "x1": 76.5
+    },
+    {
+      "x0": 94,
+      "x1": 97
+    },
+    {
+      "x0": 115,
+      "x1": 118
+    },
+    {
+      "x0": 136,
+      "x1": 139
+    }
+  ],
+  "maxPiers": 7,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 150,
+    "y0": -2,
+    "y1": 8
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 196000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.4
+    },
+    {
+      "type": "semi",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 80,
+  "templates": [
+    "cable_stayed"
+  ],
+  "history": {
+    "name": "Millau Viaduct",
+    "art": "assets/famous/millau-viaduct.svg",
+    "year": "2004",
+    "built": "2001–2004",
+    "location": "Millau, Aveyron, France",
+    "crosses": "Tarn valley",
+    "engineer": "Michel Virlogeux (engineer), Norman Foster (architect)",
+    "span": "2,460 m · six 342 m spans + two 204 m",
+    "type": "Multi-span cable-stayed viaduct",
+    "facts": [
+      "Its steel deck was pushed out over the piers from both sides of the valley, about 600 mm per launching cycle.",
+      "Its tallest pier and mast reach 343 m - taller than the Eiffel Tower.",
+      "The road runs up to 270 m above the River Tarn."
+    ],
+    "why": "The tallest bridge in the world for two decades: seven slender piers and masts carry the A75 motorway across a whole valley."
+  }
+}

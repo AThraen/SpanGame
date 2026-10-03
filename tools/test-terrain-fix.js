@@ -59,7 +59,9 @@ section('model: every solution design is unaffected');
     const d = BG.Model.deserialize(fs.readFileSync(f, 'utf8'));
     if (BG.Model.validate(L, d).errors.some(e => e.type === 'underwater')) bad.push(L.id + suf);
   }
-  ok(n === 2 * BG.Levels.length, 'found all solution files', n);
+  // famous: stub levels (BG.Requirements not met) have no solutions yet
+  const playable = BG.Levels.filter(L => !BG.Requirements || BG.Requirements.met(L));
+  ok(n === 2 * playable.length, 'found all solution files', n);
   ok(bad.length === 0, 'no solution uses an underwater joint', bad);
 }
 
@@ -104,7 +106,8 @@ async function browserPart() {
     const res = await page.evaluate(() => {
       const out = [];
       for (const L of BG.Levels) {
-        BG.Game.openLevel(L.id, { force: true });
+        if (BG.Requirements && !BG.Requirements.met(L)) continue; // famous: stubs never open
+        BG.Game.openLevel(L.id, { force: true, skipCard: true }); // famous: skip the history card
         const r = BG.Game.renderer, T = r.terrain, t = L.terrain, ba = L.buildArea;
         const lim = Math.max(typeof t.waterY === 'number' ? t.waterY : -1e9, ba ? ba.y0 : -1e9);
         let worst = 0;

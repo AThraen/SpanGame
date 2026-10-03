@@ -1,0 +1,106 @@
+{
+  "id": 205,
+  "name": "Forth Bridge",
+  "campaign": "famous",
+  "requires": [
+    "rail"
+  ],
+  "stub": "Iron Road is in, but the cantilever rail crossing still needs its verified designs.",
+  "theme": "snow",
+  "hint": "Three giant double cantilevers balance out from their piers, with short suspended spans between them.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 150,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -22
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 150,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 150,
+      "y": -8
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 22,
+      "x1": 28
+    },
+    {
+      "x0": 72,
+      "x1": 78
+    },
+    {
+      "x0": 122,
+      "x1": 128
+    }
+  ],
+  "maxPiers": 3,
+  "noBuild": [
+    {
+      "x0": 32,
+      "x1": 68,
+      "y0": -22,
+      "y1": -2
+    },
+    {
+      "x0": 82,
+      "x1": 118,
+      "y0": -22,
+      "y1": -2
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 150,
+    "y0": -22,
+    "y1": 30
+  },
+  "materials": [
+    "rail",
+    "steel",
+    "wood"
+  ],
+  "budget": 250000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_express",
+      "count": 1,
+      "interval": 10
+    }
+  ],
+  "timeLimit": 80,
+  "templates": false,
+  "history": {
+    "name": "Forth Bridge",
+    "art": "assets/famous/forth-bridge.svg",
+    "year": "1890",
+    "built": "1882–1890",
+    "location": "Firth of Forth, near Edinburgh, Scotland",
+    "crosses": "Firth of Forth",
+    "engineer": "Sir John Fowler and Sir Benjamin Baker (contractor Sir William Arrol)",
+    "span": "Two main spans of 521 m (1,700 ft)",
+    "type": "Cantilever railway bridge",
+    "facts": [
+      "After the Tay Bridge collapsed in a gale in 1879, the Forth Bridge was designed for a wind pressure of 56 lb per square foot.",
+      "To explain how it works, engineer Kaichi Watanabe sat on a chair slung between Fowler and Baker, whose arms and sticks were the cantilevers - the famous \"human cantilever\".",
+      "It holds about 6.5 million rivets and became a UNESCO World Heritage Site in 2015."
+    ],
+    "why": "When it opened it had the longest cantilever spans in the world - a bold steel answer to the Tay disaster, still carrying trains today.",
+    "note": "Needs trains: this crossing unlocks when the Iron Road module is installed."
+  }
+}

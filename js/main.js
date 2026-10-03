@@ -51,7 +51,8 @@
     return vehicleName(v.type);
   }
   function isTrain(v) { return !!v && (v.kind === 'train' || v.type === 'train'); }
-  function campaignOf(lv) { return lv && lv.campaign === 'rail' ? 'rail' : 'road'; }
+  // famous: Famous Bridges levels (campaign 'famous', 201+) form their own campaign (rules in js/features/famous.js)
+  function campaignOf(lv) { return lv && (lv.campaign === 'rail' || lv.campaign === 'famous') ? lv.campaign : 'road'; }
   function campaignLevels(campaign) {
     if (BG.Storage && BG.Storage.campaignLevels) return BG.Storage.campaignLevels(levels(), campaign);
     return levels().filter(l => campaignOf(l) === campaign).sort((a, b) => a.id - b.id);
@@ -328,12 +329,13 @@
       if (!S) return L[0];
       const prog = S.getProgress();
       // the last played level if unfinished; else the first unlocked, uncompleted level of the campaign
-      // the player was last in (Roads or Iron Road); else of the other campaign; else last played; else first.
+      // the player was last in (Roads, Iron Road or Famous Bridges); else of the Roads (the Iron Road after the Roads);
+      // else last played; else first.
       const last = prog.lastLevel != null ? this.findLevel(prog.lastLevel) : null;
       if (last && !S.isCompleted(levelId(last))) return last;
       const camp = campaignOf(last);
       const open = list => list.find(l => this.isUnlocked(levelId(l)) && !S.isCompleted(levelId(l)));
-      const firstOpen = open(campaignLevels(camp)) || open(campaignLevels(camp === 'rail' ? 'road' : 'rail'));
+      const firstOpen = open(campaignLevels(camp)) || open(campaignLevels(camp === 'road' ? 'rail' : 'road'));
       return firstOpen || last || L[0];
     },
     campaignOf(lv) { return campaignOf(lv || this.level); },

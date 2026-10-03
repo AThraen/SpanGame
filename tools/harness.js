@@ -20,6 +20,9 @@ function load() {
       else throw e;
     }
   }
+  // famous: optional feature modules that also run headless (level requirements)
+  const REQ = path.resolve(__dirname, '..', 'js', 'features', 'requirements.js');
+  if (fs.existsSync(REQ)) vm.runInThisContext(fs.readFileSync(REQ, 'utf8'), { filename: REQ });
   return globalThis.BG;
 }
 

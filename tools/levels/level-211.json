@@ -1,0 +1,122 @@
+{
+  "id": 211,
+  "name": "Øresund Bridge",
+  "campaign": "famous",
+  "theme": "snow",
+  "hint": "Keep the shipping lane clear. Tall pylons either side of it can carry most of the deck on straight stays.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 140,
+    "rightY": 0,
+    "floorY": -24,
+    "waterY": -18
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 140,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 140,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 4,
+      "x1": 6
+    },
+    {
+      "x0": 19,
+      "x1": 21
+    },
+    {
+      "x0": 44,
+      "x1": 48
+    },
+    {
+      "x0": 92,
+      "x1": 96
+    },
+    {
+      "x0": 119,
+      "x1": 121
+    },
+    {
+      "x0": 134,
+      "x1": 136
+    }
+  ],
+  "maxPiers": 6,
+  "noBuild": [
+    {
+      "x0": 50,
+      "x1": 90,
+      "y0": -18,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 140,
+    "y0": -18,
+    "y1": 30
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 140000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 6,
+      "interval": 1.5
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 75,
+  "templates": [
+    "cable_stayed"
+  ],
+  "history": {
+    "name": "Øresund Bridge",
+    "art": "assets/famous/oresund-bridge.svg",
+    "year": "2000",
+    "built": "1995–2000",
+    "location": "Copenhagen, Denmark – Malmö, Sweden",
+    "crosses": "Øresund strait",
+    "engineer": "Georg Rotne (architect); Ove Arup & Partners, COWI and others",
+    "span": "Main span 490 m · pylons 204 m",
+    "type": "Cable-stayed, road above rail",
+    "facts": [
+      "It is only half the crossing: the link dives into a 4 km tunnel via the artificial island Peberholm, keeping clear of Copenhagen Airport and the shipping channel.",
+      "Sixteen unexploded World War II bombs were found on the seabed during construction - yet it opened three months early.",
+      "Four motorway lanes run on the upper deck and two railway tracks below."
+    ],
+    "why": "The longest cable-stayed main span in the world carrying both road and rail - and the link that joined Denmark and Sweden.",
+    "note": "The rail deck arrives with the Iron Road module; this version carries road traffic only."
+  }
+}

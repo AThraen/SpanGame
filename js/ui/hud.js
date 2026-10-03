@@ -248,7 +248,8 @@
     road: { id: 'road', name: 'Roads', sub: 'Six regions · fifty bridges' },
     rail: { id: 'rail', name: 'Iron Road', sub: 'Four lines · twenty railway bridges' },
   };
-  function campaignOf(level) { return level && level.campaign === 'rail' ? 'rail' : 'road'; }
+  // famous: Famous Bridges (201+) is its own campaign too (js/features/famous.js), never part of the Roads
+  function campaignOf(level) { return level && (level.campaign === 'rail' || level.campaign === 'famous') ? level.campaign : 'road'; }
   function chaptersFor(campaign) { return campaign === 'rail' ? RAIL_CHAPTERS : CHAPTERS; }
   function railCampaignOpen() {
     const S = stor();

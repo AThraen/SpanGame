@@ -1,0 +1,89 @@
+{
+  "id": 203,
+  "name": "The Iron Bridge",
+  "campaign": "famous",
+  "theme": "meadow",
+  "hint": "Boats need the middle of the gorge: no piers. Spring an arch from the low anchors on the banks and stand the road on it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 30,
+    "rightY": 0,
+    "floorY": -13,
+    "waterY": -10
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 30,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 30,
+      "y": -8
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [
+    {
+      "x0": 9,
+      "x1": 21,
+      "y0": -10,
+      "y1": -3.5
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 30,
+    "y0": -10,
+    "y1": 0
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 15000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 4,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 30,
+  "templates": [
+    "deck_arch"
+  ],
+  "history": {
+    "name": "The Iron Bridge",
+    "art": "assets/famous/iron-bridge.svg",
+    "year": "1779",
+    "built": "1777–1779 (opened 1781)",
+    "location": "Ironbridge Gorge, Shropshire, England",
+    "crosses": "River Severn",
+    "engineer": "Thomas Farnolls Pritchard (design), Abraham Darby III (ironmaster)",
+    "span": "30.6 m (100 ft 6 in)",
+    "type": "Cast-iron arch",
+    "facts": [
+      "Its nearly 1,700 cast parts - about 378 tons of iron - were joined with carpentry joints such as mortise-and-tenon and dovetails, because nobody had built in iron before.",
+      "A single span kept the busy river clear for boat traffic.",
+      "It closed to vehicles in 1934 and is part of the Ironbridge Gorge UNESCO World Heritage Site (1986)."
+    ],
+    "why": "The first major bridge in the world made of cast iron - the moment bridges started to be built from metal.",
+    "note": "Cast iron is not in the game: build the arch from wood and steel."
+  }
+}

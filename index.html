@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="css/forces.css"><!-- forces: wind / quake HUD -->
   <!-- daily-challenge: daily / endless panel -->
   <link rel="stylesheet" href="css/daily.css">
+  <link rel="stylesheet" href="css/famous.css"><!-- famous: Famous Bridges campaign -->
 </head>
 <body data-screen="boot">
   <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
@@ -50,5 +51,8 @@
   <script src="js/features/forces-fx.js"></script><!-- forces: visuals, HUD, audio -->
   <!-- daily-challenge: Daily Challenge + Endless mode (wraps BG.Game / BG.Hud / BG.Storage) -->
   <script src="js/features/daily.js"></script>
+  <!-- famous: Famous Bridges campaign (extra module; hooks into BG.Game / BG.Hud / BG.Storage before boot) -->
+  <script src="js/features/requirements.js"></script>
+  <script src="js/features/famous.js"></script>
 </body>
 </html>

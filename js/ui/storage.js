@@ -88,7 +88,8 @@
       if (!level || level.id == null) return false;
       return level.id === Storage.campaignFinalId(Storage.campaignOf(level));
     },
-    campaignOf(level) { return level && level.campaign === 'rail' ? 'rail' : 'road'; },
+    // famous: Famous Bridges (campaign 'famous', ids 201+) is a separate campaign; its unlock rule lives in js/features/famous.js
+    campaignOf(level) { return level && (level.campaign === 'rail' || level.campaign === 'famous') ? level.campaign : 'road'; },
     // the levels of one campaign, sorted by id (the order unlocking and "Next level" follow)
     campaignLevels(levels, campaign) {
       return (levels || []).filter(l => l && Storage.campaignOf(l) === campaign)

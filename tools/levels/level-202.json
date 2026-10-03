@@ -1,0 +1,90 @@
+{
+  "id": 202,
+  "name": "Ponte Vecchio",
+  "campaign": "famous",
+  "theme": "autumn",
+  "hint": "The river runs high, so the arches must be shallow: spring them from low piers and keep everything below the road - the shops sit on top.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 44,
+    "rightY": 0,
+    "floorY": -8,
+    "waterY": -4.5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 44,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 44,
+      "y": -3
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 13,
+      "x1": 15
+    },
+    {
+      "x0": 29,
+      "x1": 31
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 44,
+    "y0": -3.5,
+    "y1": 0
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 17500,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 4,
+      "interval": 1.6
+    },
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 35,
+  "templates": [
+    "deck_arch"
+  ],
+  "history": {
+    "name": "Ponte Vecchio",
+    "art": "assets/famous/ponte-vecchio.svg",
+    "year": "1345",
+    "built": "c. 1339–1345",
+    "location": "Florence, Italy",
+    "crosses": "River Arno",
+    "engineer": "Traditionally Taddeo Gaddi (perhaps Neri di Fioravanti)",
+    "span": "Main span 30 m · three arches",
+    "type": "Segmental stone arch",
+    "facts": [
+      "Its arches are segmental: they rise only about a fifth of their span, so the bridge needed just two piers in the river.",
+      "Butchers, tanners and fishmongers once kept shops on the bridge; in 1593 Grand Duke Ferdinando I allowed only goldsmiths and jewellers.",
+      "In 1944 it was the only bridge in Florence that the retreating German army did not destroy."
+    ],
+    "why": "Flat segmental arches let medieval Florence cross the Arno with few, slim piers - and still carry a whole street of shops, with the Vasari Corridor (1565) running above them."
+  }
+}

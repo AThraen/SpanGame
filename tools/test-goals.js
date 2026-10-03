@@ -59,7 +59,10 @@ const G = BG.Goals;
 // ---------------------------------------------------------------- data shape
 const data = BG.GoalsData || {};
 const ids = Object.keys(data).map(Number).sort((a, b) => a - b);
-ok('goals data present for every level (roads 1-50, bonus 51-53, Iron Road 101-120)', BG.Levels.every(l => data[l.id]), BG.Levels.filter(l => !data[l.id]).map(l => l.id));
+// famous: stub levels (BG.Requirements not met: no verified solutions yet) have no goals until they are finished
+const playable = BG.Levels.filter(l => !BG.Requirements || BG.Requirements.met(l));
+ok('goals data present for every playable level (roads 1-50, bonus 51-53, Iron Road 101-120, Famous Bridges 201+)', playable.every(l => data[l.id]), playable.filter(l => !data[l.id]).map(l => l.id));
+ok('no goals on stub levels', BG.Levels.filter(l => !playable.includes(l)).every(l => !data[l.id]));
 let total = 0;
 const typeCount = {};
 for (const id of ids) {

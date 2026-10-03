@@ -13,6 +13,7 @@ function load(rel) {
   try { require(f); return true; } catch (e) { console.warn('  (could not load ' + rel + ': ' + e.message + ')'); return false; }
 }
 ['js/core/materials.js', 'js/core/vehicles.js', 'js/core/trains.js', 'js/core/model.js', 'js/core/levels.js'].forEach(load);
+load('js/features/requirements.js'); // famous: BG.Requirements (stub levels needing missing modules are skipped)
 if (!load('js/core/templates.js')) { console.error('templates.js missing'); process.exit(1); }
 const BG = global.BG;
 const verbose = process.argv.includes('--verbose');
@@ -75,7 +76,7 @@ railLevels.forEach((l) => levels.push(l));
 if (!RAIL_OK) console.log('  (BG.Materials has no rail/masonry yet: rail levels checked with template geometry only)');
 const deckMat = (m) => /road/.test(m) || m === 'rail' || !!(BG.Materials && BG.Materials[m] && BG.Materials[m].isRail);
 const isRailLvl = (l) => l.campaign === 'rail';
-if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => levels.push(l));
+if (Array.isArray(BG.Levels)) BG.Levels.forEach((l) => { if (!BG.Requirements || BG.Requirements.met(l)) levels.push(l); }); // famous: skip stubs needing missing modules
 
 function geomOf(level, design) {
   const pos = {};

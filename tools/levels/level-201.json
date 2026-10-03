@@ -1,0 +1,99 @@
+{
+  "id": 201,
+  "name": "Pont du Gard",
+  "campaign": "famous",
+  "theme": "desert",
+  "hint": "Roman engineers stood arches on piers. Pier tops below the deck make strong springing points - fill each opening with an arch and prop the road from it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 64,
+    "rightY": 0,
+    "floorY": -16,
+    "waterY": -13
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 64,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 64,
+      "y": -5
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 11,
+      "x1": 13
+    },
+    {
+      "x0": 21,
+      "x1": 23
+    },
+    {
+      "x0": 41,
+      "x1": 43
+    },
+    {
+      "x0": 51,
+      "x1": 53
+    }
+  ],
+  "maxPiers": 4,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 64,
+    "y0": -13,
+    "y1": 0
+  },
+  "materials": [
+    "road",
+    "wood",
+    "steel"
+  ],
+  "budget": 32000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 3,
+      "interval": 2
+    },
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 40,
+  "templates": [
+    "deck_arch"
+  ],
+  "history": {
+    "name": "Pont du Gard",
+    "art": "assets/famous/pont-du-gard.svg",
+    "year": "c. 50 AD",
+    "built": "c. 40–60 AD",
+    "location": "Vers-Pont-du-Gard, France",
+    "crosses": "River Gardon",
+    "engineer": "Roman engineers (names unknown)",
+    "span": "Largest arch ≈ 24.5 m · 48.8 m high · top tier 275 m",
+    "type": "Masonry arch aqueduct (three tiers)",
+    "facts": [
+      "Its stones were cut so precisely that most of it stands without mortar or clamps - friction and gravity hold it together.",
+      "The aqueduct it carried ran about 50 km to Nîmes at an average gradient of only 1 in 3,000, delivering an estimated 40,000 m³ of water a day.",
+      "In 1743–47 the engineer Henri Pitot built a road bridge alongside the lower tier - the road you are building here."
+    ],
+    "why": "The highest of all Roman aqueduct bridges, and proof that a round arch turns heavy loads into pure compression that stone can carry for two thousand years.",
+    "note": "Historically masonry. Masonry arrives with the Iron Road campaign - until then, build the arches in wood and steel."
+  }
+}

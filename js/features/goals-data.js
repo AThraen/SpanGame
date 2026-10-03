@@ -76,6 +76,16 @@
   117: [{"type":"penny","ratio":0.65},{"type":"minimalist","max":94},{"type":"featherweight","maxMass":43930}],
   118: [{"type":"symmetric"},{"type":"minimalist","max":106},{"type":"featherweight","maxMass":54820}],
   119: [{"type":"symmetric"},{"type":"minimalist","max":160},{"type":"featherweight","maxMass":76890}],
-  120: [{"type":"symmetric"},{"type":"minimalist","max":201},{"type":"featherweight","maxMass":194780}]
+  120: [{"type":"symmetric"},{"type":"minimalist","max":201},{"type":"featherweight","maxMass":194780}],
+  201: [{"type":"symmetric"},{"type":"minimalist","max":41},{"type":"featherweight","maxMass":11700}],
+  202: [{"type":"no_piers"},{"type":"cool_head","max":0.5},{"type":"minimalist","max":33}],
+  203: [{"type":"symmetric"},{"type":"cool_head","max":0.5},{"type":"minimalist","max":21}],
+  204: [{"type":"cool_head","max":0.5},{"type":"minimalist","max":42},{"type":"featherweight","maxMass":18690}],
+  206: [{"type":"minimalist","max":66},{"type":"featherweight","maxMass":17430}],
+  207: [{"type":"symmetric"},{"type":"minimalist","max":83},{"type":"featherweight","maxMass":25470}],
+  208: [{"type":"minimalist","max":92},{"type":"featherweight","maxMass":27000}],
+  210: [{"type":"symmetric"},{"type":"minimalist","max":154},{"type":"featherweight","maxMass":43770}],
+  211: [{"type":"cool_head","max":0.6},{"type":"minimalist","max":59},{"type":"featherweight","maxMass":24520}],
+  212: [{"type":"cool_head","max":0.5},{"type":"minimalist","max":64},{"type":"featherweight","maxMass":23060}]
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -23,8 +23,8 @@ const ok = (name, cond, info) => { results.push(!!cond); console.log((cond ? 'PA
   await page.goto(file); await page.waitForTimeout(1500);
 
   const goalsData = await page.evaluate(() => BG.GoalsData);
-  const nLevels = await page.evaluate(() => BG.Levels.length);
-  ok('goals data loaded for every level (road + rail)', Object.keys(goalsData).length === nLevels && nLevels >= 70, { goals: Object.keys(goalsData).length, nLevels });
+  const nLevels = await page.evaluate(() => BG.Levels.filter(l => !BG.Requirements || BG.Requirements.met(l)).length); // famous: stubs have no goals yet
+  ok('goals data loaded for every playable level (road + rail + famous)', Object.keys(goalsData).length === nLevels && nLevels >= 70, { goals: Object.keys(goalsData).length, nLevels });
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(700);
   const ls = await page.evaluate(() => ({ tiles: document.querySelectorAll('.tile-badges').length, chip: (document.querySelector('.ls-right .badge-chip') || {}).textContent }));
   ok('level tiles show badge counts', ls.tiles === 50, ls);
