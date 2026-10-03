@@ -176,6 +176,7 @@
       };
       this._buildGround();
       this._buildVehicles();
+      this._initReadouts();
       this._splashBudget = 0;
       this._syncOut();
     }
@@ -1073,7 +1074,92 @@
       c._cand = []; c._contacts = []; c._nc = 0;
       c._sim = false; c._onRail = false; c._grade = 0;
       c._missNow = false; c._missN = 0; c._gradeT = 0; c._kinkT = 0; c._kink = 0; c._liftT = 0; c._liftMax = 0; c._fallT = 0;
+      c._kinkA = -1; c._kinkB = -1;
       return c;
+    }
+
+    /* READ-ONLY readouts for the UI (derailment explainer, ride-quality card, masonry thrust view).
+     * Nothing here feeds back into the simulation state: road and rail results stay bit-identical.
+     *   sim.ride (rail levels, null otherwise), worst values while the run is still 'running':
+     *     {grade, gradeX, gradeRatio (grade / maxGrade), kink (rad), kinkLim (rad, the speed-scaled
+     *      limit at that moment), kinkSpeed (m/s), kinkX, kinkRatio (kink / kinkLim), sag (m, rail
+     *      joint drop below its as-built height), sagX}
+     *   sim.beams[j].peakTension (brittle materials - masonry - only): peak tension / tension limit
+     *   derail events and sim.firstDerail carry .detail = {reason, wheel, wx, wy, seg, value, limit,
+     *     speed} (value/limit: grade ratio for 'grade', radians for 'kink', lift ratio for 'lift') */
+    _initReadouts() {
+      const brittle = [];
+      for (let j = 0; j < this.nDesignBeams; j++) {
+        const m = this.beams[j].material;
+        if (this.active[j] && m && m.compressionLimit > 20 * m.tensionLimit) { brittle.push(j); this.beams[j].peakTension = 0; }
+      }
+      this._brittle = brittle;
+      this.ride = null;
+      if (!this._cars.length) return;
+      const seen = new Uint8Array(this.nNodes), rn = [];
+      for (let j = 0; j < this.nDesignBeams; j++) {
+        if (!this.active[j] || !this.rail[j]) continue;
+        for (const i of [this.ba[j], this.bb[j]]) if (!seen[i] && this.w[i] > 0) { seen[i] = 1; rn.push(i); }
+      }
+      this._rideNodes = rn;
+      this._rideY0 = rn.map(i => this.py[i]);
+      this.ride = { grade: 0, gradeX: 0, gradeRatio: 0, kink: 0, kinkLim: this.railRules.kinkMax, kinkSpeed: 0, kinkX: 0, kinkRatio: 0, sag: 0, sagX: 0 };
+    }
+
+    _readoutsPost() {
+      const br = this._brittle;
+      for (let q = 0; q < br.length; q++) {
+        const j = br[q];
+        if (!this.active[j]) continue;
+        const r = this.fFilt[j] / this.tlim[j];
+        const b = this.beams[j];
+        if (r > b.peakTension) b.peakTension = r;
+      }
+      const R = this.ride;
+      if (!R || this.status !== 'running') return;
+      const rn = this._rideNodes, y0 = this._rideY0;
+      for (let q = 0; q < rn.length; q++) {
+        const s = y0[q] - this.py[rn[q]];
+        if (s > R.sag) { R.sag = s; R.sagX = this.px[rn[q]]; }
+      }
+    }
+
+    _wheelPos(c, k) {
+      return { x: c._px + c._qc * c._lx[k] - c._qs * c._ly[k], y: c._py + c._qs * c._lx[k] + c._qc * c._ly[k] - c._rad[k] };
+    }
+
+    /** what exactly derailed this car (read-only; called once, at the derailment) */
+    _derailDetail(c, why) {
+      const RR = this.railRules;
+      const sp = c._vx < 0 ? -c._vx : c._vx;
+      const D = { reason: why, wheel: 0, wx: c._px, wy: c._py, seg: -1, value: 0, limit: 0, speed: sp };
+      let k = 0;
+      if (why === 'grade') {
+        let g = -1;
+        for (let q = 0; q < c._nw; q++) {
+          if (!c._segOk[q]) continue;
+          const gr = Math.abs(c._suy[q]) / Math.max(1e-9, c._sux[q]);
+          if (gr > g) { g = gr; k = q; }
+        }
+        D.value = Math.max(0, g); D.limit = RR.maxGrade;
+      } else if (why === 'kink') {
+        k = c._kinkA >= 0 ? c._kinkB : 0;
+        D.value = c._kink;
+        D.limit = sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax;
+        if (c._kinkA >= 0) D.segPrev = c._seg[c._kinkA];
+      } else if (why === 'missing') {
+        for (let q = 0; q < c._nw; q++) if (!c._segOk[q]) { k = q; break; }
+      } else if (why === 'lift') {
+        let best = -Infinity, bq = 0;
+        for (let q = 0; q < c._nb; q++) { const l = -c._bF[q] / c._bStatic[q]; if (l > best) { best = l; bq = q; } }
+        for (let q = 0; q < c._nw; q++) if (c._wb[q] === bq) { k = q; break; }
+        D.value = Math.max(0, best); D.limit = LIFT_RATIO;
+      }
+      D.wheel = k;
+      D.seg = c._segOk[k] ? c._seg[k] : -1;
+      const p = this._wheelPos(c, k);
+      D.wx = p.x; D.wy = p.y;
+      return D;
     }
 
     // x of a train's lead-car front when it spawns: TRAIN_SPAWN_T seconds at cruise speed before
@@ -1328,9 +1414,10 @@
       c._onRail = false;
       c.state = 'derailed';
       if (T.state === 'driving') { T.state = 'derailed'; T._derailT = this.time; }
-      this.events.push({ type: 'derail', i: T.index, car: c.index, x: c._px, y: c._py, reason: why });
+      const detail = this._derailDetail(c, why);
+      this.events.push({ type: 'derail', i: T.index, car: c.index, x: c._px, y: c._py, reason: why, detail });
       if (!this.firstDerail) {
-        this.firstDerail = { i: T.index, car: c.index, type: c.type, reason: why, time: Math.round(this.time * 1000) / 1000, x: c._px, y: c._py };
+        this.firstDerail = { i: T.index, car: c.index, type: c.type, reason: why, time: Math.round(this.time * 1000) / 1000, x: c._px, y: c._py, detail };
       }
       if (this.status === 'running') { this.status = 'failed'; this.failReason = 'derailed'; }
     }
@@ -1350,6 +1437,7 @@
           if (c._grade > RR.maxGrade + 1e-9) c._gradeT += DT; else c._gradeT = 0;
           if (!why && c._gradeT > RR.gradeTime) why = 'grade';
           let kink = 0;
+          c._kinkA = -1;
           const kp = c._kp;
           for (let p = 0; p < kp.length; p += 2) {
             const k0 = kp[p], k1 = kp[p + 1];
@@ -1357,12 +1445,17 @@
             const ux = c._sux[k0], uy = c._suy[k0], wx = c._sux[k1], wy = c._suy[k1];
             let a = atan2Det(ux * wy - uy * wx, ux * wx + uy * wy);
             if (a < 0) a = -a;
-            if (a > kink) kink = a;
+            if (a > kink) { kink = a; c._kinkA = k0; c._kinkB = k1; }
           }
           c._kink = kink;
           const sp = c._vx < 0 ? -c._vx : c._vx;
           const lim = sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax;
           if (kink > lim) c._kinkT += DT; else c._kinkT = 0;
+          const R = this.ride;
+          if (R && this.status === 'running') {
+            if (c._grade > R.grade) { R.grade = c._grade; R.gradeX = c._px; R.gradeRatio = c._grade / RR.maxGrade; }
+            if (kink / lim > R.kinkRatio) { R.kinkRatio = kink / lim; R.kink = kink; R.kinkLim = lim; R.kinkSpeed = sp; R.kinkX = c._px; }
+          }
           if (!why && c._kinkT > RR.kinkTime) why = 'kink';
           if (c._liftMax > LIFT_RATIO) c._liftT += DT; else c._liftT = 0;
           if (!why && c._liftT > RR.liftTime) why = 'lift';
@@ -1515,6 +1608,7 @@
       }
       // trains (derailment, falls, finish) - before the generic bookkeeping below reads their state
       for (let q = 0; q < this._trains.length; q++) this._trainPost(this._trains[q]);
+      this._readoutsPost();
       // vehicles
       let allDone = vs.length > 0;
       for (let i = 0; i < vs.length; i++) {

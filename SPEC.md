@@ -355,3 +355,8 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
+- Derailment explainer (display only, `js/ui/railinfo.js` = `BG.RailInfo`): the sim exposes read-only readouts that never
+  feed back into the state (`sim.ride` worst grade / kink-vs-limit / sag while running; `.detail = {reason, wheel, wx, wy, seg,
+  segPrev, value, limit, speed}` on derail events and `sim.firstDerail`; `sim.beams[j].peakTension` for masonry). The UI shows a
+  track-recording strip (key T, default on for rail levels), a slow-motion freeze-frame with the offending wheel + segment
+  highlighted and a cause callout, two verdicts + a ride-quality card (A–F) in the results, and masonry tension glow + cracks.

@@ -1,0 +1,71 @@
+{
+  "id": 112,
+  "campaign": "rail",
+  "name": "Fourteen Wagons",
+  "hint": "A long freight is heavier than anything you have carried, and it fills the whole bridge at once. Stand a pier on the sandbar and run one continuous truss over it: the chords swap from tension to compression above the pier.",
+  "theme": "desert",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 65,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -26
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 65,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 65,
+      "y": -6
+    },
+    {
+      "x": 0,
+      "y": -12
+    },
+    {
+      "x": 65,
+      "y": -12
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 29,
+      "x1": 36
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 65,
+    "y0": -14,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel"
+  ],
+  "budget": 61500,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "freight_long",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

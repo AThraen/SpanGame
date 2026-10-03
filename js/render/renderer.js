@@ -1974,7 +1974,9 @@
         const sb = sim.beams[i];
         const cracked = !!(sb && sb.broken && !sb.invalid);
         const s = sb ? (cracked ? Math.max(1, sb.peak || 1) : (sb.peak || 0)) : 0;
-        items.push({ ax: A.x, ay: A.y, bx: B.x, by: B.y, m, st: matStyle(m), s, i, broken: false, cracked, sag: 0 });
+        const it = { ax: A.x, ay: A.y, bx: B.x, by: B.y, m, st: matStyle(m), s, i, broken: false, cracked, sag: 0 };
+        if (sb && sb.peakTension != null) it.tens = cracked ? Math.max(1, sb.peakTension) : sb.peakTension;
+        items.push(it);
       }
       return items;
     }
@@ -2013,7 +2015,13 @@
           if (len < rest * 0.999) sag = Math.min(rest * 0.4, Math.sqrt(Math.max(0, 3 * len * (rest - len) / 8)) * 1.6);
         }
         const s = show ? (peak ? (b.peak || 0) : Math.abs(b.stress || 0)) : null;
-        items.push({ ax: A.x, ay: A.y, bx: B.x, by: B.y, m, st, s, i, broken: false, sag, signed: b.stress || 0 });
+        const it = { ax: A.x, ay: A.y, bx: B.x, by: B.y, m, st, s, i, broken: false, sag, signed: b.stress || 0 };
+        // masonry thrust readout: live tension (sim) or the peak tension it saw (results)
+        if (b.peakTension != null) {
+          const tl = (b.material && b.material.tensionLimit) || (BG.Materials && BG.Materials[m] && BG.Materials[m].tensionLimit) || 1;
+          it.tens = peak ? b.peakTension : Math.max(0, (b.force || 0) / tl);
+        }
+        items.push(it);
       }
     } else {
       const design = state.design;
@@ -2247,6 +2255,7 @@
       strokeSet(ctx, list, 0, bw, st.stones[0]);
       this._tint(ctx, tinted, 0, bw, false, 0.6);
       if (broken.length) strokeSet(ctx, broken, 0, bw, 'rgba(40,30,20,0.35)');
+      this._drawThrust(ctx, list, st, z, false);
       return;
     }
     strokeSet(ctx, list, 0, bw, st.mortar);
@@ -2293,6 +2302,107 @@
     }
     ctx.strokeStyle = rgba(st.mortar, 0.9); ctx.lineWidth = gap; ctx.lineCap = 'butt'; ctx.stroke();
     if (broken.length) strokeSet(ctx, broken, 0, bw, 'rgba(40,30,20,0.35)');
+    this._drawThrust(ctx, list, st, z, true);
+  };
+
+  /* Masonry in tension (readout only): stone can't be pulled, so a tensioned block glows red and
+   * shows hairline cracks across it; more cracks and a stronger glow the closer it is to cracking.
+   * it.tens = tension / tension limit (live in the sim, peak in the results view). */
+  const THRUST_MIN = 0.12;
+  R._drawThrust = function (ctx, list, st, z, detail) {
+    const hot = [];
+    for (const it of list) if (!it.broken && it.tens > THRUST_MIN) hot.push(it);
+    if (!hot.length) return;
+    const w = st.w, px = 1 / z;
+    const t = now() / 1000;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const it of hot) {
+      const k = Math.min(1, (it.tens - THRUST_MIN) / (1 - THRUST_MIN));
+      const pulse = k > 0.6 ? 0.75 + 0.25 * Math.sin(t * 9 + it.i) : 1;
+      // red glow
+      ctx.strokeStyle = 'rgba(255,48,28,' + ((0.16 + 0.34 * k) * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(w * 1.9, 7 * px);
+      ctx.beginPath(); ctx.moveTo(it.ax, it.ay); ctx.lineTo(it.bx, it.by); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,92,60,' + ((0.28 + 0.5 * k) * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(w * 0.62, 2.4 * px);
+      ctx.beginPath(); ctx.moveTo(it.ax, it.ay); ctx.lineTo(it.bx, it.by); ctx.stroke();
+      // hairline cracks across the block
+      if (k < 0.18 || w * z < 2.5) continue;
+      const L = it._len || Math.hypot(it.bx - it.ax, it.by - it.ay) || 1;
+      const ux = (it.bx - it.ax) / L, uy = (it.by - it.ay) / L, nx = it._nx != null ? it._nx : -uy, ny = it._ny != null ? it._ny : ux;
+      const n = 1 + Math.floor(k * 3.2);
+      const hw = w * 0.5;
+      ctx.beginPath();
+      for (let c = 0; c < n; c++) {
+        const f = (c + 0.5 + (hash2(it.i, c, 77) - 0.5) * 0.5) / n;
+        const cx = it.ax + ux * L * f, cy = it.ay + uy * L * f;
+        const segs = 4, jag = w * 0.16;
+        for (let q = 0; q <= segs; q++) {
+          const v = -hw * 0.95 + (2 * hw * 0.95) * q / segs;
+          const off = (q % 2 ? 1 : -1) * jag * (0.5 + hash2(it.i, c * 7 + q, 91));
+          const x = cx + nx * v + ux * off, y = cy + ny * v + uy * off;
+          if (q === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+      }
+      ctx.strokeStyle = 'rgba(38,8,4,' + (0.55 + 0.4 * k).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(w * 0.07, 1.2 * px);
+      ctx.stroke();
+      if (detail) { ctx.strokeStyle = 'rgba(255,190,150,' + (0.25 * k).toFixed(3) + ')'; ctx.lineWidth = Math.max(w * 0.03, 0.6 * px); ctx.stroke(); }
+    }
+    ctx.restore();
+  };
+
+  /* Derailment highlight: the offending rail segment (and, for a kink, the one before it) glows,
+   * the offending wheel gets a pulsing ring with ripples; a short red flash marks the freeze-frame. */
+  R._drawDerailMarker = function (ctx, state, sh) {
+    const m = state.derail, sim = state.sim;
+    if (!m || !sim || !sim.nodes || !isFinite(m.x) || !isFinite(m.y)) return;
+    const z = this.camera.zoom, px = 1 / z;
+    const t = now() / 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 7);
+    const seg = (j, core, glow, dash) => {
+      const b = j != null && j >= 0 && sim.beams && sim.beams[j];
+      if (!b) return;
+      const A = sim.nodes[b.a], B = sim.nodes[b.b];
+      if (!A || !B) return;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = glow; ctx.lineWidth = Math.max(0.9, 16 * px);
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+      ctx.strokeStyle = core; ctx.lineWidth = Math.max(0.16, 3 * px);
+      if (dash) ctx.setLineDash([Math.max(0.3, 6 * px), Math.max(0.25, 5 * px)]);
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    ctx.save();
+    const broken = m.seg != null && m.seg >= 0 && sim.beams[m.seg] && sim.beams[m.seg].broken;
+    if (m.reason === 'kink') seg(m.segPrev, 'rgba(255,181,71,0.95)', 'rgba(255,181,71,' + (0.18 + 0.2 * pulse).toFixed(3) + ')');
+    seg(m.seg, '#ff4d5e', 'rgba(255,60,75,' + (0.22 + 0.28 * pulse).toFixed(3) + ')', broken);
+    // wheel ring + ripples
+    const r0 = Math.max((m.r || 0.45) + 0.2, 9 * px);
+    for (let k = 0; k < 2; k++) {
+      const ph = (t * 1.1 + k * 0.5) % 1;
+      ctx.strokeStyle = 'rgba(255,77,94,' + (0.7 * (1 - ph)).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(0.06, 2 * px);
+      ctx.beginPath(); ctx.arc(m.x, m.y, r0 + ph * Math.max(1.6, 34 * px), 0, Math.PI * 2); ctx.stroke();
+    }
+    const rr = r0 * (1 + 0.12 * pulse);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = Math.max(0.08, 2.4 * px);
+    ctx.beginPath(); ctx.arc(m.x, m.y, rr, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#ff4d5e'; ctx.lineWidth = Math.max(0.12, 3.6 * px);
+    ctx.beginPath(); ctx.arc(m.x, m.y, rr + Math.max(0.1, 3 * px), 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    // freeze-frame flash (screen space)
+    if (m.age != null && m.age < 0.9) {
+      const a = 0.22 * (1 - m.age / 0.9);
+      const W = this.canvas.width, H = this.canvas.height;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+      g.addColorStop(0, 'rgba(255,40,60,0)'); g.addColorStop(1, 'rgba(255,40,60,' + a.toFixed(3) + ')');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
   };
 
   R._tint = function (ctx, list, off, width, roadDown, alpha) {
@@ -3801,6 +3911,7 @@
       }
     } else {
       this._drawNoBuild(ctx, state);
+      if (state.derail && !blueprint && !state.demo) { this._worldXf(ctx, sh.x, sh.y); this._drawDerailMarker(ctx, state, sh); }
       if (state.peakView || mode === 'results') this._drawPeakLabels(ctx, items, sh);
     }
     this._drawAmbient(ctx, dt);

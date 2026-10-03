@@ -495,6 +495,67 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
   .sb-stat span { display: none; }
   .seg button { min-width: 34px; }
 }
+/* Iron Road: track recording strip (sim, rail levels) */
+.track-strip { position: absolute; bottom: 66px; width: min(860px, 100%); height: 84px; padding: 4px 6px; border-radius: 14px; background: rgba(13, 19, 33, .86); opacity: 0; visibility: hidden; transform: translateY(12px); transition: opacity .3s, transform .4s var(--ease), visibility 0s .3s; pointer-events: none !important; }
+.track-strip.show { opacity: 1; visibility: visible; transform: none; transition: opacity .3s, transform .4s var(--ease), visibility 0s; }
+.track-strip canvas { display: block; width: 100%; height: 100%; }
+.mode-edit .track-strip { opacity: 0; visibility: hidden; }
+body.track-on .toasts { bottom: 176px; }
+
+/* Iron Road: derailment callout (anchored to the offending wheel) */
+.derail-callout { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .18s, visibility 0s .18s; will-change: transform; }
+.derail-callout.show { opacity: 1; visibility: visible; transition: opacity .18s, visibility 0s; }
+.dc-card { width: min(380px, calc(100vw - 32px)); padding: 11px 14px 12px; border-radius: 14px; background: rgba(34, 10, 18, .88); border: 1px solid rgba(255, 77, 94, .6); box-shadow: 0 0 0 1px rgba(255, 77, 94, .15), 0 12px 34px rgba(0, 0, 0, .45), 0 0 26px rgba(255, 60, 80, .25); }
+.derail-callout.show .dc-card { animation: dcpop .45s var(--spring); }
+@keyframes dcpop { 0% { transform: scale(.85) translateY(8px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.dc-head { display: flex; align-items: center; gap: 8px; }
+.dc-head b { font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #ffb3bb; }
+.dc-head small { margin-left: auto; font-size: 11.5px; color: var(--muted); font-weight: 650; white-space: nowrap; }
+.dc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 0 0 rgba(255, 77, 94, .7); animation: dcpulse 1s infinite; flex: none; }
+@keyframes dcpulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 94, .7); } 100% { box-shadow: 0 0 0 9px rgba(255, 77, 94, 0); } }
+.dc-cause { margin: 6px 0 4px; font-size: 16px; font-weight: 750; line-height: 1.3; color: #fff; font-variant-numeric: tabular-nums; }
+.dc-advice { margin: 0; font-size: 12.5px; line-height: 1.42; color: #d5dceb; }
+.dc-stem { position: absolute; top: 100%; width: 2px; margin-left: -1px; background: linear-gradient(rgba(255, 77, 94, .9), rgba(255, 77, 94, .25)); }
+.derail-callout.below .dc-stem { top: auto; bottom: 100%; background: linear-gradient(rgba(255, 77, 94, .25), rgba(255, 77, 94, .9)); }
+
+/* Iron Road: results verdicts + ride-quality card */
+.res-rail { margin: 0 0 12px; text-align: left; }
+.rv-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rv { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07); min-width: 0; }
+.rv.ok { border-color: rgba(62, 224, 143, .3); background: rgba(62, 224, 143, .07); }
+.rv.no { border-color: rgba(255, 77, 94, .38); background: rgba(255, 77, 94, .08); }
+.rv-ico { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 900; font-size: 14px; }
+.rv.ok .rv-ico { background: rgba(62, 224, 143, .2); color: #8af2c0; }
+.rv.no .rv-ico { background: rgba(255, 77, 94, .22); color: #ff8b97; }
+.rv span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rv b { font-size: 13.5px; font-weight: 750; }
+.rv small { font-size: 11.5px; line-height: 1.3; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ride-card { margin-top: 8px; padding: 8px 10px 10px; border-radius: 12px; background: rgba(73, 198, 242, .06); border: 1px solid rgba(73, 198, 242, .18); }
+.rc-head { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #9fdcf5; margin-bottom: 6px; }
+.rc-tiles { display: grid; grid-template-columns: repeat(3, 1fr) .8fr; gap: 6px; }
+.rc-t { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 10px; background: rgba(0, 0, 0, .16); min-width: 0; }
+.rc-t span { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-t b { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rc-t small { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-t b.good { color: #8af2c0; } .rc-t b.warn { color: #ffd38a; } .rc-t b.bad { color: #ff8b97; }
+.rc-grade { align-items: center; text-align: center; }
+.rc-grade b { font-family: var(--font-display); font-size: 24px; font-weight: 900; line-height: 1.05; }
+.results.is-rail .res-stars { height: 62px; margin: 10px 0 2px; }
+.results.is-rail .res-stars .star { width: 48px; height: 48px; } .results.is-rail .res-stars .star.mid { width: 60px; height: 60px; }
+.results.is-rail .res-reason { margin-bottom: 12px; }
+/* rail: the verdict row already counts broken members - one compact row of five stats */
+.results.is-rail .res-stats { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.results.is-rail .res-stats .rs:nth-child(6) { display: none; }
+.results.is-rail .rs { padding: 7px 4px; }
+.results.is-rail .rs span { font-size: 9.5px; letter-spacing: .06em; white-space: nowrap; }
+@media (max-height: 760px) { .results.is-rail .res-stars { height: 46px; margin: 6px 0 0; } .results.is-rail .res-stars .star { width: 36px; height: 36px; } .results.is-rail .res-stars .star.mid { width: 46px; height: 46px; } .results.is-rail .results-card h2 { font-size: 24px; } }
+@media (max-width: 620px) {
+  .rv-row { grid-template-columns: 1fr; }
+  .results.is-rail .res-stats { grid-template-columns: repeat(3, 1fr); }
+  .rc-tiles { grid-template-columns: 1fr 1fr; }
+  .track-strip { height: 76px; }
+}
+
 @media (max-height: 760px) {
   .tool { height: 44px; }
   .tool span { display: none; }

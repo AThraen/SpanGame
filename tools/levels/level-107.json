@@ -1,0 +1,64 @@
+{
+  "id": 107,
+  "campaign": "rail",
+  "name": "Twin Arches",
+  "hint": "One pier, two arches: each arch pushes outward on its springings, and the pier in the middle is where the two pushes cancel. The express is long - the whole viaduct is loaded at once.",
+  "theme": "meadow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 32,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -8
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 32,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 32,
+      "y": -5
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 14,
+      "x1": 18
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 32,
+    "y0": -9,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "masonry",
+    "wood",
+    "steel"
+  ],
+  "budget": 14500,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_express",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

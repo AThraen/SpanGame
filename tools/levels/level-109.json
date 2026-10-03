@@ -1,0 +1,75 @@
+{
+  "id": 109,
+  "campaign": "rail",
+  "name": "Night Mail",
+  "hint": "The night express and a river that wants its middle clear. Leap the channel with one wide stone arch between the piers - wide arches push hard, so give it plenty of rise - and step the approaches across on smaller ones.",
+  "theme": "night",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 50,
+    "rightY": 0,
+    "floorY": -20,
+    "waterY": -17
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 50,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 50,
+      "y": -5
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 8,
+      "x1": 16
+    },
+    {
+      "x0": 34,
+      "x1": 42
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 17,
+      "x1": 33,
+      "y0": -20,
+      "y1": -8
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 50,
+    "y0": -19,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "masonry",
+    "wood",
+    "steel"
+  ],
+  "budget": 35000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_express",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

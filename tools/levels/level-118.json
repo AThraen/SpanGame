@@ -1,0 +1,89 @@
+{
+  "id": 118,
+  "campaign": "rail",
+  "name": "Two Storeys",
+  "hint": "Road and rail share this crossing. Both decks start at the same bank bolts: keep the track dead level on top and let the road dip onto a lower deck inside the truss.",
+  "theme": "night",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 90,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -26
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 90,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 90,
+      "y": -5
+    },
+    {
+      "x": 0,
+      "y": -12
+    },
+    {
+      "x": 90,
+      "y": -12
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 27,
+      "x1": 33
+    },
+    {
+      "x0": 57,
+      "x1": 63
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 90,
+    "y0": -16,
+    "y1": 12
+  },
+  "materials": [
+    "rail",
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "girder",
+    "cable"
+  ],
+  "budget": 123000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 3,
+      "interval": 1.5
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "train",
+      "train": "highspeed",
+      "count": 1,
+      "interval": 2
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}

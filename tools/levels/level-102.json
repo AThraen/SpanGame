@@ -1,0 +1,57 @@
+{
+  "id": 102,
+  "campaign": "rail",
+  "name": "Mind the Kink",
+  "hint": "The bare track won't snap under a tram - it sags, and the tram derails on the kinks. Give every joint of the rail something to stand on: a wooden truss underneath keeps the track straight.",
+  "theme": "city",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 12,
+    "rightY": 0,
+    "floorY": -8,
+    "waterY": -5.5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 12,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -3
+    },
+    {
+      "x": 12,
+      "y": -3
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 12,
+    "y0": -3.5,
+    "y1": 3
+  },
+  "materials": [
+    "rail",
+    "wood"
+  ],
+  "budget": 4800,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "tram",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": false
+}

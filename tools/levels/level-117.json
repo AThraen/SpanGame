@@ -1,0 +1,83 @@
+{
+  "id": 117,
+  "campaign": "rail",
+  "name": "Stay Fast",
+  "hint": "Container ships pass right under the track, so nothing may hang below it over the channel. Raise two towers on the shoals and hold the deck up with straight steel stays - and keep it flat for the express.",
+  "theme": "tropical",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 120,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -26
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 120,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 120,
+      "y": -5
+    },
+    {
+      "x": -12,
+      "y": 0
+    },
+    {
+      "x": 132,
+      "y": 0
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 30,
+      "x1": 38
+    },
+    {
+      "x0": 82,
+      "x1": 90
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 40,
+      "x1": 80,
+      "y0": -26,
+      "y1": -1.5
+    }
+  ],
+  "buildArea": {
+    "x0": -14,
+    "x1": 134,
+    "y0": -8,
+    "y1": 36
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel",
+    "cable"
+  ],
+  "budget": 141000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "highspeed",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

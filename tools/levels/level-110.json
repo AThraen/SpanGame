@@ -1,0 +1,71 @@
+{
+  "id": 110,
+  "campaign": "rail",
+  "name": "Ash Valley",
+  "hint": "No ledges to spring an arch from - here the piers must be your abutments. Stand them near the banks, carry the short end spans on a little truss, and throw the stone between pier tops. Piers are priced by the metre, and two expresses are coming.",
+  "theme": "volcanic",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 48,
+    "rightY": 0,
+    "floorY": -20
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 48,
+      "y": 0
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 4,
+      "x1": 8
+    },
+    {
+      "x0": 14,
+      "x1": 18
+    },
+    {
+      "x0": 22,
+      "x1": 26
+    },
+    {
+      "x0": 30,
+      "x1": 34
+    },
+    {
+      "x0": 40,
+      "x1": 44
+    }
+  ],
+  "maxPiers": 4,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 48,
+    "y0": -19,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "masonry",
+    "wood",
+    "steel"
+  ],
+  "budget": 41000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_express",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

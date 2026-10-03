@@ -1,0 +1,72 @@
+{
+  "id": 116,
+  "campaign": "rail",
+  "name": "Smooth Operator",
+  "hint": "At 150 km/h a dip you can barely see throws the train off the rails, and the hammer of the wheels cracks stone. A bridge that merely holds is not enough: it has to stay flat.",
+  "theme": "meadow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 80,
+    "rightY": 0,
+    "floorY": -14,
+    "waterY": -11
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 80,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 80,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 17,
+      "x1": 23
+    },
+    {
+      "x0": 37,
+      "x1": 43
+    },
+    {
+      "x0": 57,
+      "x1": 63
+    }
+  ],
+  "maxPiers": 3,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 80,
+    "y0": -13,
+    "y1": 6
+  },
+  "materials": [
+    "rail",
+    "masonry",
+    "wood",
+    "steel"
+  ],
+  "budget": 70000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "highspeed",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 30,
+  "templates": true
+}

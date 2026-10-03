@@ -17,6 +17,7 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
    - **Road** and **reinforced road** are what vehicles drive on. The road must run continuously from bank to bank, and it bends at its joints: it needs a supported joint (a strut, hanger or chord) about every 5–6 m. **Wood** and **steel** are structural members. **Rope** and **cable** only carry tension. Pier tops are rigid concrete supports.
 4. **Test** (Space). Beams are coloured by live stress, from cool through yellow to red, and glow when above 85%. Hover a beam to see its force, stress and (for road) how much of it is bending. Overloaded members snap; the results say which member gave way first and why.
 5. **Optimise.** After a run, **Inspect** shows the peak stress each member reached, drawn on the bridge as built, with broken members marked. Back in the editor, hovering a beam shows its peak from the last test. Trim the members that stay white or green and reinforce the red ones.
+6. **Railway levels (Iron Road).** Trains derail on a kink between rail segments, a grade that is too steep, a broken or missing rail, or a bogie lifted off a crest. While a train runs, the **track recording** strip above the sim controls (`T`) plots the grade and kink at every rail joint against the red limit bands; the kink limit shrinks for fast trains. When a train derails, the action drops into slow motion, the offending wheel and rail segment pulse red, and a callout names the cause with numbers (for example "Kink 4.1° at 32 m/s — limit here is 1.9°"). The results show two verdicts, *Structure held* and *Train stayed on the rails*, plus a ride-quality card: worst grade, worst kink against its limit, peak sag and a smoothness grade from A to F. Masonry that is being pulled glows red with crack marks, live and in the peak view.
 
 **Pass** means every vehicle drives across to the far bank within the time limit and the cost is at or under budget. Over-budget bridges can still be tested, but they can't complete the level. A run fails when a vehicle falls, when a vehicle is launched across instead of driving (a ramp is not a bridge), when all traffic is stuck for 5 s, or at the time limit.
 
@@ -61,6 +62,8 @@ Your progress and your last design for each level are saved in `localStorage` au
 | `P` | Pause / resume |
 | `.` | Single step (while paused) |
 | `-` / `=` | Slower / faster (¼×, 1×, 2×, 4×, 8×) |
+| `F` | Camera follows the traffic |
+| `T` | Track recording strip on railway levels: grade and kink at every rail joint against the derail limits |
 | `Enter` (results) | Next level if passed, otherwise back to editing |
 
 ## Running it
@@ -90,6 +93,7 @@ js/ui/
   audio.js               BG.Audio - synthesized WebAudio SFX, engines, ambience (no audio files)
   storage.js             BG.Storage - settings, progress, saved designs (localStorage, try/catch)
   editor.js              BG.Editor - mouse/touch/keyboard construction tools
+  railinfo.js            BG.RailInfo - derailment explainer, track recording strip, ride-quality card (display only)
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
 assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint
@@ -120,6 +124,7 @@ node tools/test-physics.js     # 20 physics tests incl. exploits, stability & >=
 node tools/verify-levels.js    # all 50 levels, reference + best design each (see "Levels" below)
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-templates.js   # templates across synthetic + real levels
+node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
 node tools/e2e.js [outDir]     # full browser run; screenshots go to %TEMP%/span-e2e by default
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```

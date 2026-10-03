@@ -6,6 +6,9 @@
   const STEP = 1 / 60;
   const MAX_STEPS_PER_FRAME = 10;
   const TOGGLE_GUARD_MS = 380;
+  const DERAIL_SLOWMO = 0.5;   // s (real time) of slow motion when a train first derails
+  const DERAIL_SLOW = 0.08;    // sim speed during it
+  const DERAIL_EASE = 0.35;    // s to ease back to the chosen speed
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function nowMs() { return root.performance ? performance.now() : Date.now(); }
@@ -436,6 +439,8 @@
       // camera follow: on by default for long gaps, where vehicles are tiny; the player's toggle
       // sticks for the rest of this level
       this.followOn = gapOf(lv) > 60;
+      // track recording strip: on by default on railway levels (key T)
+      this.trackOn = campaignOf(lv) === 'rail';
       this._applyFollow(false);
       this._setState('edit');
       hudCall('showScreen', 'level');
@@ -587,6 +592,10 @@
       this._fx('clear');
       this._setState('sim');
       this._trainAudio = {};
+      this._derailFx = null;
+      this._trackProf = null;
+      this._trackRec = BG.RailInfo && sim.ride ? new BG.RailInfo.Recorder(sim) : null;
+      hudCall('hideDerail');
       this._applyFollow(!!this.followOn);
       hudCall('setMode', 'sim');
       hudCall('hideResults');
@@ -620,6 +629,36 @@
       hudCall('toast', this.followOn ? 'Camera follows the traffic' : 'Camera follow off', 'info', 1400);
     },
     setFollow(on) { if (!!on !== !!this.followOn) this.toggleFollow(); },
+    // ---------------------------------------------------------------- track recording strip (rail)
+    hasTrack() { return campaignOf(this.level) === 'rail'; },
+    toggleTrack() {
+      if (!this.level || !this.hasTrack()) return;
+      this.trackOn = !this.trackOn;
+      sfx('toggle', { on: this.trackOn });
+      hudCall('toast', this.trackOn ? 'Track recording on' : 'Track recording off', 'info', 1400);
+    },
+    /** what the HUD's track strip draws this frame (null = hidden) */
+    getTrackStrip() {
+      const sim = this.sim;
+      if (!this.trackOn || !sim || !sim.ride || (this.state !== 'sim' && this.state !== 'results')) return null;
+      const RI = BG.RailInfo;
+      if (!RI) return null;
+      const prof = this._trackProf || (this._trackProf = safe(() => RI.profile(sim), null));
+      const fx = this._derailFx;
+      return { sim, rec: this._trackRec, profile: prof, derail: fx && fx.info ? { x: fx.info.x } : null };
+    },
+    /** the derailment highlight for the renderer: offending wheel (live) + rail segment(s) */
+    getDerailMarker() {
+      const fx = this._derailFx, sim = this.sim;
+      if (!fx || !sim) return null;
+      const info = fx.info || {}, ev = fx.ev || {};
+      let wx = info.x, wy = info.y;
+      const v = sim.vehicles && sim.vehicles[ev.i];
+      const c = v && v.cars && v.cars[ev.car];
+      const w = c && c.wheels && fx.detail && c.wheels[fx.detail.wheel];
+      if (w && isFinite(w.x) && isFinite(w.y)) { wx = w.x; wy = w.y; }
+      return { x: wx, y: wy, r: w ? w.r : 0.45, seg: info.seg, segPrev: info.segPrev, age: fx.age || 0, reason: info.reason };
+    },
     stopSim() {
       if (this.state !== 'sim' && this.state !== 'results') return;
       if (!this._guard()) return;
@@ -638,6 +677,8 @@
       this._fx('clear');
       this._setState('edit');
       this._applyFollow(false);
+      this._derailFx = null;
+      hudCall('hideDerail');
       if (this.editor) { this.editor.chainFrom = null; safe(() => this.editor.attach && this.editor.attach(this.canvas)); }
       hudCall('hideResults');
       hudCall('setMode', 'edit');
@@ -714,6 +755,12 @@
         case 'vehicle_fall': shake(0.35); break;
         case 'derail': {
           const v = sim.vehicles && sim.vehicles[ev.i];
+          if (!this._derailFx && sim === this.sim && BG.RailInfo) {
+            const car = v && v.cars ? v.cars[ev.car] : null;
+            const info = safe(() => BG.RailInfo.explain(ev.detail, sim, this.level, this.getDesign(), car), null);
+            this._derailFx = { t0: nowMs(), age: 0, ev, detail: ev.detail || null, info, fresh: true };
+            if (info) hudCall('showDerail', info);
+          }
           if (withAudio) sfx('derail', { pan, heavy: v ? clamp(this._trainMass(v) / 1.5e6, 0, 1) : 0.5 });
           shake(0.75);
           break;
@@ -852,11 +899,28 @@
     _updateSim(dt) {
       const sim = this.sim;
       if (!sim) return;
+      // freeze-frame: the first derailment drops to slow motion for half a second, then eases back
+      const fz = this._derailFx;
+      // (aged by frame dt, not the wall clock, so scripted/headless runs pass through it too)
+      const fzAge = fz ? fz.age : Infinity;
+      if (fz) fz.age += Math.min(0.1, dt || 0);
+      let scale = this.speed;
+      if (fzAge < DERAIL_SLOWMO) scale = Math.min(scale, DERAIL_SLOW);
+      else if (fzAge < DERAIL_SLOWMO + DERAIL_EASE) scale = Math.min(scale, DERAIL_SLOW + (scale - DERAIL_SLOW) * (fzAge - DERAIL_SLOWMO) / DERAIL_EASE);
+      this._simScale = scale;
       if (!this.paused) {
-        this._acc += dt * this.speed;
+        this._acc += dt * scale;
         let n = 0;
-        while (this._acc >= STEP && n < MAX_STEPS_PER_FRAME) { this._stepSim(); this._acc -= STEP; n++; }
+        while (this._acc >= STEP && n < MAX_STEPS_PER_FRAME) {
+          this._stepSim(); this._acc -= STEP; n++;
+          // stop on the derailing step so the freeze-frame starts exactly there
+          if (this._derailFx && this._derailFx.fresh) { this._derailFx.fresh = false; this._acc = 0; break; }
+        }
         if (n >= MAX_STEPS_PER_FRAME) this._acc = 0;
+      }
+      if (this._trackRec && BG.RailInfo) {
+        this._trackProf = safe(() => BG.RailInfo.profile(sim), null);
+        if (this._trackProf && !this.paused) this._trackRec.sample(this._trackProf);
       }
       // engines (road vehicles) and trains
       if (BG.Audio) {
@@ -878,7 +942,7 @@
       let status = sim.status;
       if (status === 'running' && lv && lv.timeLimit && sim.time > lv.timeLimit + 3) status = 'failed';
       if (status && status !== 'running') {
-        if (!this.paused) this._endTimer += dt * Math.max(0.5, this.speed);
+        if (!this.paused && fzAge > DERAIL_SLOWMO + DERAIL_EASE) this._endTimer += dt * Math.max(0.5, this.speed);
         if (this._endTimer > (status === 'success' ? 1.1 : 2.2)) this._finishRun(status);
       }
     },
@@ -915,13 +979,18 @@
         title = 'Over budget';
         text = 'Everything made it across, but the bridge is ' + money(cost - budget) + ' over budget. Trim some material and test again.';
       } else if (reason === 'derailed') {
-        const lim = Object.assign({ maxGrade: 0.04, maxKinkDeg: 3 }, lv.rail || {});
+        const lim = Object.assign({}, BG.RailRules || { maxGrade: 0.06, maxKinkDeg: 4 }, sim.railRules || lv.rail || {});
         const dt = vehicles.find(v => isTrain(v) && (v.state === 'derailed' || (v.cars || []).some(c => c && c.state === 'derailed')));
         const what = dt ? simVehicleName(dt) : 'train';
+        const info = this._derailFx && this._derailFx.info;
         title = broken > 0 ? 'Derailed — and the bridge gave way!' : 'Derailed!';
-        text = 'The ' + what.toLowerCase() + ' came off the rails. Trains are far fussier than cars: keep the track grade under ' +
-          Math.round(lim.maxGrade * 1000) / 10 + '% and the bend between rail segments under ' + lim.maxKinkDeg + '°. ' +
-          (broken > 0 ? 'A broken or missing rail under a wheel derails it instantly — check the red members.' : 'Stiffen the deck so it sags less under the load, and avoid sharp kinks at the bridge ends.');
+        // a broken rail is explained by the first-break line appended below
+        if (info && info.cause) text = info.cause + (info.at === 'broken' && (sum.firstBreak || sim.firstBreak) ? '' : ' ' + (info.advice || ''));
+        else {
+          text = 'The ' + what.toLowerCase() + ' came off the rails. Trains are far fussier than cars: keep the track grade under ' +
+            Math.round(lim.maxGrade * 1000) / 10 + '% and the bend between rail segments under ' + lim.maxKinkDeg + '°. ' +
+            (broken > 0 ? 'A broken or missing rail under a wheel derails it instantly — check the red members.' : 'Stiffen the deck so it sags less under the load, and avoid sharp kinks at the bridge ends.');
+        }
       } else if (reason === 'vehicle_fell') {
         const fell = vehicles.find(v => v.state === 'fallen' || (isTrain(v) && (v.cars || []).some(c => c && c.state === 'fallen')));
         const what = (fell ? simVehicleName(fell) : 'vehicle').toLowerCase();
@@ -967,6 +1036,8 @@
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
         finale: passed && isCampaignFinale(lv), campaign,
         railUnlocked: !railWasOpen && railNowOpen && campaignLevels('rail').length > 0,
+        rail: BG.RailInfo && sim.ride ? safe(() => BG.RailInfo.rideCard(sim, sum), null) : null,
+        derail: this._derailFx && this._derailFx.info ? this._derailFx.info : null,
       };
       this.lastResult = res;
       this._setState('results');
@@ -1192,7 +1263,8 @@
           editorState: this.editor ? this.editor.state : null, dt,
           showStress: s.showStress !== false, peakView: mode === 'results', showGrid: s.showGrid !== false,
           undeformed: mode === 'results' && !!safe(() => { const H = hud(); return H && H.resultsInspecting && H.resultsInspecting(); }, false),
-          paused: this.paused, timeScale: mode === 'sim' ? this.speed : 1,
+          paused: this.paused, timeScale: mode === 'sim' ? (this._simScale != null ? this._simScale : this.speed) : 1,
+          derail: mode === 'edit' ? null : safe(() => this.getDerailMarker(), null),
         };
       } else return;
       if (this.effects) opts.effects = this.effects;
@@ -1255,6 +1327,7 @@
       if (st === 'sim' || st === 'results') {
         if (k === 'r') { e.preventDefault(); this.restartSim(); }
         else if (k === 'f') { e.preventDefault(); this.toggleFollow(); }
+        else if (k === 't') { e.preventDefault(); this.toggleTrack(); }
         else if (st === 'sim' && k === 'p') this.togglePause();
         else if (st === 'sim' && (k === '.' || k === 'n')) this.stepOnce();
         else if (st === 'sim' && (k === '-' || k === '_')) { const S = [0.25, 1, 2, 4, 8]; this.setSpeed(S[Math.max(0, S.indexOf(this.speed) - 1)]); }

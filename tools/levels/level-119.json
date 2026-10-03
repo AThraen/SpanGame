@@ -1,0 +1,77 @@
+{
+  "id": 119,
+  "campaign": "rail",
+  "name": "Whiteout Express",
+  "hint": "Fourteen coaches at full speed over a frozen gorge. The whole train is on the bridge at once and every millimetre of sag is a kink at 150 km/h. Depth is stiffness.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 130,
+    "rightY": 0,
+    "floorY": -46,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 130,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 130,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 130,
+      "y": -16
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 38,
+      "x1": 48
+    },
+    {
+      "x0": 82,
+      "x1": 92
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 130,
+    "y0": -24,
+    "y1": 16
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel",
+    "cable",
+    "girder"
+  ],
+  "budget": 207000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "highspeed_long",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 30,
+  "templates": true
+}

@@ -1,0 +1,66 @@
+{
+  "id": 111,
+  "campaign": "rail",
+  "name": "Commuter Belt",
+  "hint": "A commuter set is longer than the gap, so the whole span is loaded at once. Go deep: a tall steel truss under the track carries the load in its chords, and the track itself stays smooth.",
+  "theme": "city",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 50,
+    "rightY": 0,
+    "floorY": -22,
+    "waterY": -18
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 50,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 50,
+      "y": -5
+    },
+    {
+      "x": 0,
+      "y": -10
+    },
+    {
+      "x": 50,
+      "y": -10
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 50,
+    "y0": -12,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel"
+  ],
+  "budget": 52500,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "commuter",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

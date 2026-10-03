@@ -64,6 +64,7 @@
     coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.6 0-2.7.8-2.7 2s1.1 1.6 2.7 2 2.7.9 2.7 2.1-1.1 1.9-2.7 1.9c-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5"/>',
     road: '<path d="M4 21L9 3M20 21L15 3"/><path d="M12 5v2.5M12 11v2.5M12 17v2.5"/>',
     train: '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13" r=".6" fill="currentColor"/><circle cx="15" cy="13" r=".6" fill="currentColor"/><path d="M8 16l-3 5M16 16l3 5M6.5 19h11"/>',
+    track: '<path d="M3 18h18"/><path d="M3 14l4-3 4 2 4-6 6 4"/><path d="M6 18v2M12 18v2M18 18v2"/>',
     follow: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/><circle cx="12" cy="12" r="7.5"/>',
   };
   function icon(name, cls) {
@@ -597,6 +598,7 @@
           <div class="tpl-menu glass" data-ref="tplMenu"></div>
 
           <div class="dock">
+            <div class="track-strip glass" data-ref="track" title="Track recording: grade and kink at every rail joint, red above the derail limit (T)"><canvas data-ref="trackCanvas"></canvas></div>
             <div class="palette glass" data-ref="palette"></div>
             <div class="simbar glass" data-ref="simbar">
               <button class="btn btn-ghost sb-btn" data-act="edit" title="Back to editing (Space)">${icon('pencil')}<span>Edit</span></button>
@@ -612,6 +614,7 @@
               <div class="sb-stat">${icon('flag')}<b data-ref="simVeh">0/0</b><span>across</span></div>
               <div class="sb-sep"></div>
               <button class="btn btn-ghost sb-btn toggle" data-act="follow" title="Camera follows the traffic (F)">${icon('follow')}<span>Follow</span></button>
+              <button class="btn btn-ghost sb-btn toggle" data-act="track" title="Track recording strip (T)">${icon('track')}<span>Track</span></button>
               <button class="btn btn-ghost sb-btn toggle" data-act="stress" title="Stress overlay">${icon('stress')}<span>Stress</span></button>
             </div>
           </div>
@@ -626,12 +629,19 @@
             <button class="btn btn-icon btn-ghost sm" data-act="hideHint" title="Dismiss">${icon('close')}</button>
           </div>
 
+          <div class="derail-callout" data-ref="derail" aria-live="assertive">
+            <div class="dc-card glass"><div class="dc-head"><span class="dc-dot"></span><b data-ref="dcTitle">Derailed!</b><small data-ref="dcCar"></small></div>
+              <p class="dc-cause" data-ref="dcCause"></p><p class="dc-advice" data-ref="dcAdvice"></p></div>
+            <span class="dc-stem"></span>
+          </div>
+
           <div class="results" data-ref="results">
             <div class="results-card glass">
               <div class="res-banner" data-ref="resBanner"></div>
               <div class="res-stars" data-ref="resStars">${starSvg()}${starSvg('mid')}${starSvg()}</div>
               <h2 data-ref="resTitle">Bridge passed!</h2>
               <p class="res-reason" data-ref="resReason"></p>
+              <div class="res-rail" data-ref="resRail" hidden></div>
               <div class="res-stats" data-ref="resStats"></div>
               <div class="res-budget" data-ref="resBudget"><div class="rb-bar"><div class="rb-fill"></div><span class="tick t70"></span><span class="tick t85"></span><span class="rb-cap"></span></div></div>
               <div class="res-actions">
@@ -656,7 +666,8 @@
       this.el.level = el;
       const r = s => $('[data-ref=' + s + ']', el);
       ['lvlNum', 'lvlName', 'lvlSub', 'budget', 'cost', 'budgetV', 'fill', 'traffic', 'rail', 'tplWrap', 'tplMenu', 'palette', 'simbar', 'speed',
-        'simTime', 'simLimit', 'simVeh', 'hint', 'hintText', 'results', 'resBanner', 'resStars', 'resTitle', 'resReason', 'resStats', 'resBudget', 'pillText']
+        'simTime', 'simLimit', 'simVeh', 'hint', 'hintText', 'results', 'resBanner', 'resStars', 'resTitle', 'resReason', 'resStats', 'resBudget', 'pillText',
+        'track', 'trackCanvas', 'derail', 'dcTitle', 'dcCar', 'dcCause', 'dcAdvice', 'resRail']
         .forEach(k => { this.el[k] = r(k); });
       this.el.test = $('.test-btn', el);
       return el;
@@ -699,6 +710,7 @@
         case 'pause': sfx('click'); call('togglePause'); break;
         case 'step': sfx('click'); call('stepOnce'); break;
         case 'follow': call('toggleFollow'); break;
+        case 'track': call('toggleTrack'); break;
         case 'stress': { const g = game(); call('setSetting', 'showStress', !(g.settings && g.settings.showStress)); sfx('toggle', { on: game().settings && game().settings.showStress }); break; }
         case 'inspect': sfx('whoosh'); this.el.results.classList.add('inspecting'); break;
         case 'uninspect': sfx('whoosh'); this.el.results.classList.remove('inspecting'); break;
@@ -746,6 +758,9 @@
       // camera follow toggle (only when the renderer can follow)
       const fb = $('[data-act=follow]', this.el.simbar);
       if (fb) fb.hidden = !call('hasFollow');
+      const tb = $('[data-act=track]', this.el.simbar);
+      if (tb) tb.hidden = camp !== 'rail';
+      this.hideDerail();
       this._sig.sim = null;
 
       // palette
@@ -853,7 +868,11 @@
     // ---------------------------------------------------------------- per-frame update
     update(dt) {
       const g = game();
-      if (this.screen !== 'level' || !this.level) { this.hideTooltipIfAny(); return; }
+      if (this.screen !== 'level' || !this.level) {
+        this.hideTooltipIfAny();
+        if (this.el.track && this.el.track.classList.contains('show')) { this.el.track.classList.remove('show'); document.body.classList.remove('track-on'); }
+        return;
+      }
       dt = Math.min(0.1, dt || 0.016);
       const lv = this.level;
       const ed = g.editor;
@@ -921,7 +940,7 @@
         const t = sim ? (+sim.time || 0) : 0;
         const vt = sim && sim.vehicles ? sim.vehicles.length : 0;
         const vf = sim && sim.vehicles ? sim.vehicles.filter(v => v.state === 'finished').length : 0;
-        const sigS = t.toFixed(1) + '|' + vf + '/' + vt + '|' + !!g.paused + '|' + g.speed + '|' + !!(g.settings && g.settings.showStress) + '|' + !!g.followOn;
+        const sigS = t.toFixed(1) + '|' + vf + '/' + vt + '|' + !!g.paused + '|' + g.speed + '|' + !!(g.settings && g.settings.showStress) + '|' + !!g.followOn + '|' + !!g.trackOn;
         if (this._sig.sim !== sigS) {
           this._sig.sim = sigS;
           this.el.simTime.textContent = t.toFixed(1);
@@ -935,14 +954,111 @@
           $$('[data-speed]', this.el.speed).forEach(b => b.classList.toggle('active', +b.dataset.speed === +g.speed));
           $('[data-act=stress]', this.el.simbar).classList.toggle('on', !!(g.settings && g.settings.showStress));
           $('[data-act=follow]', this.el.simbar).classList.toggle('on', !!g.followOn);
+          $('[data-act=track]', this.el.simbar).classList.toggle('on', !!g.trackOn);
           this.el.simTime.parentElement.classList.toggle('warn', tl && t > tl * 0.9);
         }
       }
+
+      // track recording strip + derailment callout (rail levels)
+      this._updateRail();
 
       // tooltip
       const info = call('getHoverInfo');
       if (info) this.showTooltip(info);
       else this.hideTooltip();
+    },
+
+    // ---------------------------------------------------------------- rail: track strip + derail callout
+    _updateRail() {
+      const g = game();
+      const RI = BG.RailInfo;
+      const strip = this.el.track;
+      if (strip) {
+        const inspecting = this.mode === 'results' && this.resultsInspecting();
+        const ts = RI && (this.mode === 'sim' || inspecting) ? call('getTrackStrip') : null;
+        const show = !!ts;
+        if (strip.classList.contains('show') !== show) { strip.classList.toggle('show', show); document.body.classList.toggle('track-on', show); }
+        if (show) {
+          // the kink limit band follows the train's speed (eased so it slides rather than jumps)
+          const sp = RI.trainSpans(ts.sim).filter(t => !t.derailed && t.state === 'driving');
+          const v = sp.length ? Math.max.apply(null, sp.map(t => t.speed)) : (this._trackSpeed || 0);
+          this._trackSpeed = v;
+          const want = RI.kinkLimit(ts.sim, v);
+          const cur = this._trackLim == null || this._trackSim !== ts.sim ? want : this._trackLim;
+          this._trackLim = cur + (want - cur) * 0.15;
+          this._trackSim = ts.sim;
+          try { RI.drawStrip(this.el.trackCanvas, ts.sim, ts.rec, { profile: ts.profile, limitKink: this._trackLim, speed: v, derail: ts.derail }); } catch (e) { console.error(e); }
+        }
+      }
+      // callout follows the offending wheel on screen
+      const dc = this.el.derail;
+      if (dc && dc.classList.contains('show')) {
+        if (this.mode !== 'sim') { dc.classList.remove('show'); return; }
+        const m = call('getDerailMarker');
+        const r = g.renderer;
+        if (m && r && r.worldToScreen && isFinite(m.x)) {
+          const p = r.worldToScreen(m.x, m.y);
+          const W = root.innerWidth, H = root.innerHeight;
+          const card = dc.firstElementChild;
+          const cw = card.offsetWidth || 320, chh = card.offsetHeight || 90;
+          const stem = 54;
+          let x = clamp(p.x - cw / 2, 16, W - cw - 16);
+          let y = p.y - stem - chh;
+          const top = 92;
+          let below = false;
+          if (y < top) { y = Math.min(H - chh - 170, p.y + stem); below = true; }
+          dc.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+          dc.classList.toggle('below', below);
+          const sx = clamp(p.x - x, 18, cw - 18);
+          const st = dc.lastElementChild;
+          st.style.left = Math.round(sx) + 'px';
+          st.style.height = Math.max(0, below ? y - p.y - 6 : p.y - (y + chh) - 6) + 'px';
+        }
+      }
+    },
+    // info: BG.RailInfo.explain(...) {title, car, cause, advice}
+    showDerail(info) {
+      const dc = this.el.derail;
+      if (!dc || !info) return;
+      this.el.dcTitle.textContent = info.title || 'Derailed!';
+      this.el.dcCar.textContent = info.car || '';
+      this.el.dcCause.textContent = info.cause || '';
+      this.el.dcAdvice.textContent = info.advice || '';
+      dc.classList.remove('show'); void dc.offsetWidth;
+      dc.classList.add('show');
+    },
+    hideDerail() { if (this.el.derail) this.el.derail.classList.remove('show'); },
+
+    // rail results: two verdicts + ride-quality score card
+    _railResults(res) {
+      const el = this.el.resRail;
+      if (!el) return;
+      const c = res.rail;
+      el.hidden = !c;
+      if (!c) { el.innerHTML = ''; return; }
+      const RI = BG.RailInfo;
+      const pct = (v, fx) => RI ? RI.pct(v, fx) : String(Math.round(v * 1000) / 10);
+      const deg = (v, fx) => RI ? RI.deg(v, fx) : String(Math.round(v * 573) / 10);
+      const tick = ok => '<i class="rv-ico ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + '</i>';
+      const verdict = (ok, label, sub) => '<div class="rv ' + (ok ? 'ok' : 'no') + '">' + tick(ok) + '<span><b>' + esc(label) + '</b><small>' + esc(sub) + '</small></span></div>';
+      const d = res.derail;
+      const structSub = c.structureOk ? 'No member broke' : c.broken + ' member' + (c.broken === 1 ? '' : 's') + ' broke';
+      const railSub = c.railsOk ? 'Every car stayed on the track' : (d ? (d.car ? d.car + ' · ' : '') + (d.title || 'derailed').replace(/!$/, '').toLowerCase() : 'A car came off the rails');
+      const cls = r => (r > 1 ? 'bad' : r > 0.8 ? 'warn' : 'good');
+      const kinkSub = 'limit ' + deg(c.kinkLim) + '°' + (c.kinkSpeed > 0.5 ? ' at ' + Math.round(c.kinkSpeed) + ' m/s' : '');
+      const tiles = [
+        ['Worst grade', pct(c.grade, true) + '%', 'limit ' + pct(c.gradeLim) + '%', cls(c.gradeRatio)],
+        ['Worst kink', deg(c.kink, true) + '°', kinkSub, cls(c.kinkRatio)],
+        ['Peak sag', (Math.round(c.sag * 100) / 100).toFixed(2) + ' m', 'rail joints', ''],
+      ];
+      const lt = c.letter;
+      const ltCls = lt === 'A' || lt === 'B' ? 'good' : lt === 'C' ? 'warn' : 'bad';
+      const ltSub = lt === 'F' ? 'derailed' : lt === 'A' ? 'silky smooth' : lt === 'B' ? 'smooth' : lt === 'C' ? 'bumpy' : 'rough ride';
+      el.innerHTML = '<div class="rv-row">' + verdict(c.structureOk, 'Structure held', structSub) + verdict(c.railsOk, 'Train stayed on the rails', railSub) + '</div>' +
+        '<div class="ride-card"><div class="rc-head">Ride quality</div><div class="rc-tiles">' +
+        tiles.map(t => '<div class="rc-t"><span>' + t[0] + '</span><b class="' + t[3] + '">' + t[1] + '</b><small>' + esc(t[2]) + '</small></div>').join('') +
+        '<div class="rc-t rc-grade"><span>Smoothness</span><b class="' + ltCls + '">' + lt + '</b><small>' + ltSub + '</small></div>' +
+        '</div></div>';
     },
 
     // ---------------------------------------------------------------- tooltip
@@ -983,6 +1099,9 @@
       this.el.resBanner.textContent = res.passed ? (res.stars === 3 ? 'Masterpiece' : res.improved ? 'New best' : 'Level complete') : (res.simOk ? 'Over budget' : 'Bridge failed');
       this.el.resTitle.textContent = res.title;
       this.el.resReason.textContent = res.reasonText || '';
+      this.hideDerail();
+      this._railResults(res);
+      el.classList.toggle('is-rail', !!res.rail);
       const stars = $$('.star', this.el.resStars);
       stars.forEach(s => s.classList.remove('on', 'pop'));
       const pct = res.budget ? res.cost / res.budget : 0;
@@ -1062,7 +1181,7 @@
             <label class="set-row"><span>${icon('grid')}Build grid</span><input type="checkbox" class="switch" data-set="showGrid"></label>
             <div class="set-row keys"><span>Shortcuts</span><div class="kb">
               <span><kbd>1</kbd>–<kbd>6</kbd> material</span><span><kbd>B</kbd> build</span><span><kbd>E</kbd> erase</span><span><kbd>P</kbd> pier</span><span><kbd>S</kbd> select</span><span><kbd>M</kbd> mirror</span>
-              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo</span><span><kbd>Shift</kbd> fine snap</span><span><kbd>Ctrl</kbd>+drag move joint</span><span><kbd>Del</kbd> delete selection</span><span><kbd>Space</kbd> test / stop</span><span><kbd>R</kbd> restart test</span><span><kbd>P</kbd> pause (test)</span><span><kbd>Wheel</kbd> zoom · <kbd>F</kbd> fit</span><span><kbd>F</kbd> follow traffic (test)</span><span>Right-drag pan</span><span><kbd>Esc</kbd> back</span></div></div>
+              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo</span><span><kbd>Shift</kbd> fine snap</span><span><kbd>Ctrl</kbd>+drag move joint</span><span><kbd>Del</kbd> delete selection</span><span><kbd>Space</kbd> test / stop</span><span><kbd>R</kbd> restart test</span><span><kbd>P</kbd> pause (test)</span><span><kbd>Wheel</kbd> zoom · <kbd>F</kbd> fit</span><span><kbd>F</kbd> follow traffic (test)</span><span><kbd>T</kbd> track recording (rail test)</span><span>Right-drag pan</span><span><kbd>Esc</kbd> back</span></div></div>
             <div class="modal-foot"><button class="btn btn-ghost danger" data-act="reset">Reset progress</button><button class="btn btn-primary" data-act="close">Done</button></div>
           </div>
         </div>`);

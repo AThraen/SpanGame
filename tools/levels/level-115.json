@@ -1,0 +1,78 @@
+{
+  "id": 115,
+  "campaign": "rail",
+  "name": "Heavy Metal",
+  "hint": "The ore train and a long freight, one after the other, over a hundred metres. A rock in the river is the only footing: make it count.",
+  "theme": "autumn",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -36,
+    "waterY": -32
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 100,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 100,
+      "y": -16
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 45,
+      "x1": 55
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 100,
+    "y0": -20,
+    "y1": 12
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel",
+    "girder"
+  ],
+  "budget": 257000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "freight_long",
+      "count": 1,
+      "interval": 3
+    },
+    {
+      "type": "train",
+      "train": "ore",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 90,
+  "templates": true
+}

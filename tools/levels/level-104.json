@@ -1,0 +1,58 @@
+{
+  "id": 104,
+  "campaign": "rail",
+  "name": "Full Steam",
+  "hint": "A steam train weighs seven trams. Wood buckles under it - steel takes the squeeze. Keep the deck stiff enough that the loco's heavy driving wheels never feel a dip.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 18,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -7
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 18,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 18,
+      "y": -4
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 18,
+    "y0": -4.5,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel"
+  ],
+  "budget": 12500,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_local",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

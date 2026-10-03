@@ -1,0 +1,67 @@
+{
+  "id": 114,
+  "campaign": "rail",
+  "name": "Iron Mountain",
+  "hint": "Two thousand tonnes of ore and nowhere to stand a pier. Box girders are the only steel strong enough: keep the track off the main chords on short posts and let a deep girder truss do the work.",
+  "theme": "canyon",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 60,
+    "rightY": 0,
+    "floorY": -40,
+    "waterY": null
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 60,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -8
+    },
+    {
+      "x": 60,
+      "y": -8
+    },
+    {
+      "x": 0,
+      "y": -16
+    },
+    {
+      "x": 60,
+      "y": -16
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 60,
+    "y0": -18,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel",
+    "girder"
+  ],
+  "budget": 152000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "ore",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 60,
+  "templates": true
+}

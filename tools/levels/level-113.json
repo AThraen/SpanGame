@@ -1,0 +1,80 @@
+{
+  "id": 113,
+  "campaign": "rail",
+  "name": "Cantilever Firth",
+  "hint": "Ships need the middle of the firth, so the bridge can only be shallow there. Stand two piers on each island and grow deep cantilever arms out from them, above and below the track; a short span joins the arms over the channel.",
+  "theme": "snow",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 90,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -25
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 90,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -6
+    },
+    {
+      "x": 90,
+      "y": -6
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 17,
+      "x1": 27
+    },
+    {
+      "x0": 63,
+      "x1": 73
+    }
+  ],
+  "maxPiers": 4,
+  "noBuild": [
+    {
+      "x0": 35,
+      "x1": 55,
+      "y0": -25,
+      "y1": -3
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 90,
+    "y0": -16,
+    "y1": 14
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel"
+  ],
+  "budget": 119000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "freight_short",
+      "count": 1,
+      "interval": 3
+    },
+    {
+      "type": "train",
+      "train": "freight_long",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 70,
+  "templates": true
+}

@@ -1,0 +1,102 @@
+{
+  "id": 120,
+  "campaign": "rail",
+  "name": "Grand Terminus",
+  "hint": "Everything at once: road traffic on a lower deck, the express at full speed and the ore train last of all, over a shipping channel with two rocky islands. Build it heavy, build it flat.",
+  "theme": "volcanic",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 140,
+    "rightY": 0,
+    "floorY": -44,
+    "waterY": -38
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 140,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -5
+    },
+    {
+      "x": 140,
+      "y": -5
+    },
+    {
+      "x": 0,
+      "y": -14
+    },
+    {
+      "x": 140,
+      "y": -14
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 36,
+      "x1": 46
+    },
+    {
+      "x0": 94,
+      "x1": 104
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 52,
+      "x1": 88,
+      "y0": -38,
+      "y1": -16
+    }
+  ],
+  "buildArea": {
+    "x0": 0,
+    "x1": 140,
+    "y0": -20,
+    "y1": 20
+  },
+  "materials": [
+    "rail",
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "girder",
+    "cable"
+  ],
+  "budget": 476000,
+  "traffic": [
+    {
+      "type": "car",
+      "count": 2,
+      "interval": 1.5
+    },
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 2.5
+    },
+    {
+      "type": "train",
+      "train": "highspeed_long",
+      "count": 1,
+      "interval": 2
+    },
+    {
+      "type": "train",
+      "train": "ore",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 100,
+  "templates": true
+}

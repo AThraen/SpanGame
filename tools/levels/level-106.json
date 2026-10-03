@@ -1,0 +1,59 @@
+{
+  "id": 106,
+  "campaign": "rail",
+  "name": "Push, Don't Pull",
+  "hint": "Stone is cheap and nearly unbreakable when squeezed, but a flat stone girder cracks along its bottom - masonry can't be pulled. Spring an arch from the low ledges, stand stone posts on it, and brace the spandrels.",
+  "theme": "canyon",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 26,
+    "rightY": 0,
+    "floorY": -18,
+    "waterY": -16
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 26,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -7
+    },
+    {
+      "x": 26,
+      "y": -7
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 26,
+    "y0": -8,
+    "y1": 4
+  },
+  "materials": [
+    "rail",
+    "masonry",
+    "wood",
+    "steel"
+  ],
+  "budget": 13000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_local",
+      "count": 1,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

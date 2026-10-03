@@ -1,0 +1,57 @@
+{
+  "id": 105,
+  "campaign": "rail",
+  "name": "Branch Closer",
+  "hint": "Two trains, back to back, and only a shallow ledge below the track. Go deep above the rail, below it, or both - the deeper the truss, the less it sags.",
+  "theme": "desert",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 24,
+    "rightY": 0,
+    "floorY": -12
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 24,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -2
+    },
+    {
+      "x": 24,
+      "y": -2
+    }
+  ],
+  "pierZones": [],
+  "maxPiers": 0,
+  "noBuild": [],
+  "buildArea": {
+    "x0": 0,
+    "x1": 24,
+    "y0": -2.5,
+    "y1": 6
+  },
+  "materials": [
+    "rail",
+    "wood",
+    "steel"
+  ],
+  "budget": 23000,
+  "traffic": [
+    {
+      "type": "train",
+      "train": "steam_local",
+      "count": 2,
+      "interval": 4
+    }
+  ],
+  "timeLimit": 50,
+  "templates": true
+}
