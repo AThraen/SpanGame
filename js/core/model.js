@@ -243,14 +243,16 @@
     for (const r of E.rects) if (pointInRect(x, y, r)) return true;
     return false;
   }
-  /** Does a member cross the roadway envelope? Road / rail deck members are exempt, and so are members
-   *  that end at an inland anchor (anchorage stays run beside the carriageway into their deadman). */
+  /** Does a member cross the roadway envelope? The only exemption: a tension-only member (rope, cable)
+   *  that ends at an inland anchor - an anchorage stay running beside the carriageway into its deadman.
+   *  Everything else that crosses is refused, decks included: a deck lying on the road surface does not
+   *  cross (the band is open), while a road / steel strut through the traffic (e.g. propping a land pylon
+   *  from the road anchor instead of guying it back) or a ramp over the road would. */
   function beamInRoadway(level, aId, bId, x1, y1, x2, y2, m, env) {
     const E = env === undefined ? roadEnvelope(level) : env;
     if (!E) return false;
     const mat = mats()[m];
-    if (mat && (mat.isRoad || mat.isRail)) return false;
-    if (isInlandAnchorId(level, aId) || isInlandAnchorId(level, bId)) return false;
+    if (mat && mat.tensionOnly && (isInlandAnchorId(level, aId) || isInlandAnchorId(level, bId))) return false;
     for (const r of E.rects) if (segmentHitsRect(x1, y1, x2, y2, r)) return true;
     return false;
   }

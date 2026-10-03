@@ -677,6 +677,8 @@
           if (a.bank !== bank || (left ? a.x > x - 1 : a.x < x + 1)) continue;
           const l = hyp(a.x - x, a.y - top);
           if (l > c.tMax * 0.995 || Math.abs(a.x - x) < 2) continue;
+          // only a tension-only backstay may cross the roadway envelope into its anchor (BG.Model.beamInRoadway)
+          if (BG.Model.beamInRoadway(c.level, 'p', 'a' + a.i, x, top, a.x, a.y, c.tension, c.env)) continue;
           const d = Math.abs(a.x - x);
           if (d > ad) { ad = d; ai = a.i; }
         }

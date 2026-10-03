@@ -766,7 +766,10 @@ working from `file://` and without storage.
 - Building: magnifier loupe while dragging, optional offset cursor (aim 64 px above the finger), larger
   touch snap / pick radius (wraps `Editor.prototype._magR` / `_pickR`), long-press + lift = context menu
   (delete joint / beam / pier, stop chain, undo, erase tool, fit view); long-press + drag still moves a joint.
-- Camera: pinch / two-finger pan in the editor; one-finger pan and pinch in the sim view.
+- Camera: pinch / two-finger pan in the editor; one-finger pan and pinch in the sim view. Opening a level fits it
+  to the touch HUD (`BG.Mobile.fitLevel`, insets from the top bar, rail and chip / palette) measured where those
+  panels rest in edit mode: their CSS slide transform is taken off, since after a test (Next, Build) the rail is
+  still sliding back in and would otherwise read as ~0 px wide, putting the level's left end under it.
 - Haptics via `navigator.vibrate` on snap / place / break; fullscreen button (title, top bar except phone
   portrait, Settings); hints and toasts reworded for touch (`BG.Mobile.touchText`); Settings shows a
   gesture guide instead of keyboard shortcuts. Settings keys: `loupe`, `offsetCursor`, `haptics`, `perfMode`.
@@ -869,7 +872,7 @@ roadClearance: true | 5.5 | false                    // force the envelope on / 
   `'edge'` (every other anchor: road anchors, cliff-face anchors), `'inland'` (on the bank top: a deadman block buried
   flush, bolt plate on the surface), `'hill'` (more than `HILL_MIN` = 0.3 m above the bank: set into a hillside that
   rises behind the road). The anchor point is the bolt plate on the block's face: members attach there and end there.
-  Any material may attach (cables, rope and steel are the useful ones). Also `inlandAnchors(level)`, `isInlandAnchorId`.
+  Any material may attach, but only rope and cable may cross the roadway envelope to reach it (§17.2). Also `inlandAnchors(level)`, `isInlandAnchorId`.
 - **Hillside** (`anchorMounds(level)` → `[{i, bank, anchor, poly}]`): under a `'hill'` anchor a convex quadrilateral
   stands on the bank surface - the anchor face is its gap-side top corner, a 3 m plateau behind it, slopes down to the
   bank (front 0.5 m per m of height + 0.3 m, never past the gap edge; back 1.4 m per m + 0.6 m). It is solid ground for
@@ -889,14 +892,19 @@ bank road (x < leftEdge above leftY, x > rightEdge above rightY), height = the t
 vehicles and rail cars, `tallestVehicle(level)`) + `ROAD_MARGIN` 0.5 m, or `roadClearance` m. `validate` adds
 `{type: 'roadway', msg: ROADWAY_MSG}` ("Keep the road clear") for
 - a user joint inside it (`inRoadway`; the road surface and the band's top edge are legal),
-- a member crossing it (`beamInRoadway(level, aId, bId, x1, y1, x2, y2, m)`), **except** road / reinforced road / rail
-  deck members (the road itself) and members that end at an inland anchor (anchorage stays run beside the carriageway
-  into their deadman, as on real suspension and cable-stayed bridges),
+- a member crossing it (`beamInRoadway(level, aId, bId, x1, y1, x2, y2, m)`), **except** a tension-only member (rope,
+  cable) that ends at an inland anchor (anchorage stays run beside the carriageway into their deadman, as on real
+  suspension and cable-stayed bridges). Decks get no exemption of their own: a deck lying on the road surface does not
+  cross the open band, while a road strut propping a land pylon from the road anchor (it replaced the backstay), a ramp
+  over the road, or a steel / wood / road member from a deadman through the traffic does,
 - a land pylon whose top is inside it (the road passes through the pylon's portal; its top must clear the traffic).
 
 Editor: `_pointProblem` returns `'roadway'` (red ghost, drags clamp, no mirror partner there), `_beamProblem` and
 `_moveValid` reject crossing members, a refused placement toasts `ROADWAY_MSG`, the renderer's ghost label shows it, and
-edit mode draws the envelope as an amber hatched band labelled "ROAD · KEEP CLEAR h m".
+edit mode draws the envelope as an amber hatched band labelled "ROAD · KEEP CLEAR h m". The label is drawn in the
+overlay pass with the pier labels (over the structure and the parked vehicle, so no stay or pylon hides it), in the
+widest visible stretch of the band clear of the HUD side panels, the hillsides and the built land pylons (and of the
+empty land pier zones when there is room), or is left out.
 
 ### 17.3 Land pylon physics (`BG.Simulation`; constants `BG.LandPylon` in materials.js)
 - A land pylon's top `p<i>` is a **free joint** (`sim.nodes[k].fixed = false`, `.pylon = true`) held by a rigid concrete
@@ -928,23 +936,31 @@ right-hand land structures.
 ### 17.5 Templates
 `suspension` and `cable_stayed` try a `'land'` tower mode first when the level has land pier zones (suspension: on both
 banks): a land pylon in each zone (nearest the gap with a reachable backstay; top = deck + tower height, at least the
-envelope + 0.5 m), backstayed by one tension member to the inland anchor furthest behind it that the material reaches.
+envelope + 0.5 m), backstayed by one tension member to the inland anchor furthest behind it that the material reaches (and that it may
+cross the roadway envelope to reach: only rope / cable may).
 A pylon with no inland anchor to backstay to is not built (it would topple). Cable-stayed stays from a land pylon skip
 deck joints whose stay would cross the envelope. Gap pier zones keep their old modes (`ctx.zones` = gap zones only,
 `ctx.landZones` the land ones); bank towers keep backstaying to the nearest anchor behind them (inland ones included).
 
 ### 17.6 Tests
-`node tools/test-anchors.js`: anchor kinds, envelope rules and exemptions, land pier base / cost, hillside solidity,
+`node tools/test-anchors.js`: anchor kinds, envelope rules and the one exemption (a road strut propping a pylon, a road
+ramp and a steel strut from a deadman are refused; the same cable is not), Anchorages level lint (land zones on their
+banks, no overlaps, no room below the deck on 54-57 so the pylon-free under-deck truss is refused), land pier base / cost, hillside solidity,
 a guyed pylon standing vs an unguyed one toppling (deterministic), an unloaded pylon standing, quake footing motion,
 both templates (valid, pass, backstayed), editor feedback + pier tool, shipped levels untouched. `tools/e2e.js` (at the
 end): a land level in the browser - camera framing, the red "roadway" ghost + toast, the pier tool on the bank, the
-cable-stayed template passing with standing pylons, and the same bridge without backstays toppling with the explanation.
+cable-stayed template passing with standing pylons, and the same bridge without backstays toppling with the explanation;
+for 54-58 with their best designs the "KEEP CLEAR" labels stay clear of the HUD, the pylons and the hillsides.
 
 ### 17.7 Bonus chapter "Anchorages" (levels 54–58)
 A hidden Roads chapter that opens when level 40 is complete (a branching bonus chapter, §15: not a gate, its own unlock list,
 Next and finale). Every level has land pier zones, flagged inland anchors, the roadway envelope and a hint; 54-57 offer
-only road, reinforced road, rope and cable (no compression members, so the deck must hang from pylons), 58 adds wood and
-steel for a stiffening truss.
+only road, reinforced road, rope and cable, 58 adds wood and steel for a stiffening truss. Road is a compression member
+too, so on 54-57 the build area stops at the deck (`buildArea.y0` = the road level): with room below it, a pylon-free
+under-deck truss (cable bottom chord, road diagonals) passed 54 and 56 at well under half the budget (review fix). Above
+the deck the same truss stalls the traffic (vehicles drive into road members) or fails, and a road deck arch, a cable-braced
+deck arch or a towerless main cable from the hillside anchors (55) all fail, so the deck has to hang from pylons. On 58
+a pylon-free steel truss under, over or through the deck fails or costs more than the budget.
 
 | Level | Gap | Land structures | Traffic | Budget | Reference | Best |
 |---|---|---|---|---|---|---|

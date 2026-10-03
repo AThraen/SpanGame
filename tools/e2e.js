@@ -554,6 +554,27 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.click('.tile[data-id="54"]'); await page.waitForTimeout(1000);
   const bar = await page.evaluate(() => ({ id: BG.Game.level.id, sub: document.querySelector('#screen-level').textContent }));
   ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && /Anchorages · 36 m gap/.test(bar.sub), bar.id);
+  // the "KEEP CLEAR" labels (drawn over the structure): on screen, clear of the HUD side panels, of every built
+  // land pylon and of the hillsides; at least one per level on a desktop screen
+  const labels = [];
+  for (const id of [54, 55, 56, 57, 58]) {
+    labels.push(await page.evaluate(async ([id, d]) => {
+      BG.Game.openLevel(id, { force: true }); BG.Hud.hideHint(); BG.Game.editor.design = d;
+      await new Promise((r) => setTimeout(r, 250));
+      const R = BG.Game.renderer, ins = R.insets, M = BG.Model, L = BG.Game.level, c = document.createElement('canvas').getContext('2d');
+      const bad = [];
+      for (const [x, , text] of R._roadLabels || []) {
+        c.font = '700 10px ' + getComputedStyle(document.body).fontFamily;
+        const hw = (c.measureText(text).width + 13) / 2, x0 = x - hw, x1 = x + hw;
+        if (x0 < ins.left || x1 > R.W - ins.right) bad.push('hud');
+        for (const p of d.piers) if (M.landPierBank(L, p)) { const sx = R.worldToScreen(p.x, 0).x; if (sx > x0 && sx < x1) bad.push('pylon ' + p.x); }
+        for (const m of M.anchorMounds(L)) { const sx = R.worldToScreen(m.anchor.x, 0).x; if (sx > x0 && sx < x1) bad.push('hill ' + m.anchor.x); }
+      }
+      return { id, n: (R._roadLabels || []).length, bad };
+    }, [id, sol(id + '-best')]));
+  }
+  ok('Anchorages: "KEEP CLEAR" labels stay clear of the HUD, the pylons and the hillsides (one or two per level)', labels.every((l) => l.n >= 1 && !l.bad.length), labels);
+  await page.evaluate(() => BG.Game.openLevel(54, { force: true })); await page.waitForTimeout(400);
   // the chapter finale (58)
   await page.evaluate(() => { [54, 55, 56, 57].forEach(id => BG.Storage.recordResult(id, { passed: true, stars: 1, cost: 1 })); BG.Game.openLevel(58, { force: true }); }); await page.waitForTimeout(900);
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('58-best'));

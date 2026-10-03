@@ -301,6 +301,16 @@ async function runDevice(browser, dev) {
   await shot('09b-results-badges');
   await tapEl('[data-act=resEdit]'); await page.waitForTimeout(500);
   ok('tap Edit returns to the editor', await page.evaluate(() => BG.Game.state === 'edit' && BG.Game.getDesign().beams.length === 3));
+  // framing right after a test (Next): the rail is still sliding back in when the next level opens - the camera must
+  // fit to where the rail rests, not to its half-hidden box (else the level's left end sits under the rail)
+  const refit = await page.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    BG.Game._lastToggle = -1e9; BG.Game.startSim(); await wait(700);
+    BG.Game._lastToggle = -1e9; BG.Game.stopSim(); BG.Game.openLevel(2, { force: true }); await wait(150);
+    const ins = Object.assign({}, BG.Mobile.lastInsets); await wait(700);
+    return { ins: ins.left, rail: Math.round(document.querySelector('#screen-level .rail').getBoundingClientRect().right), id: BG.Game.level.id };
+  });
+  ok('camera fits to the rail where it rests when a level opens right after a test', refit.id === 2 && refit.ins >= refit.rail, refit);
 
   // ---- integration: History screen (history.js), Install + Save data rows (pwa.js / history.js) under the touch layout
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(700);

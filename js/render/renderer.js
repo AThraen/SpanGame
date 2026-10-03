@@ -2773,10 +2773,10 @@
     ctx.restore();
   };
   /** edit overlay (screen space): the roadway envelope over each bank road ("keep clear") */
-  R._drawRoadway = function (ctx) {
+  R._drawRoadway = function (ctx, state) {
     const land = this._landInfo();
     if (!land || !land.env) return;
-    const v = this._visibleWorld(), W = this.W;
+    const v = this._visibleWorld();
     for (const r of land.env.rects) {
       const x0 = Math.max(r.x0, v.x0 - 2), x1 = Math.min(r.x1, v.x1 + 2);
       if (x1 <= x0) continue;
@@ -2795,12 +2795,56 @@
       ctx.strokeStyle = 'rgba(255,200,80,0.75)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]);
       ctx.beginPath(); ctx.moveTo(p0.x, Math.round(p0.y) + 0.5); ctx.lineTo(p1.x, Math.round(p0.y) + 0.5); ctx.stroke();
       ctx.setLineDash([]);
-      if (h > 14 && w > 240) {
-        // in the middle of the visible stretch of bank road, clear of the abutment (pylons stand nearer the gap)
-        const lx = r.bank === 'left' ? Math.min((Math.max(p0.x, 0) + p1.x) / 2, p1.x - 120) : Math.max((p0.x + Math.min(p1.x, W)) / 2, p0.x + 120);
-        this._label(ctx, lx, p0.y - 10, 'ROAD · KEEP CLEAR ' + land.env.height.toFixed(1) + ' m', 'rgba(70,46,6,0.78)', '#ffd98a', 10);
+      if (h > 14) {
+        const lx = this._roadwayLabelX(ctx, land, r, p0.x, p1.x, (state && state.design && state.design.piers) || []);
+        // drawn later, over the structure and the parked vehicle (with the pier labels), so no member hides it
+        if (lx !== null) (this._roadLabels || (this._roadLabels = [])).push([lx, p0.y - 10, this._roadwayText(land)]);
       }
     }
+  };
+
+  R._roadwayText = function (land) { return 'ROAD · KEEP CLEAR ' + land.env.height.toFixed(1) + ' m'; };
+  /** Screen x for the "KEEP CLEAR" label over one bank road (band sx0..sx1 on screen), or null when it does not fit:
+   *  the widest stretch of the visible band clear of the HUD side panels, of the hillsides where they rise to the
+   *  label (the band's top) and of the built land pylons - and, when there is room, of the empty land pier zones.
+   *  Deadman blocks lie flush with the road, well below the label. */
+  R._roadwayLabelX = function (ctx, land, r, sx0, sx1, piers) {
+    const ins = this.insets || {};
+    ctx.font = '700 10px ' + FONT;
+    const need = ctx.measureText(this._roadwayText(land)).width + 13 + 8; // pill + breathing room
+    const a = Math.max(sx0, (ins.left || 0) + 8), b = Math.min(sx1, this.W - (ins.right || 0) - 8);
+    if (b - a < need) return null;
+    const hard = [], soft = [];
+    const add = (list, wx0, wx1) => {
+      const s0 = this.worldToScreen(Math.min(wx0, wx1), 0).x, s1 = this.worldToScreen(Math.max(wx0, wx1), 0).x;
+      if (s1 > a && s0 < b) list.push([s0, s1]);
+    };
+    const yc = r.y1 - 1; // a hillside is in the way where it rises above this
+    for (const m of land.mounds) {
+      if (m.bank !== r.bank) continue;
+      let x0 = Infinity, x1 = -Infinity;
+      const P = m.poly;
+      for (let k = 0; k < P.length; k++) {
+        const p = P[k], q = P[(k + 1) % P.length];
+        if (p.y >= yc) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); }
+        if ((p.y - yc) * (q.y - yc) < 0) { const x = p.x + (q.x - p.x) * (yc - p.y) / (q.y - p.y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+      }
+      if (x0 <= x1) add(hard, x0 - 0.5, x1 + 0.5);
+    }
+    // a built land pylon: never cover its top (stays attach there); an empty land zone only when there is no room
+    const Mo = BG.Model;
+    for (const p of piers) if (p && Mo && Mo.landPierBank && Mo.landPierBank(this.level, p) === r.bank) add(hard, p.x - 1.5, p.x + 1.5);
+    for (const zn of land.zones) if (zn.ground === r.bank) add(soft, zn.x0 - 1, zn.x1 + 1);
+    const widest = (blocks) => {
+      blocks = blocks.slice().sort((p, q) => p[0] - q[0]);
+      let best = null, cur = a;
+      const gap = (g0, g1) => { if (g1 - g0 >= need && (!best || g1 - g0 > best[1] - best[0])) best = [g0, g1]; };
+      for (const k of blocks) { gap(cur, Math.min(k[0], b)); cur = Math.max(cur, k[1]); }
+      gap(cur, b);
+      return best ? (best[0] + best[1]) / 2 : null;
+    };
+    const x = widest(hard.concat(soft));
+    return x !== null ? x : widest(hard);
   };
 
   // =====================================================================================
@@ -3718,6 +3762,7 @@
   R._drawEditUnder = function (ctx, state) {
     const L = this.level, es = state.editorState || {};
     this._pierLabels = [];
+    this._roadLabels = [];
     const ba = L.buildArea;
     const W = this.W, H = this.H, z = this.camera.zoom;
     this._screenXf(ctx);
@@ -3766,7 +3811,7 @@
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
     }
-    this._drawRoadway(ctx); // §17 roadway clearance envelope
+    this._drawRoadway(ctx, state); // §17 roadway clearance envelope
     // pier zones
     if ((L.maxPiers || 0) > 0 && L.pierZones && L.pierZones.length) {
       const active = es.tool === 'pier';
@@ -4197,6 +4242,10 @@
       if (this._pierLabels && this._pierLabels.length) {
         this._screenXf(ctx);
         for (const pl of this._pierLabels) this._label(ctx, pl[0], pl[1], pl[2] > 70 ? 'PIER ZONE' : 'PIER', 'rgba(40,32,10,0.8)', '#ffd860', 10);
+      }
+      if (this._roadLabels && this._roadLabels.length) {
+        this._screenXf(ctx);
+        for (const rl of this._roadLabels) this._label(ctx, rl[0], rl[1], rl[2], 'rgba(70,46,6,0.85)', '#ffd98a', 10);
       }
     } else {
       this._drawNoBuild(ctx, state);

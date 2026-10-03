@@ -417,7 +417,15 @@
     const g = game(), r = renderer();
     if (!Env.touch || !g || !r || !g.level || g.state !== 'edit' || !UI.level) return false;
     const H = root.innerHeight;
-    const rc = (sel) => { const el = $(sel, UI.level); if (!el) return null; const b = el.getBoundingClientRect(); return b.width && b.height ? b : null; };
+    // where the panel rests in edit mode: its CSS transform is still sliding it in after a test (Next, Build),
+    // so take the translation off the measured box (else the rail reads as ~0 px wide and the level fits under it)
+    const rc = (sel) => {
+      const el = $(sel, UI.level); if (!el) return null;
+      const b = el.getBoundingClientRect(); if (!(b.width && b.height)) return null;
+      let tx = 0, ty = 0;
+      safe(() => { const tf = root.getComputedStyle(el).transform; if (tf && tf !== 'none') { const m = new root.DOMMatrixReadOnly(tf); tx = m.m41; ty = m.m42; } });
+      return { top: b.top - ty, bottom: b.bottom - ty, left: b.left - tx, right: b.right - tx, width: b.width, height: b.height };
+    };
     const top = rc('.topbar'), rail = rc('.rail'), test = rc('.test-btn');
     const low = Env.phone ? rc('.m-mat-chip') : rc('.palette');
     let bottomEdge = H;

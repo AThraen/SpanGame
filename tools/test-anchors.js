@@ -2,10 +2,12 @@
 // Usage: node tools/test-anchors.js [--verbose]
 //   model: anchor kinds (edge / inland deadman / hillside), hillsides are solid, land pier zones (base on the bank,
 //          cost from the bank), roadway envelope (height = tallest vehicle + margin; joints, members and land pylon
-//          tops; road / rail decks and members ending at an inland anchor exempt), only the Anchorages levels (54-58)
-//          use land features - every other shipped level is untouched;
-//   Anchorages (54-58): land features on every level, the best designs stand their pylons, the same designs
-//          without their backstays topple, no template earns three stars;
+//          tops; only tension-only members ending at an inland anchor are exempt - no road strut propping a pylon,
+//          no ramp, no steel strut from a deadman), only the Anchorages levels (54-58) use land features - every
+//          other shipped level is untouched;
+//   Anchorages (54-58): land features on every level, land zones on their banks, nothing below the deck on the
+//          road-and-cable levels (54-57: no pylon-free under-deck truss), the best designs stand their pylons, the
+//          same designs without their backstays topple, no template earns three stars;
 //   physics: a land pylon guyed back with a backstay stays up, without it the stay pull topples it; an unloaded
 //          land pylon stands; deterministic; quake moves the footing; floor piers stay fixed;
 //   templates: suspension + cable-stayed use land pylons backstayed to inland anchors (valid, pass);
@@ -102,8 +104,18 @@ section('roadway envelope');
   const v2 = M.validate(L, d2);
   ok(v2.errors.some((e) => e.type === 'roadway' && e.beamIndex === d2.beams.length - 1) && !v2.errors.some((e) => e.nodeId === 'n20'), 'a steel member diving through the envelope -> roadway (its joint above it is fine)', types(v2));
   const d3 = M.clone(base); d3.nodes.push({ id: 'n20', x: -6, y: 0 }); d3.beams.push({ a: 'n20', b: 'a0', m: 'road' });
-  ok(!types(M.validate(L, d3)).includes('roadway'), 'road deck members on the bank are exempt (the road itself)', types(M.validate(L, d3)));
-  ok(!types(M.validate(L, base)).includes('roadway'), 'members ending at an inland anchor are exempt (anchorage stays run beside the road)');
+  ok(!types(M.validate(L, d3)).includes('roadway'), 'a road deck lying on the bank road does not cross the envelope (the band is open)', types(M.validate(L, d3)));
+  ok(!types(M.validate(L, base)).includes('roadway'), 'cables ending at an inland anchor are exempt (anchorage stays run beside the road)');
+  // review fixes: road decks are no longer exempt as such, and the anchor exemption is for tension-only members
+  const d6 = M.clone(base); d6.piers[0] = { x: -3, topY: 4.25 }; d6.beams.push({ a: 'a0', b: 'p0', m: 'reinforced_road' });
+  ok(M.validate(L, d6).errors.some((e) => e.type === 'roadway' && e.beamIndex === d6.beams.length - 1), 'a road strut from the road anchor propping a land pylon through the traffic -> roadway', types(M.validate(L, d6)));
+  const d7 = M.clone(base); d7.nodes.push({ id: 'n20', x: -4, y: 4 }); d7.beams.push({ a: 'a0', b: 'n20', m: 'road' });
+  ok(M.validate(L, d7).errors.some((e) => e.type === 'roadway' && e.beamIndex === d7.beams.length - 1), 'a road ramp rising over the bank road -> roadway', types(M.validate(L, d7)));
+  const d8 = M.clone(base); d8.nodes.push({ id: 'n20', x: -16, y: 5 }); d8.beams.push({ a: 'a2', b: 'n20', m: 'steel' });
+  ok(M.validate(L, d8).errors.some((e) => e.type === 'roadway' && e.beamIndex === d8.beams.length - 1), 'a steel strut from a deadman anchor through the traffic -> roadway (only rope / cable stays are exempt)', types(M.validate(L, d8)));
+  const d9 = M.clone(base); d9.nodes.push({ id: 'n20', x: -16, y: 5 }); d9.beams.push({ a: 'a2', b: 'n20', m: 'cable' });
+  ok(!types(M.validate(L, d9)).includes('roadway'), 'the same member as a cable is an anchorage stay (exempt)', types(M.validate(L, d9)));
+  ok(!M.beamInRoadway(L, 'p0', 'a2', -5, 14, -24, 0, 'cable') && M.beamInRoadway(L, 'p0', 'a2', -5, 14, -24, 0, 'steel') && M.beamInRoadway(L, 'p0', 'a2', -5, 14, -24, 0, 'road'), 'beamInRoadway: a backstay into a deadman is exempt as a cable, not as steel or road');
   const d4 = M.clone(base); d4.piers[0].topY = 3;
   ok(M.validate(L, d4).errors.some((e) => e.type === 'roadway' && e.pierIndex === 0), 'a land pylon whose top is inside the envelope -> roadway');
   const d5 = M.clone(base); d5.nodes.push({ id: 'n20', x: -12, y: 2 });
@@ -185,6 +197,23 @@ section('Anchorages (54-58): land pylons stand when guyed, topple without their 
   for (const id of [54, 55, 56, 57, 58]) {
     const L = BG.Levels.find((l) => l.id === id);
     ok(!!L && !L.campaign && M.hasLandFeatures(L) && M.roadEnvelope(L) && (L.pierZones || []).some((z) => z.ground) && M.inlandAnchors(L).length >= 2 && !!L.hint, id + ': a Roads level with land pier zones, inland anchors, the roadway envelope and a hint');
+    // level lint: every land zone lies on its own bank and overlaps no other zone; every inland anchor is flagged
+    const T = L.terrain, zs = L.pierZones || [];
+    const onBank = zs.filter((z) => z.ground).every((z) => (z.ground === 'left' ? Math.max(z.x0, z.x1) <= T.leftEdge - 1 : Math.min(z.x0, z.x1) >= T.rightEdge + 1));
+    const overlap = zs.some((z, i) => zs.some((o, k) => k > i && Math.min(z.x0, z.x1) <= Math.max(o.x0, o.x1) && Math.min(o.x0, o.x1) <= Math.max(z.x0, z.x1)));
+    ok(onBank && !overlap && M.inlandAnchors(L).every((a) => a.explicit), id + ': land zones stand on their banks, no zones overlap, inland anchors are flagged', { onBank, overlap });
+    // road + cable only (54-57): nothing may be built below the deck, or a road / cable under-deck truss
+    // (cable bottom chord, road diagonals) spans the gap with no pylon at all (it passed 54 at 43 % of budget)
+    if (L.materials.indexOf('steel') < 0 && L.materials.indexOf('wood') < 0) {
+      const span = T.rightEdge - T.leftEdge, n = Math.round(span / 6), s = span / n;
+      const tr = { nodes: [], beams: [], piers: [] };
+      const top = (i) => (i === 0 ? 'a0' : i === n ? 'a1' : 'n' + i), bot = (i) => 'n' + (100 + i);
+      for (let i = 1; i < n; i++) tr.nodes.push({ id: top(i), x: T.leftEdge + i * s, y: T.leftY });
+      for (let i = 0; i < n; i++) tr.nodes.push({ id: bot(i), x: T.leftEdge + (i + 0.5) * s, y: T.leftY - 3.5 });
+      for (let i = 0; i < n; i++) tr.beams.push({ a: top(i), b: top(i + 1), m: 'road' }, { a: top(i), b: bot(i), m: 'road' }, { a: bot(i), b: top(i + 1), m: 'road' });
+      for (let i = 0; i + 1 < n; i++) tr.beams.push({ a: bot(i), b: bot(i + 1), m: 'cable' });
+      ok(L.buildArea.y0 >= Math.max(T.leftY, T.rightY) - 1e-9 && types(M.validate(L, tr)).includes('outside_build_area'), id + ': road and cable only - the build area stops at the deck, so a pylon-free under-deck truss is refused', L.buildArea.y0);
+    }
     const d = sol(id, '-best');
     const r = runHeadless(L, d, { keepSim: true });
     const land = r.sim.piers.filter((p) => p.ground);
