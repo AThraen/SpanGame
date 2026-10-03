@@ -2,7 +2,7 @@
   "id": 119,
   "campaign": "rail",
   "name": "Whiteout Express",
-  "hint": "Fourteen coaches at full speed over a frozen gorge. The whole train is on the bridge at once and every millimetre of sag is a kink at 150 km/h. Depth is stiffness.",
+  "hint": "Twelve coaches between two power cars, at full speed over a frozen gorge. The whole train is on the bridge at once and every millimetre of sag is a kink at 150 km/h. Depth is stiffness.",
   "theme": "snow",
   "terrain": {
     "leftEdge": 0,
@@ -63,7 +63,7 @@
     "cable",
     "girder"
   ],
-  "budget": 207000,
+  "budget": 222000,
   "traffic": [
     {
       "type": "train",

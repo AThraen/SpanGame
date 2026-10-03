@@ -408,7 +408,8 @@
       ctx.fillStyle = bad ? '#ff8b97' : COL.text; ctx.font = '800 13px ui-sans-serif, "Segoe UI", system-ui, sans-serif'; ctx.fillText(val, rx, y + 6);
     };
     row(lanes[0].y0 + laneH / 2, 'WORST GRADE', pct(r.grade || 0, true) + '%', (r.gradeRatio || 0) > 1);
-    const spd = opts.speed != null ? opts.speed : (spans[0] ? spans[0].speed : 0);
+    // the speed the worst kink was judged at (its limit depends on it), else the train's speed now
+    const spd = r.kinkRatio > 0 && r.kinkSpeed > 0 ? r.kinkSpeed : opts.speed != null ? opts.speed : (spans[0] ? spans[0].speed : 0);
     row(lanes[1].y0 + laneH / 2, 'WORST KINK', deg(r.kink || 0, true) + '°' + (spd > 0.5 ? '  ' + Math.round(spd) + ' m/s' : ''), (r.kinkRatio || 0) > 1);
   }
 

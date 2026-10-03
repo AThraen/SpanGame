@@ -30,6 +30,8 @@
  *   ore             24 cars  1954 t  276 m   8 m/s  7.1 t/m  max axle 20.8 t
  *   highspeed        8 cars   376 t  166 m  42 m/s  2.3 t/m  max axle 17.0 t
  *   highspeed_long  14 cars   616 t  290 m  42 m/s  2.1 t/m  max axle 17.0 t
+ * Mixed traffic:   a train behind road traffic waits until it cannot catch it on the shared bank
+ *                  approaches (and vice versa) - list the fast train first on double-deck levels.
  * Spawn / finish:  trains spawn at cruise speed with the whole consist on the left bank, the lead
  *                  car's front at leftEdge - max(4, 2 s x speed): every train reaches the gap ~2 s
  *                  in, after the 1.2 s gravity ramp has settled (handcar 6 m back, steam 20 m,
@@ -46,8 +48,10 @@
  *   - grade:   a wheel's rail segment is steeper than maxGrade for > 0.3 s (as built AND live sag
  *              both count - a soft bridge steepens its end panels under load);
  *   - kink:    the angle between the rail segments under a bogie's first and last axle (cars
- *              whose bogies have one axle each, i.e. the handcar: under its two wheels) exceeds the
- *              kink limit for > 0.05 s. The limit is maxKinkDeg up to 15 m/s and shrinks as 15/v
+ *              whose bogies have one axle each, i.e. the handcar: under its two wheels), AVERAGED
+ *              over the bogie's passage across the joint (kink / limit, mean of the steps while the
+ *              axles straddle it), exceeds the kink limit - independent of speed and step timing,
+ *              and sim.ride.kinkRatio reports exactly this quantity. The limit is maxKinkDeg up to 15 m/s and shrinks as 15/v
  *              above that (42 m/s high-speed -> 1.4 deg), so dips and humps matter for fast
  *              trains: a 0.1 m dip in a 5 m-panel deck (~2.3 deg) is fine for freight but derails
  *              the high-speed set. The joint where a bridge meets the bank counts too: a 5 %
@@ -92,6 +96,12 @@
  *   2-tier girder truss 80 m (2 x 9 m, track on 1 m posts), no piers: ore 0.94 at $576k;
  *   the same with steel webs fails in end shear - use girder near the supports, steel mid-span.
  *   2-tier truss 80 m (2 x 6 m, girder chords, steel webs): freight_long 0.94 at $183k.
+ *   High speed (42 m/s, kink limit 1.43 deg): give EVERY rail joint a vertical post (steel - a wood
+ *   post under a joint is soft enough to kink it); the first panels off each bank are the usual
+ *   kink spots, so brace them from the lower bank anchors rather than hanging them on long stays
+ *   (a 40 m stay stretches ~0.1 m under a power car). Stays to fixed pier-tower tops need no back
+ *   stays. Measured (117, 2 x highspeed): deep side trusses to x = 15 + fan stays from 16 m towers
+ *   + a 1 m mid truss: worst kink 0.82 of the limit at $102k.
  *   Sample levels: 101 Pump Trolley (handcar, 10 m: ref $1.9k / best $1.6k of $2.3k),
  *   108 Stone Steps (2 x steam_local, 40 m, 3 piers: steel-braced viaduct $28.6k, wood-braced
  *   $23.4k of $34k - piers cost $4k each and dominate).
@@ -212,7 +222,7 @@
 
   /** Derailment defaults (a level's `rail: {maxGrade, maxKinkDeg}` overrides them). */
   BG.RailRules = {
-    maxGrade: 0.06, maxKinkDeg: 4, gradeTime: 0.3, kinkTime: 0.05, kinkRefSpeed: 15,
+    maxGrade: 0.06, maxKinkDeg: 4, gradeTime: 0.3, kinkWindow: 1.0, kinkRefSpeed: 15,
     liftTime: 0.12, couplerGap: COUPLER_GAP, couplerSlack: COUPLER_SLACK,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

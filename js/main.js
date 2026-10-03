@@ -961,10 +961,13 @@
       const simOk = (sum.status || status) === 'success';
       const budgetOk = cost <= budget;
       const passed = simOk && budgetOk;
-      const stars = passed ? (cost <= budget * 0.7 ? 3 : cost <= budget * 0.85 ? 2 : 1) : 0;
       let peak = sum.peakStress;
       if (peak == null && sim.beams) peak = sim.beams.reduce((m, b) => Math.max(m, b.peak || 0), 0);
       const broken = sum.brokenBeams != null ? sum.brokenBeams : (sim.beams || []).filter(b => b.broken).length;
+      let stars = passed ? (cost <= budget * 0.7 ? 3 : cost <= budget * 0.85 ? 2 : 1) : 0;
+      // Iron Road: the third star also needs the "Structure held" verdict (no member broke)
+      const starHeld = stars === 3 && campaignOf(lv) === 'rail' && broken > 0;
+      if (starHeld) stars = 2;
       const reason = sim.failReason || (status === 'failed' && sim.status === 'running' ? 'timeout' : null);
 
       let title, text;
@@ -973,6 +976,7 @@
         const noun = vehicles.length && vehicles.every(isTrain) ? 'train' : 'vehicle';
         text = (vt === 1 ? 'The ' + noun + ' crossed' : 'All ' + vt + ' ' + noun + 's crossed') + ' safely. ';
         if (stars === 3) text += 'Under 70% of budget — elegant and efficient.';
+        else if (starHeld) text += 'Under 70% of budget, but ' + broken + ' member' + (broken === 1 ? '' : 's') + ' broke: on the railway the third star also needs the structure to hold.';
         else if (stars === 2) text += 'Get the cost under ' + money(budget * 0.7) + ' for the third star.';
         else text += 'Get under ' + money(budget * 0.85) + ' for another star.';
       } else if (simOk) {

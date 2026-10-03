@@ -1,4 +1,4 @@
-// Unit tests for BG.Templates. Usage: node tools/test-templates.js [--verbose] [--svg out.html]
+// Unit tests for BG.Templates. Usage: node tools/test-templates.js [--verbose] [--svg out.html] [--no-sim]
 // Generates every template on a set of synthetic levels (and on BG.Levels if present), then checks
 // geometry with BG.Templates.checkGeometry and BG.Model.validate (when js/core/model.js exists).
 'use strict';
@@ -191,6 +191,27 @@ ok(s.nodes.every((n) => +n.id.slice(1) >= 50), 'startId respected');
   ok(!nv.ok && /piers or low/.test(nv.reason), 'viaduct hidden without piers or low anchors');
   const dd = BG.Templates.generate('warren', railLevels[4]);
   ok(dd.beams.some((b) => b.m === 'rail') && !dd.beams.some((b) => b.m === 'road'), 'double-deck level: templates build the rail deck');
+}
+
+// Iron Road (real levels 101-120): no template may earn ★★★ - every offered template that costs at most
+// 70 % of the budget is run headless and must not pass (skip with --no-sim)
+if (Array.isArray(BG.Levels) && BG.Materials && BG.Materials.rail && !process.argv.includes('--no-sim')) {
+  const { runHeadless } = require('./harness');
+  const t0 = Date.now();
+  let ran = 0, cheap = 0;
+  for (const level of BG.Levels.filter((l) => isRailLvl(l) && l.templates !== false)) {
+    for (const av of BG.Templates.available(level)) {
+      if (!av.ok) continue;
+      const d = BG.Templates.generate(av.id, level, {});
+      const c = cost(level, d);
+      if (!(c <= 0.7 * level.budget)) continue;
+      cheap++;
+      const r = runHeadless(level, d);
+      ran++;
+      ok(!(r.status === 'success' && r.valid), `[${level.id} ${level.name}] ${av.id}: template earns ★★★ (${Math.round(100 * c / level.budget)} % of budget, passes)`);
+    }
+  }
+  console.log('  (rail ★★★ check: ' + cheap + ' offered templates at <= 70 % of budget simulated on levels 101-120, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
 }
 
 if (svgOut) {

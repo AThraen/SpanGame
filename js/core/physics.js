@@ -56,7 +56,8 @@
  *     trains. Couplers: XPBD distance constraints with free slack between consecutive cars.
  *     Locomotives pull / brake toward the target speed (adhesion limited; every car brakes).
  *   - derailment (BG.RailRules, level.rail overrides): grade under a wheel > maxGrade for
- *     > 0.3 s; kink under a bogie > maxKinkDeg (scaled by 15/v above 15 m/s) for > 0.05 s;
+ *     > 0.3 s; kink under a bogie > maxKinkDeg (scaled by 15/v above 15 m/s), averaged over
+ *     the bogie's passage over the joint (independent of speed and step timing);
  *     no rail under a wheel; a wheel lifted off (held down with more than its static load) for
  *     > 0.12 s. Event {type:'derail', i, car, x, y, reason}; failReason 'derailed'. A derailed car
  *     becomes a free rigid body (hull + wheels collide with deck beams and ground), stays
@@ -171,7 +172,7 @@
       const rr = BG.Model && BG.Model.railRules ? BG.Model.railRules(this.level) : { maxGrade: 0.06, maxKinkDeg: 4 };
       this.railRules = {
         maxGrade: rr.maxGrade, maxKinkDeg: rr.maxKinkDeg, kinkMax: rr.maxKinkDeg * PI / 180,
-        gradeTime: num(RR.gradeTime, 0.3), kinkTime: num(RR.kinkTime, 0.05), kinkRefSpeed: num(RR.kinkRefSpeed, 15),
+        gradeTime: num(RR.gradeTime, 0.3), kinkWindow: num(RR.kinkWindow, 1.0), kinkRefSpeed: num(RR.kinkRefSpeed, 15),
         liftTime: num(RR.liftTime, 0.12), gap: num(RR.couplerGap, 0.8), slack: num(RR.couplerSlack, 0.12),
       };
       this._buildGround();
@@ -492,10 +493,36 @@
           const spawnFront = this.terrain.leftEdge - SPAWN_GAP;
           if ((prev.kind === 'train' ? this._rearX(prev.cars[prev.cars.length - 1]) : this._rearX(prev)) < spawnFront + 3) break;
         }
+        // double-deck levels: road and rail share the bank approaches (y = leftY / rightY), so a train
+        // waits until it can no longer catch any road vehicle ahead of it before that vehicle leaves
+        // the world (rear past rightEdge + 120): trains never drive through cars on the approaches
+        // (and a road vehicle behind a slower train waits the same way)
+        if (!this._approachClear(v)) break;
         if (v.kind === 'train') this._placeTrain(v); else this._placeVehicle(v);
         this._spawnTime = this.time;
         this._nextSpawn++;
       }
+    }
+
+    _approachClear(n) {
+      const vs = this.vehicles, gone = this.terrain.rightEdge + 120, isT = n.kind === 'train';
+      const s0 = isT ? this._trainSpawnFront(n.def) : this.terrain.leftEdge - SPAWN_GAP, V = Math.max(1, n.def.speed);
+      for (let i = 0; i < this._nextSpawn; i++) {
+        const v = vs[i];
+        if ((v.kind === 'train') === isT) continue;
+        let rear;
+        if (v.kind === 'train') {
+          if (!v._live || v.state === 'derailed') continue;
+          rear = this._rearX(v.cars[v.cars.length - 1]);
+        } else {
+          if (!v._sim || v.state === 'fallen') continue;
+          rear = this._rearX(v);
+        }
+        // where must the other kind's rear be now, so that the newcomer (front at s0, cruising at V)
+        // is still behind it when it reaches 'gone' at its own cruise speed (+ 10 m margin)?
+        if (rear < gone - v.def.speed * (gone - s0) / V + 10) return false;
+      }
+      return true;
     }
 
     _rearX(v) { return v._px - v._qc * v._xc + v._qs * v._yc; }
@@ -1067,14 +1094,22 @@
       for (const e of byB.values()) if (e[1] > e[0]) kp.push(e[0], e[1]);
       if (!kp.length && nw > 1) kp.push(0, nw - 1);
       c._kp = kp;
+      // kink windows (one per pair): a window is one passage of the pair over a joint (the two axles
+      // on different rail segments), measured as the MEAN kink / limit over the passage - so the
+      // verdict does not depend on how many 1/60 s steps a fast bogie spends over the joint
+      const np = kp.length >> 1;
+      c._kwSpan = new Float64Array(np); c._kwR = new Float64Array(np); c._kwK = new Float64Array(np);
+      c._kwL = new Float64Array(np); c._kwV = new Float64Array(np); c._kwN = new Int32Array(np); c._kwD = new Float64Array(np);
+      c._kwSA = new Int32Array(np).fill(-1); c._kwSB = new Int32Array(np).fill(-1);
+      for (let p = 0; p < np; p++) c._kwSpan[p] = Math.max(0.5, def.wheels[kp[2 * p + 1]].x - def.wheels[kp[2 * p]].x);
       c._sux = new Float64Array(nw); c._suy = new Float64Array(nw);
       c._seg = new Int32Array(nw).fill(-1); c._segOk = new Uint8Array(nw);
       c._px = 0; c._py = 0; c._vx = 0; c._vy = 0; c._qc = 1; c._qs = 0; c._w = 0;
       c._ppx = 0; c._ppy = 0; c._pqc = 1; c._pqs = 0;
       c._cand = []; c._contacts = []; c._nc = 0;
       c._sim = false; c._onRail = false; c._grade = 0;
-      c._missNow = false; c._missN = 0; c._gradeT = 0; c._kinkT = 0; c._kink = 0; c._liftT = 0; c._liftMax = 0; c._fallT = 0;
-      c._kinkA = -1; c._kinkB = -1;
+      c._missNow = false; c._missN = 0; c._gradeT = 0; c._kink = 0; c._kinkLim = 0; c._liftT = 0; c._liftMax = 0; c._fallT = 0;
+      c._kinkA = -1; c._kinkB = -1; c._kinkSA = -1; c._kinkSB = -1;
       return c;
     }
 
@@ -1145,8 +1180,8 @@
       } else if (why === 'kink') {
         k = c._kinkA >= 0 ? c._kinkB : 0;
         D.value = c._kink;
-        D.limit = sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax;
-        if (c._kinkA >= 0) D.segPrev = c._seg[c._kinkA];
+        D.limit = c._kinkLim || (sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax);
+        if (c._kinkSA >= 0) D.segPrev = c._kinkSA;
       } else if (why === 'missing') {
         for (let q = 0; q < c._nw; q++) if (!c._segOk[q]) { k = q; break; }
       } else if (why === 'lift') {
@@ -1156,7 +1191,7 @@
         D.value = Math.max(0, best); D.limit = LIFT_RATIO;
       }
       D.wheel = k;
-      D.seg = c._segOk[k] ? c._seg[k] : -1;
+      D.seg = why === 'kink' && c._kinkSB >= 0 ? c._kinkSB : c._segOk[k] ? c._seg[k] : -1;
       const p = this._wheelPos(c, k);
       D.wx = p.x; D.wy = p.y;
       return D;
@@ -1436,27 +1471,46 @@
           if (c._missNow) { if (++c._missN > 2) why = 'missing'; } else c._missN = 0;
           if (c._grade > RR.maxGrade + 1e-9) c._gradeT += DT; else c._gradeT = 0;
           if (!why && c._gradeT > RR.gradeTime) why = 'grade';
-          let kink = 0;
-          c._kinkA = -1;
-          const kp = c._kp;
-          for (let p = 0; p < kp.length; p += 2) {
-            const k0 = kp[p], k1 = kp[p + 1];
-            if (!c._segOk[k0] || !c._segOk[k1] || c._seg[k0] === c._seg[k1]) continue;
-            const ux = c._sux[k0], uy = c._suy[k0], wx = c._sux[k1], wy = c._suy[k1];
-            let a = atan2Det(ux * wy - uy * wx, ux * wx + uy * wy);
-            if (a < 0) a = -a;
-            if (a > kink) { kink = a; c._kinkA = k0; c._kinkB = k1; }
-          }
-          c._kink = kink;
+          // kink: one verdict per passage of a bogie (axle pair) over a joint, on the MEAN of
+          // kink / limit over the passage (see _makeCar). A passage closes when the pair is back on
+          // one segment; a long straddle (short segments, a stopped train) closes every 1.5 axle
+          // spacings of travel or 1 s.
           const sp = c._vx < 0 ? -c._vx : c._vx;
           const lim = sp > RR.kinkRefSpeed ? RR.kinkMax * RR.kinkRefSpeed / sp : RR.kinkMax;
-          if (kink > lim) c._kinkT += DT; else c._kinkT = 0;
+          const kp = c._kp;
+          let kinkNow = 0;
+          for (let p = 0, pi = 0; p < kp.length; p += 2, pi++) {
+            const k0 = kp[p], k1 = kp[p + 1];
+            const on = c._segOk[k0] && c._segOk[k1] && c._seg[k0] !== c._seg[k1];
+            let close = false;
+            if (on) {
+              const ux = c._sux[k0], uy = c._suy[k0], wx = c._sux[k1], wy = c._suy[k1];
+              let a = atan2Det(ux * wy - uy * wx, ux * wx + uy * wy);
+              if (a < 0) a = -a;
+              if (a > kinkNow) kinkNow = a;
+              c._kwR[pi] += a / lim; c._kwK[pi] += a; c._kwL[pi] += lim; c._kwV[pi] += sp; c._kwN[pi]++;
+              c._kwD[pi] += sp * DT;
+              c._kwSA[pi] = c._seg[k0]; c._kwSB[pi] = c._seg[k1];
+              if (c._kwD[pi] >= 1.5 * c._kwSpan[pi] || c._kwN[pi] * DT >= RR.kinkWindow) close = true;
+            } else if (c._kwN[pi] > 0) close = true;
+            if (!close) continue;
+            const n = c._kwN[pi], ratio = c._kwR[pi] / n;
+            const R = this.ride;
+            if (R && this.status === 'running' && ratio > R.kinkRatio) {
+              R.kinkRatio = ratio; R.kink = c._kwK[pi] / n; R.kinkLim = c._kwL[pi] / n; R.kinkSpeed = c._kwV[pi] / n; R.kinkX = c._px;
+            }
+            if (!why && ratio > 1) {
+              why = 'kink';
+              c._kink = c._kwK[pi] / n; c._kinkLim = c._kwL[pi] / n; c._kinkA = k0; c._kinkB = k1;
+              c._kinkSA = c._kwSA[pi]; c._kinkSB = c._kwSB[pi];
+            }
+            c._kwR[pi] = 0; c._kwK[pi] = 0; c._kwL[pi] = 0; c._kwV[pi] = 0; c._kwN[pi] = 0; c._kwD[pi] = 0;
+          }
+          if (why !== 'kink') c._kink = kinkNow;
           const R = this.ride;
           if (R && this.status === 'running') {
             if (c._grade > R.grade) { R.grade = c._grade; R.gradeX = c._px; R.gradeRatio = c._grade / RR.maxGrade; }
-            if (kink / lim > R.kinkRatio) { R.kinkRatio = kink / lim; R.kink = kink; R.kinkLim = lim; R.kinkSpeed = sp; R.kinkX = c._px; }
           }
-          if (!why && c._kinkT > RR.kinkTime) why = 'kink';
           if (c._liftMax > LIFT_RATIO) c._liftT += DT; else c._liftT = 0;
           if (!why && c._liftT > RR.liftTime) why = 'lift';
           if (why) this._derail(T, c, why);

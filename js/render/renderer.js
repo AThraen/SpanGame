@@ -508,8 +508,8 @@
     this.level = null; this.themeId = 'meadow'; this.theme = THEMES.meadow;
     this.time = 0; this._lastNow = 0;
     this.effects = BG.Effects ? new BG.Effects() : null;
-    this._back = mkCanvas(2, 2); this._mid = mkCanvas(2, 2); this._refl = mkCanvas(2, 2);
-    this._backKey = ''; this._midKey = ''; this._bgRec = null; this._bgVersion = 0;
+    this._back = mkCanvas(2, 2); this._mid = mkCanvas(2, 2); this._par = mkCanvas(2, 2); this._refl = mkCanvas(2, 2);
+    this._backKey = ''; this._midKey = ''; this._parKey = ''; this._midAnchor = null; this._midPad = { X: 0, Y: 0 }; this._visPadX = 0; this._visPadY = 0; this._bgRec = null; this._bgVersion = 0;
     this._vstate = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
     this._val = { sig: '', res: null };
     this._lamps = [];
@@ -614,8 +614,9 @@
     if (typeof t === 'function') { try { const f = t(state); return f ? Object.assign({ front: f.x, len: 6 }, f) : null; } catch (e) { return null; } }
     if (t && typeof t === 'object') return this._vehicleFocus(t);
     if (!sim || !sim.vehicles) return null;
-    // the first vehicle still (partly) before the far bank leads; a wreck always wins
-    let best = null, any = null;
+    // the first vehicle still (partly) before the far bank leads - a train before road traffic (on the
+    // double-deck levels the train is the load that matters); a wreck always wins
+    let best = null, bestTrain = null, any = null;
     const re = this.level.terrain.rightEdge;
     for (const v of sim.vehicles) {
       if (!v || v.state === 'waiting' || v.state === 'finished') continue;
@@ -623,9 +624,12 @@
       if (!f) continue;
       if (f.wreck) return f;
       if (!any) any = f;
-      if (!best && !(f.rear > re + 1)) best = f;
+      if (!(f.rear > re + 1)) {
+        if (!best) best = f;
+        if (!bestTrain && isTrainVehicle(v)) bestTrain = f;
+      }
     }
-    return best || any;
+    return bestTrain || best || any;
   };
   R._updateFollow = function (state, dt) {
     const F = this._follow, cam = this.camera, L = this.level;
@@ -645,10 +649,14 @@
     const fitZ = clamp(Math.min(aw / (b.x1 - b.x0), ah / (b.y1 - b.y0)), 2, 120);
     const speed = Math.abs(F.vx);
     const vw = clamp(34 + 1.6 * Math.min(f.len || 6, 25) + speed * 1.2, 40, 110);
-    const zt = clamp(clamp(aw / vw, fitZ, 60) * F.zoomMul, Math.min(fitZ, 2), 160);
+    let zt = clamp(clamp(aw / vw, fitZ, 60) * F.zoomMul, Math.min(fitZ, 2), 160);
+    // dead band: hold the target zoom until the wanted one drifts > 6 % away, so speed jitter does not
+    // re-zoom (and re-render the cached scenery) every frame
+    if (!F.zq || Math.abs(Math.log(zt / F.zq)) > 0.06) F.zq = zt;
+    zt = F.zq;
     const kz = 1 - Math.exp(-dt * 2.2);
     cam.zoom += (zt - cam.zoom) * kz;
-    if (Math.abs(zt - cam.zoom) < zt * 0.002) cam.zoom = zt;
+    if (Math.abs(zt - cam.zoom) < zt * 0.003) cam.zoom = zt;
     const z = cam.zoom, vwz = aw / z, vhz = ah / z;
     // keep the lead vehicle at ~70 % of the view; stop at the far bank so the crossing stays in frame
     let ax = f.wreck ? f.x : f.front - vwz * 0.2;
@@ -821,7 +829,8 @@
   R._screenXf = function (ctx, ox, oy) { const d = this.dpr; ctx.setTransform(d, 0, 0, d, (ox || 0) * d, (oy || 0) * d); };
   R._visibleWorld = function (margin) {
     margin = margin || 0;
-    const a = this.screenToWorld(-margin, -margin), b = this.screenToWorld(this.W + margin, this.H + margin);
+    const mx = margin + (this._visPadX || 0), my = margin + (this._visPadY || 0);
+    const a = this.screenToWorld(-mx, -my), b = this.screenToWorld(this.W + mx, this.H + my);
     return { x0: a.x, x1: b.x, y0: b.y, y1: a.y };
   };
 
@@ -905,27 +914,65 @@
   // =====================================================================================
   // MID LAYER: parallax hills, bank props, terrain
   // =====================================================================================
+  // The mid layer is split in two caches:
+  //  - _par: the parallax hills (screen sized; they move at their own parallax rate),
+  //  - _mid: world-space scenery (valley, props, rail decor, terrain), drawn around an anchor camera.
+  //    While the camera follows the traffic, _mid is rendered with a margin (X, Y px) and blitted with
+  //    a translation, so it is only rebuilt when the camera has moved past the margin or zoomed -
+  //    not every frame (the follow zoom is held in a dead band for the same reason).
   R._ensureMid = function () {
     const c = this.camera, d = this.dpr;
-    const key = this.W + 'x' + this.H + '@' + d + '|' + this.themeId + '|' + this._bgVersion + '|' + c.x.toFixed(3) + ',' + c.y.toFixed(3) + ',' + c.zoom.toFixed(4) + '|' + (this.level && this.level.id);
-    if (key === this._midKey) return;
+    if (!this._midKey) this._parKey = '';
+    this._ensurePar();
+    const fol = !!this._followActive;
+    const X = fol ? Math.round(this.W * 0.25) : 0, Y = fol ? Math.round(this.H * 0.12) : 0;
+    const key = this.W + 'x' + this.H + '@' + d + '|' + this.themeId + '|' + this._bgVersion + '|' + (X ? 'follow' : c.zoom.toFixed(4)) + '|' + (this.level && this.level.id) + '|' + X + ',' + Y;
+    const A = this._midAnchor, tNow = now();
+    const settled = this._prevZoom === c.zoom;
+    this._prevZoom = c.zoom;
+    if (key === this._midKey && A) {
+      // following: reuse the cache while the view stays inside its margin; during a follow zoom
+      // transition it is drawn scaled (re-rendered every 0.25 s and once the zoom has settled)
+      const s = c.zoom / A.z, ls = Math.abs(Math.log(s));
+      const ox = (c.x - A.x) * c.zoom, oy = (c.y - A.y) * c.zoom;
+      const inside = Math.abs(ox) <= X * 0.8 - (s < 1 ? (1 / s - 1) * this.W : 0) && Math.abs(oy) <= Y * 0.8 - (s < 1 ? (1 / s - 1) * this.H : 0);
+      if (inside && (s === 1 || (X > 0 && ls < 0.1 && !settled && tNow - A.t < 250))) return;
+    }
     this._midKey = key;
+    this._midAnchor = { x: c.x, y: c.y, z: c.zoom, t: tNow };
+    this._midPad = { X, Y };
     const t0 = now();
-    const cw = Math.round((this.W + 2 * M) * d), ch = Math.round((this.H + 2 * M) * d);
+    const cw = Math.round((this.W + 2 * M + 2 * X) * d), ch = Math.round((this.H + 2 * M + 2 * Y) * d);
     if (this._mid.width !== cw || this._mid.height !== ch) { this._mid.width = cw; this._mid.height = ch; }
     const g = this._mid.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, cw, ch);
-    this._drawParallax(g);
     this._lamps = [];
-    // world-space content
+    // world-space content (the culling in these helpers widens by the margin via _visibleWorld)
     const z = c.zoom * d;
-    g.setTransform(z, 0, 0, -z, (this.W / 2 + M - c.x * c.zoom) * d, (this.H / 2 + M + c.y * c.zoom) * d);
-    this._drawValleyBack(g);
-    this._drawProps(g);
-    if (this._railDecor) this._drawRailDecor(g);
-    this._drawTerrain(g);
+    g.setTransform(z, 0, 0, -z, (this.W / 2 + M + X - c.x * c.zoom) * d, (this.H / 2 + M + Y + c.y * c.zoom) * d);
+    this._visPadX = X; this._visPadY = Y;
+    try {
+      this._drawValleyBack(g);
+      this._drawProps(g);
+      if (this._railDecor) this._drawRailDecor(g);
+      this._drawTerrain(g);
+    } finally { this._visPadX = 0; this._visPadY = 0; }
     this.stats.midMs = now() - t0;
+  };
+  R._ensurePar = function () {
+    const c = this.camera, d = this.dpr;
+    const top = this.terrain ? Math.max(this.terrain.ly, this.terrain.ry) : 0;
+    const key = this.W + 'x' + this.H + '@' + d + '|' + this.themeId + '|' + this._bgVersion + '|' + (this._hasBgImg ? 1 : 0) + '|' + (this.level && this.level.id) + '|' +
+      Math.round(c.x * c.zoom * 4) + ',' + Math.round(this.worldToScreen(0, top).y * 4) + ',' + c.zoom.toFixed(4);
+    if (key === this._parKey) return;
+    this._parKey = key;
+    const cw = Math.round((this.W + 2 * M) * d), ch = Math.round((this.H + 2 * M) * d);
+    if (this._par.width !== cw || this._par.height !== ch) { this._par.width = cw; this._par.height = ch; }
+    const g = this._par.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cw, ch);
+    this._drawParallax(g);
   };
 
   R._layerHeight = function (Lr, u, seed) {
@@ -3818,7 +3865,17 @@
     this._drawClouds(ctx, sh);
     this._ensureMid();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(this._mid, Math.round((sh.x - M) * d), Math.round((sh.y - M) * d));
+    ctx.drawImage(this._par, Math.round((sh.x - M) * d), Math.round((sh.y - M) * d));
+    {
+      const A = this._midAnchor || { x: this.camera.x, y: this.camera.y, z: this.camera.zoom }, P = this._midPad, cz = this.camera.zoom;
+      const ox = (this.camera.x - A.x) * cz, oy = (this.camera.y - A.y) * cz;
+      const sc = cz / (A.z || cz);
+      if (sc === 1) ctx.drawImage(this._mid, Math.round((sh.x - M - P.X - ox) * d), Math.round((sh.y - M - P.Y + oy) * d));
+      else { // scaled during a follow zoom transition (see _ensureMid)
+        const W2 = this.W / 2, H2 = this.H / 2;
+        ctx.drawImage(this._mid, (sh.x + W2 - (W2 + M + P.X) * sc - ox) * d, (sh.y + H2 - (H2 + M + P.Y) * sc + oy) * d, this._mid.width * sc, this._mid.height * sc);
+      }
+    }
 
     // node lookup (results + undeformed: the inspect view shows peaks on the design as built)
     const blueprint = mode === 'results' && !!state.undeformed && !!state.sim && !!state.design;

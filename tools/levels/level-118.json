@@ -65,8 +65,14 @@
     "girder",
     "cable"
   ],
-  "budget": 123000,
+  "budget": 127000,
   "traffic": [
+    {
+      "type": "train",
+      "train": "highspeed",
+      "count": 1,
+      "interval": 2
+    },
     {
       "type": "car",
       "count": 3,
@@ -76,12 +82,6 @@
       "type": "truck",
       "count": 2,
       "interval": 2.5
-    },
-    {
-      "type": "train",
-      "train": "highspeed",
-      "count": 1,
-      "interval": 2
     }
   ],
   "timeLimit": 50,

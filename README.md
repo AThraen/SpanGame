@@ -1,6 +1,6 @@
 # SPAN: Bridge Builder
 
-SPAN is a physics bridge-construction puzzle game that runs in the browser. You build a bridge across a gap from road, wood, steel, rope and cable, stay under budget, then press **Test** to watch real traffic drive across. If the bridge is too weak it sags, beams snap, and the bus ends up in the river.
+SPAN is a physics bridge-construction puzzle game that runs in the browser. You build a bridge across a gap from road, wood, steel, rope and cable, stay under budget, then press **Test** to watch real traffic drive across. If the bridge is too weak it sags, beams snap, and the bus ends up in the river. A second campaign, the **Iron Road**, swaps the traffic for trains, from a handcar to 2000-tonne ore trains and 150 km/h expresses.
 
 It is plain HTML, CSS and JavaScript, with no build step and no runtime dependencies. Double-click `index.html`; it works straight from `file://`.
 
@@ -17,7 +17,7 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
    - **Road** and **reinforced road** are what vehicles drive on. The road must run continuously from bank to bank, and it bends at its joints: it needs a supported joint (a strut, hanger or chord) about every 5–6 m. **Wood** and **steel** are structural members. **Rope** and **cable** only carry tension. Pier tops are rigid concrete supports.
 4. **Test** (Space). Beams are coloured by live stress, from cool through yellow to red, and glow when above 85%. Hover a beam to see its force, stress and (for road) how much of it is bending. Overloaded members snap; the results say which member gave way first and why.
 5. **Optimise.** After a run, **Inspect** shows the peak stress each member reached, drawn on the bridge as built, with broken members marked. Back in the editor, hovering a beam shows its peak from the last test. Trim the members that stay white or green and reinforce the red ones.
-6. **Railway levels (Iron Road).** Trains derail on a kink between rail segments, a grade that is too steep, a broken or missing rail, or a bogie lifted off a crest. While a train runs, the **track recording** strip above the sim controls (`T`) plots the grade and kink at every rail joint against the red limit bands; the kink limit shrinks for fast trains. When a train derails, the action drops into slow motion, the offending wheel and rail segment pulse red, and a callout names the cause with numbers (for example "Kink 4.1° at 32 m/s — limit here is 1.9°"). The results show two verdicts, *Structure held* and *Train stayed on the rails*, plus a ride-quality card: worst grade, worst kink against its limit, peak sag and a smoothness grade from A to F. Masonry that is being pulled glows red with crack marks, live and in the peak view.
+6. **Railway levels (Iron Road).** Trains derail on a kink between rail segments, a grade that is too steep, a broken or missing rail, or a bogie lifted off a crest. The kink is judged the way a bogie feels it: the angle between the rail segments under its first and last axle, averaged over its whole passage across the joint, against a limit of 4° that shrinks above 15 m/s (1.4° at 42 m/s). On the same track a slower train gets a wider kink limit. While a train runs, the **track recording** strip above the sim controls (`T`) plots the grade and kink at every rail joint against the red limit bands; the kink limit shrinks for fast trains. When a train derails, the action drops into slow motion, the offending wheel and rail segment pulse red, and a callout names the cause with numbers (for example "Kink 4.1° at 32 m/s — limit here is 1.9°"). The results show two verdicts, *Structure held* and *Train stayed on the rails*, plus a ride-quality card: worst grade, worst kink against its limit, peak sag and a smoothness grade from A to F. Masonry that is being pulled glows red with crack marks, live and in the peak view.
 
 **Pass** means every vehicle drives across to the far bank within the time limit and the cost is at or under budget. Over-budget bridges can still be tested, but they can't complete the level. A run fails when a vehicle falls, when a vehicle is launched across instead of driving (a ramp is not a bridge), when all traffic is stuck for 5 s, or at the time limit.
 
@@ -25,7 +25,7 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
 |---|---|
 | ★ | Pass |
 | ★★ | Pass, cost ≤ 85% of budget |
-| ★★★ | Pass, cost ≤ 70% of budget |
+| ★★★ | Pass, cost ≤ 70% of budget (Iron Road: and no member broke, the *Structure held* verdict) |
 
 Your progress and your last design for each level are saved in `localStorage` automatically. The game still works when storage is unavailable.
 
@@ -62,8 +62,8 @@ Your progress and your last design for each level are saved in `localStorage` au
 | `P` | Pause / resume |
 | `.` | Single step (while paused) |
 | `-` / `=` | Slower / faster (¼×, 1×, 2×, 4×, 8×) |
-| `F` | Camera follows the traffic |
-| `T` | Track recording strip on railway levels: grade and kink at every rail joint against the derail limits |
+| `F` / **Follow** button | Camera follows the traffic: the lead train (or the lead vehicle) at a comfortable zoom, stopping at the far bank. On by default for gaps over 60 m; your choice is kept per level. While following, the wheel scales the follow zoom and a drag peeks around (it eases back) |
+| `T` / **Track** button | Track recording strip on railway levels (on by default there): grade per rail segment and kink per joint, against red limit bands. The kink band slides with the train's speed; a red bar is over the limit, a white tick is that joint's peak so far, and the right-hand readout shows the worst grade and the worst kink with the speed it was judged at |
 | `Enter` (results) | Next level if passed, otherwise back to editing |
 
 ## Running it
@@ -82,6 +82,7 @@ css/style.css            HUD / menus (glass panels, system font stack)
 js/core/                 simulation core - runs in the browser AND in Node, no DOM
   materials.js           BG.Materials, BG.MaterialOrder, BG.Costs
   vehicles.js            BG.Vehicles (car ... 60 t heavy hauler), BG.VehicleOrder
+  trains.js              BG.RailCars, BG.Trains (handcar ... ore, high-speed), BG.RailRules + designer notes
   model.js               BG.Model - design helpers, cost, validation, (de)serialisation
   physics.js             BG.Simulation - deterministic XPBD, fixed 1/60 s step with substeps
   levels.js              BG.Levels - level definitions
@@ -96,7 +97,7 @@ js/ui/
   railinfo.js            BG.RailInfo - derailment explainer, track recording strip, ride-quality card (display only)
   hud.js                 BG.Hud - title, level select, top bar, palette, tool rail, results, settings
 js/main.js               BG.Game - state machine (title -> levelSelect -> edit <-> sim -> results) + main loop
-assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint
+assets/sprites/          hand-written SVG vehicles (1 unit = 1 cm), wheels, anchor, joint; rail/ holds the rolling stock
 assets/icons/            SVG UI icons
 assets/bg/               painterly per-theme backgrounds (<theme>.jpg)
 tools/                   Node tooling (not loaded by the game)
@@ -109,6 +110,7 @@ tools/                   Node tooling (not loaded by the game)
   test-templates.js      template generator tests (--verbose, --svg out.html)
   e2e.js                 headless-Chrome end-to-end check of the real game
   shot.js                headless screenshot helper
+  test-railinfo.js       derailment explainer tests
   solutions/             level-NN.json (reference) and level-NN-best.json (proves ★★★) for every level
 SPEC.md                  binding data contracts between modules
 ```
@@ -120,18 +122,19 @@ All modules hang off one global, `window.BG`. Every `js/core` file is wrapped so
 You need Node 18 or later (developed on Node 24). The browser checks also need the dev dependency (`npm install` installs Playwright) and a local Chrome. They always run **headless**; nothing opens a window.
 
 ```sh
-node tools/test-physics.js     # 20 physics tests incl. exploits, stability & >=4x realtime perf
-node tools/verify-levels.js    # all 50 levels, reference + best design each (see "Levels" below)
+node tools/test-physics.js     # 31 physics tests incl. exploits, stability, rail rules & >=4x realtime perf
+node tools/verify-levels.js    # all 70 levels, reference + best design each (see "Levels" below)
+                               #   --campaign road|rail, --only 101-120, --ref-only
 node tools/test-editor.js      # editor behaviour (140 checks)
-node tools/test-templates.js   # templates across synthetic + real levels
+node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
-node tools/e2e.js [outDir]     # full browser run; screenshots go to %TEMP%/span-e2e by default
+node tools/e2e.js [outDir]     # full browser run incl. the Iron Road; screenshots go to %TEMP%/span-e2e by default
 node tools/shot.js out.png [script.js] [waitMs]   # one headless screenshot, optional in-page eval
 ```
 
 ## Levels
 
-50 levels in 6 chapters (the level select groups them the same way):
+Roads: 50 levels in 6 chapters (the level select groups them the same way):
 
 | Chapter | Levels | Gaps | Traffic | Introduces |
 |---|---|---|---|---|
@@ -161,6 +164,32 @@ Every level is verified by `node tools/verify-levels.js` against two designs in 
 - Both must be valid and buildable in the editor (joints on the 0.25 m grid, no two joints closer than the 0.6 m joint magnet) and must have no floppy parts (no joint drifting more than 1 m while nothing breaks).
 
 Budgets are set so the reference costs at most about 88% of the budget and the best design at most 70% (at most 68% on levels 41–50, leaving a little room for hand-built designs). No built-in template earns ★★★ on any level; templates are switched off on levels 1–3, and templates that break a level's rules (for example an arch through a ship channel) are hidden from the menu.
+
+### Iron Road (levels 101–120)
+
+The railway campaign opens when road level 10 is complete (the **Iron Road** tab on the level select says so while it is locked; `?unlockall` opens it too). Inside it the usual rule applies: a level opens when either of the two before it is complete.
+
+| Chapter | Levels | Gaps | Trains | Introduces |
+|---|---|---|---|---|
+| 1 Branch Lines | 101–105 | 10–24 m | handcar, tram, local steam | rail track, kinks and grades, trusses under the track |
+| 2 Stone & Steam | 106–110 | 26–50 m | local steam, steam express | masonry: arches and viaducts that stay in compression |
+| 3 Freight Corridor | 111–115 | 50–100 m | commuter, long freight, 2000 t ore | the whole span loaded at once, deep trusses, box girders |
+| 4 High Speed | 116–120 | 80–140 m | high-speed sets at 42 m/s | dips that only a fast train notices; double-deck road + rail |
+
+**Branch Lines:** 101 Pump Trolley (10 m) · 102 Mind the Kink (12 m) · 103 Over the Top (16 m) · 104 Full Steam (18 m) · 105 Branch Closer (24 m)
+
+**Stone & Steam:** 106 Push, Don't Pull (26 m) · 107 Twin Arches (32 m) · 108 Stone Steps (40 m) · 109 Night Mail (50 m) · 110 Ash Valley (48 m)
+
+**Freight Corridor:** 111 Commuter Belt (50 m) · 112 Fourteen Wagons (65 m) · 113 Cantilever Firth (90 m) · 114 Iron Mountain (60 m) · 115 Heavy Metal (100 m)
+
+**High Speed:** 116 Smooth Operator (80 m) · 117 Stay Fast (120 m) · 118 Two Storeys (90 m) · 119 Whiteout Express (130 m) · 120 Grand Terminus (140 m, the finale)
+
+- **Materials:** *Rail Track* is the only deck trains ride on (road vehicles never use it), heavier and stiffer than road and laid nearly level. *Masonry* is cheap and enormously strong in compression but cracks in tension (it glows red when pulled). *Box Girder* is the heavy steel member for the ore trains.
+- **Derailment:** a kink, a grade over the limit for 0.3 s, a missing or broken rail under a wheel, or a bogie lifted off the track. Levels may set their own limits.
+- **Double-deck levels (118, 120):** road and rail both start at the top bank bolts; the road ramps down onto a lower deck. The express crosses first; road traffic follows; a train that comes after road traffic waits until it can no longer catch up with it on the shared approaches.
+- **Stars:** as on the road, plus ★★★ needs the structure to hold. Following the train with the camera (`F`) and the track strip (`T`) are the main tools for reading a run.
+
+Rail levels are verified like road levels, plus a ride margin: the reference design's worst kink stays at or below 95% of its limit and the best design's at or below 100% (both pass with no grade over its limit), and the best design passes with no broken member. On 116–120 the best designs cost about 67% of the budget, leaving room for hand-built three-star bridges.
 
 ### Adding a level
 

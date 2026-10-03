@@ -2,7 +2,7 @@
   "id": 102,
   "campaign": "rail",
   "name": "Mind the Kink",
-  "hint": "The bare track won't snap under a tram - it sags, and the tram derails on the kinks. Give every joint of the rail something to stand on: a wooden truss underneath keeps the track straight.",
+  "hint": "Bare track cannot carry a tram: it sags into kinks that derail the tram, or bends until it snaps at an unsupported joint. Give every joint of the rail something to stand on - a wooden truss underneath keeps the track straight.",
   "theme": "city",
   "terrain": {
     "leftEdge": 0,

@@ -314,6 +314,10 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
 - New traffic entry form: `{ type: 'train', train: '<preset id>', count, interval }`. Road vehicle entries may
   be mixed in on double-deck levels (they drive on `road` beams; trains only on `rail` beams).
 - Optional level field `rail: { maxGrade: 0.04, maxKinkDeg: 3 }` overrides derail thresholds.
+- Stars as in §1, except ★★★ on a rail level also needs the "Structure held" verdict (no broken member).
+- Verification (`verify-levels.js`) adds a ride margin on rail levels: `sim.ride.kinkRatio` ≤ 0.95 (reference) / ≤ 1.0
+  (best), `sim.ride.gradeRatio` ≤ 1, and the best design passes with no broken member. Bests on 116–120 sit at ≈ 67 % of
+  budget. `test-templates.js` checks that no offered template earns ★★★ on 101–120.
 
 ### 9.2 Materials (new)
 - `rail` — track deck: `isRail: true`, `isRoad: false`; ballasted deck with sleepers, heavier and stiffer
@@ -337,12 +341,19 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
   couplers (XPBD distance + slack). Locomotive(s) provide traction/braking toward target speed; all axle
   loads go into the rail beams' end joints exactly like road wheel contacts.
 - **Derailment** (new fail reason `derailed`, event `{type:'derail', i, x, y}`): a car derails if, under any
-  of its wheels, the rail grade exceeds `maxGrade` for > 0.3 s, or the vertical angle between consecutive
-  rail segments under a bogie exceeds `maxKinkDeg`, or the rail is missing / broken under a wheel. A derailed
+  of its wheels, the rail grade exceeds `maxGrade` for > 0.3 s, or the kink under a bogie is over its limit, or the
+  rail is missing / broken under a wheel. Kink = angle between the rail segments under a bogie's first and last axle
+  (single-axle bogies: the car's first and last wheel), judged once per passage over a joint on the **mean** of
+  kink / limit over that passage (a long straddle closes every 1.5 axle spacings of travel or `RailRules.kinkWindow`
+  = 1 s); limit = `maxKinkDeg` up to `kinkRefSpeed` (15 m/s), × 15 / v above it. The verdict does not depend on how
+  many 1/60 s steps a bogie spends over a joint, and on rigid track a slower train never fares worse. A derailed
   car tumbles physically (drags its coupled neighbours) — dramatic but stable.
 - `sim.vehicles` entries for trains: `{kind:'train', type:'train', preset, cars:[{type, def, x, y, angle,
   wheels:[{x,y,r,rot}], state}], state, ...}`; road vehicles get `kind:'road'`. Finish = last car's rear
   passes `rightEdge + 15`. Trains spawn so the whole consist starts on the left bank.
+  Mixed traffic (double-deck levels) shares the bank approaches: a train waits to spawn until it can no longer catch
+  any road vehicle ahead of it before that vehicle leaves the world (rear past `rightEdge + 120`, both at cruise
+  speed, + 10 m), and a road vehicle waits the same way behind a slower train. Levels list the fast train first.
 
 ### 9.4 Rendering, audio, UI
 - SVG sprites in `assets/sprites/rail/` per car type (wheels/bogies separate so they rotate; steam loco
@@ -352,11 +363,15 @@ engine change (re-verify; if a shared change breaks a road design, fix the engin
 - Audio: horn (steam whistle / diesel horn / high-speed chime), clickety-clack per rail seam scaled by
   speed, steam chuff, brake squeal, derail crash.
 - **Camera follow** (both campaigns): sim-controls toggle "Follow" (key F) that smoothly tracks the lead
-  vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans.
+  vehicle/train with comfortable zoom; default ON for gaps > 60 m. Fixes tiny vehicles on big spans. A live train is preferred over road traffic as
+  the target. The renderer keeps its world scenery cache while following (rendered with a margin, blitted with a
+  translation, scaled during zoom transitions) and holds the follow zoom in a ±6 % dead band, so the cache is not
+  rebuilt every frame.
 - Templates: add `viaduct` (masonry arches on piers) and make existing templates use `rail` deck on rail levels.
 - HUD traffic chips show train icons with car count ("Ore ×24").
 - Derailment explainer (display only, `js/ui/railinfo.js` = `BG.RailInfo`): the sim exposes read-only readouts that never
   feed back into the state (`sim.ride` worst grade / kink-vs-limit / sag while running; `.detail = {reason, wheel, wx, wy, seg,
-  segPrev, value, limit, speed}` on derail events and `sim.firstDerail`; `sim.beams[j].peakTension` for masonry). The UI shows a
+  segPrev, value, limit, speed}` on derail events and `sim.firstDerail`; `sim.beams[j].peakTension` for masonry). `sim.ride.kinkRatio` is the same
+  passage-mean kink / limit the derail rule judges (with `kink`, `kinkLim`, `kinkSpeed` of that passage). The UI shows a
   track-recording strip (key T, default on for rail levels), a slow-motion freeze-frame with the offending wheel + segment
   highlighted and a cause callout, two verdicts + a ride-quality card (A–F) in the results, and masonry tension glow + cracks.

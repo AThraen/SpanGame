@@ -2,7 +2,8 @@
 // Usage: node tools/e2e.js [outDir=%TEMP%/span-e2e] [viewportW=1440] [viewportH=900]
 // Drives the real game headless: level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
 // auto-split beginner path), pass/fail runs, templates (level 4), undo/redo, mirror + piers (level 11),
-// frame timing, progress. Exit code 0 = all checks passed.
+// frame timing, progress; Iron Road: campaign tab gating, mouse-built 101, a derail callout (102), 108, the
+// follow-camera scenery cache, and the finale (120 only). Exit code 0 = all checks passed.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -234,6 +235,91 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.evaluate(() => BG.Hud.openSettings()); await page.waitForTimeout(400);
   await shot('17-settings');
   await page.evaluate(() => BG.Hud.closeSettings());
+
+  // ================================================================ Iron Road (levels 101-120)
+  await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(700);
+  const lockInfo = await page.evaluate(() => ({ locked: document.querySelector('[data-camp=rail]').classList.contains('locked'), sub: document.querySelector('[data-ref=ctRail]').textContent, open: BG.Storage.isCampaignUnlocked('rail') }));
+  ok('Iron Road tab locked until level 10 is complete', lockInfo.locked && /Complete level 10/.test(lockInfo.sub) && !lockInfo.open, lockInfo);
+  await page.click('[data-camp=rail]'); await page.waitForTimeout(400);
+  const lockedView = await page.evaluate(() => ({ closed: !!document.querySelector('.camp-locked'), open: document.querySelectorAll('.tile.is-rail.open').length }));
+  ok('locked Iron Road tab opens no level', lockedView.closed && lockedView.open === 0, lockedView);
+  await shot('20-rail-locked');
+  await page.evaluate(() => { BG.Storage.recordResult(10, { passed: true, stars: 1, cost: 1 }); BG.Hud.setCampaignTab('rail'); });
+  await page.waitForTimeout(500);
+  const openView = await page.evaluate(() => ({ locked: document.querySelector('[data-camp=rail]').classList.contains('locked'), tiles: document.querySelectorAll('.tile.is-rail').length, open: Array.from(document.querySelectorAll('.tile.is-rail.open')).map(t => +t.dataset.id) }));
+  ok('level 10 done: Iron Road open, 20 levels, 101 open, 103 still locked', !openView.locked && openView.tiles === 20 && openView.open.includes(101) && !openView.open.includes(103), openView);
+  await shot('21-rail-levelselect');
+
+  // ---- 101 built with the mouse: two rail segments, then a pass
+  await page.click('.tile[data-id="101"]'); await page.waitForTimeout(1200);
+  await page.evaluate(() => BG.Hud.hideHint());
+  await page.keyboard.press('1'); await page.waitForTimeout(50);
+  const e101 = await page.evaluate(() => ({ state: BG.Game.state, id: BG.Game.level.id, mat: BG.Game.editor.material, follow: BG.Game.followOn }));
+  ok('level 101 opens in edit with rail selected (follow off on a short gap)', e101.state === 'edit' && e101.id === 101 && e101.mat === 'rail' && !e101.follow, e101);
+  await drag(0, 0, 5, 0);
+  const a101 = await W2S(10, 0);
+  await page.mouse.click(a101.x, a101.y); await page.waitForTimeout(100); // reaching the anchor ends the chain
+  const d101 = await page.evaluate(() => { const d = BG.Game.getDesign(); return { beams: d.beams.map(b => b.a + '-' + b.b + ':' + b.m), v: BG.Model.validate(BG.Game.level, d).ok, rail: BG.Model.railConnected(BG.Game.level, d) }; });
+  ok('101: rail laid bank to bank with the mouse', d101.beams.length === 2 && d101.v && d101.rail, d101);
+  await page.keyboard.press('Space'); await page.waitForTimeout(1800);
+  ok('101: track recording strip shows during the run', await page.evaluate(() => BG.Game.state === 'sim' && document.querySelector('[data-ref=track]').classList.contains('show')));
+  await shot('22-rail101-sim');
+  r = await runSim(60); await page.waitForTimeout(1600);
+  const card101 = await page.evaluate(() => { const c = document.querySelector('.ride-card'); return { card: !!c && !c.closest('[hidden]'), text: (document.querySelector('.rv-row') || {}).textContent || '' }; });
+  ok('101 passes; results show both verdicts and the ride card', r.res && r.res.passed && card101.card && /Structure held/.test(card101.text) && /stayed on the rails/.test(card101.text), r.res && { passed: r.res.passed, stars: r.res.stars, rail: r.res.rail, card101 });
+  ok('101 is not the finale', r.res && !r.res.finale);
+  await shot('23-rail101-results');
+  await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
+
+  // ---- 102: bare track - the tram derails on a kink and the callout explains it
+  await page.evaluate(() => { BG.Game.openLevel(102, { force: true }); });
+  await page.waitForTimeout(900);
+  await page.evaluate(() => BG.Hud.hideHint());
+  await page.evaluate(() => { BG.Game.editor.design = { nodes: [{ id: 'n1', x: 4, y: 0 }, { id: 'n2', x: 8, y: 0 }], beams: [{ a: 'a0', b: 'n1', m: 'rail' }, { a: 'n1', b: 'n2', m: 'rail' }, { a: 'n2', b: 'a1', m: 'rail' }], piers: [] }; BG.Game._lastToggle = -1e9; BG.Game.startSim(); });
+  const der = await page.evaluate(() => { const g = BG.Game; for (let i = 0; i < 60 * 20 && g.state === 'sim' && !g._derailFx; i++) g._updateSim(1 / 60); return { fx: !!g._derailFx, reason: g._derailFx && g._derailFx.ev.reason, firstDerail: g.sim.firstDerail && g.sim.firstDerail.reason }; });
+  await page.waitForTimeout(350);
+  const callout = await page.evaluate(() => { const dc = document.querySelector('[data-ref=derail]'); return { show: dc.classList.contains('show'), title: dc.querySelector('[data-ref=dcTitle]').textContent, cause: dc.querySelector('[data-ref=dcCause]').textContent }; });
+  ok('102 bare track: the tram derails on a kink', der.fx && der.reason === 'kink', der);
+  ok('derail callout shows the cause with numbers', callout.show && /kink/i.test(callout.title + callout.cause) && /\d/.test(callout.cause), callout);
+  await shot('24-rail102-derail-callout');
+  r = await runSim(40); await page.waitForTimeout(1500);
+  ok('102 bare track fails as derailed', r.res && !r.res.passed && r.res.reason === 'derailed', r.res && { reason: r.res.reason, title: r.res.title });
+  await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
+
+  // ---- 108: the reference viaduct passes in the browser
+  await page.evaluate(() => { BG.Game.openLevel(108, { force: true }); });
+  await page.waitForTimeout(900);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(108));
+  r = await runSim(120); await page.waitForTimeout(1500);
+  const fin108 = await page.evaluate(() => document.querySelector('[data-ref=results]').classList.contains('finale'));
+  ok('108 reference passes in the browser (not the finale)', r.res && r.res.passed && !r.res.finale && !fin108, r.res && { passed: r.res.passed, stars: r.res.stars, reason: r.res.reason, fin108 });
+  await shot('25-rail108-results');
+  await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
+
+  // ---- 120: follow camera on by default; the scenery cache is not rebuilt every frame; finale
+  await page.evaluate(() => { BG.Game.openLevel(120, { force: true }); });
+  await page.waitForTimeout(900);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(120));
+  const fol = await page.evaluate(() => new Promise(res => {
+    const g = BG.Game, R = g.renderer;
+    let frames = 0, rebuilds = 0, last = null;
+    const tick = () => {
+      if (frames > 0 && R._midAnchor !== last) rebuilds++;
+      last = R._midAnchor;
+      if (++frames < 150) requestAnimationFrame(tick);
+      else res({ follow: g.followOn, following: !!R._followActive, frames, rebuilds, t: g.sim.time });
+    };
+    // let the follow camera zoom in first (a few seconds of frames), then watch the train cross at 1x
+    let warm = 0;
+    const warmup = () => { if (++warm < 200) requestAnimationFrame(warmup); else requestAnimationFrame(tick); };
+    requestAnimationFrame(warmup);
+  }));
+  ok('120: camera follows the traffic; scenery cache reused (rebuilt on < 1 in 4 frames)', fol.follow && fol.following && fol.rebuilds < fol.frames / 4, fol);
+  await shot('26-rail120-follow');
+  r = await runSim(140); await page.waitForTimeout(1800);
+  const fin = await page.evaluate(() => ({ cls: document.querySelector('[data-ref=results]').classList.contains('finale-rail'), banner: document.querySelector('[data-ref=resBanner]').textContent }));
+  ok('120 reference passes and shows the Iron Road finale', r.res && r.res.passed && r.res.finale && fin.cls && /Iron Road complete/.test(fin.banner), r.res && { passed: r.res.passed, reason: r.res.reason, finale: r.res.finale, fin });
+  await shot('27-rail120-finale');
 
   ok('no console errors', errors.length === 0, errors.slice(0, 15));
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} e2e checks passed`);

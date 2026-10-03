@@ -2,6 +2,9 @@
 // SPAN — verifies every level in BG.Levels against its designs in tools/solutions/:
 //   level-NN.json       reference: passes, peak stress <= 0.92, cost <= budget
 //   level-NN-best.json  best:      passes, peak stress <= 0.99, cost <= 70 % of budget (proves ★★★ is reachable)
+// Rail levels also gate the ride margin (sim.ride: worst kink / limit and worst grade / limit, the same
+// quantities the derail rule judges): reference <= 0.95, best <= 1.0; and the best design must pass with
+// the structure intact (no broken member), since ★★★ on a rail level requires "Structure held".
 // Both must also be valid, buildable in the editor (joints on the 0.25 m grid, no two joints closer than
 // the 0.6 m joint magnet) and free of floppy parts (no joint drifting > 1 m while nothing has broken).
 // Exit code 1 on any failure.
@@ -13,6 +16,7 @@ const path = require('path');
 const { BG, runHeadless } = require('./harness');
 
 const PEAK_MAX = 0.92, BEST_PEAK_MAX = 0.99, BEST_RATIO = 0.70;
+const RIDE_MAX = 0.95, BEST_RIDE_MAX = 1.0;
 const GRID = 0.25, MIN_SPACING = 0.6, WANDER_MAX = 1.0;
 const args = process.argv.slice(2);
 const onlyArg = args.indexOf('--only') >= 0 ? args[args.indexOf('--only') + 1] : null;
@@ -52,7 +56,7 @@ function buildability(level, design) {
 const levels = (BG.Levels || []).filter(l => (!only || only.has(l.id)) && (!campArg || (l.campaign || 'road') === campArg));
 if (!levels.length) { console.error('No levels found (BG.Levels empty?)'); process.exit(1); }
 
-const cols = [['id', 8], ['name', 24], ['result', 7], ['time', 7], ['peak', 7], ['cost', 8], ['budget', 8], ['ratio', 6], ['veh', 6], ['brk', 4], ['wall', 7], ['problems', 0]];
+const cols = [['id', 8], ['name', 24], ['result', 7], ['time', 7], ['peak', 7], ['cost', 8], ['budget', 8], ['ratio', 6], ['veh', 6], ['brk', 4], ['ride', 5], ['wall', 7], ['problems', 0]];
 console.log(cols.map(([c, w]) => pad(c, w)).join(' '));
 console.log('-'.repeat(112));
 
@@ -84,6 +88,13 @@ for (const level of levels) {
           if (!(r.peakStress <= peakMax)) problems.push('peak ' + r.peakStress.toFixed(3) + ' > ' + peakMax);
           if (!r.budgetOk) problems.push('over budget');
           if (best && level.budget && r.cost > BEST_RATIO * level.budget + 1e-9) problems.push('cost ' + (r.cost / level.budget).toFixed(3) + ' of budget > ' + BEST_RATIO);
+          const ride = r.sim && r.sim.ride;
+          if (ride) {
+            const rm = best ? BEST_RIDE_MAX : RIDE_MAX;
+            if (ride.kinkRatio > rm) problems.push('kink ' + ride.kinkRatio.toFixed(2) + ' of limit > ' + rm);
+            if (ride.gradeRatio > 1 + 1e-9) problems.push('grade ' + ride.gradeRatio.toFixed(2) + ' of limit');
+            if (best && r.brokenBeams > 0) problems.push(r.brokenBeams + ' broken member(s): ★★★ needs the structure to hold');
+          }
           if (!r.valid) problems.push('invalid: ' + r.errors.map(e => e.type + (e.beamIndex != null ? '#' + e.beamIndex : '') + (e.nodeId ? '@' + e.nodeId : '')).join(', '));
           problems.push(...buildability(level, design));
           // floppy parts: a joint drifting far although nothing broke
@@ -107,9 +118,10 @@ for (const level of levels) {
       r ? r.time.toFixed(1) : '-', r ? r.peakStress.toFixed(3) : '-',
       r ? r.cost : '-', level.budget, r && level.budget ? (r.cost / level.budget).toFixed(2) : '-',
       r ? r.vehiclesFinished + '/' + r.vehiclesTotal : '-', r ? r.brokenBeams : '-',
+      r && r.sim && r.sim.ride ? r.sim.ride.kinkRatio.toFixed(2) : '-',
       r ? r.wallMs + 'ms' : '-', problems.join('; '),
     ];
-    console.log(row.map((v, i) => pad(v, cols[i][1], i >= 3 && i <= 10)).join(' '));
+    console.log(row.map((v, i) => pad(v, cols[i][1], i >= 3 && i <= 11)).join(' '));
     if (verbose && r) console.log('     ', JSON.stringify({ status: r.status, failReason: r.failReason, time: r.time }));
   }
 }

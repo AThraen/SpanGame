@@ -658,6 +658,32 @@ test('rail: kink and grade derail; fast trains derail on dips slow ones ride thr
   assert(BG.Model.validate(Lv, { nodes: [], beams: [{ a: 'a2', b: 'a0', m: 'rail' }], piers: [] }).errors.some(e => e.type === 'rail_too_steep'), 'steep rail invalid');
 });
 
+test('rail: kink verdict = mean kink over a bogie passage - no step-timing luck, slower is never worse', () => {
+  // perfectly rigid track: every joint is an anchor; a V-dip at x = 20 kinks the middle joint by 'deg'
+  const rigid = (deg, speed) => {
+    const h = 5 * Math.tan(deg * Math.PI / 360);
+    const pts = [[0, 0], [40, 0], [15, 0], [20, -h], [25, 0]];
+    const L = makeLevel(40, trainTraffic('highspeed'), { anchors: pts.map(p => ({ x: p[0], y: p[1] })), timeLimit: 30 });
+    const d = { nodes: [], beams: [['a0', 'a2'], ['a2', 'a3'], ['a3', 'a4'], ['a4', 'a1']].map(e => ({ a: e[0], b: e[1], m: 'rail' })), piers: [] };
+    const P = BG.Trains.highspeed, v0 = P.speed;
+    P.speed = speed;
+    try { const sim = run(L, d, 30); return { st: sim.status, fd: sim.firstDerail, ride: sim.ride }; } finally { P.speed = v0; }
+  };
+  const lim = v => 4 * 15 / v;
+  // the verdict follows the limit at every speed: no 3-vs-4-steps luck at 42 m/s
+  for (const v of [36, 38, 40, 42]) {
+    const lo = rigid(lim(v) * 0.97, v), hi = rigid(lim(v) * 1.03, v);
+    assert(lo.st === 'success', v + ' m/s, kink 0.97 x limit rides through: ' + JSON.stringify(lo.fd));
+    assert(hi.st === 'failed' && hi.fd && hi.fd.reason === 'kink', v + ' m/s, kink 1.03 x limit derails: ' + JSON.stringify(hi.fd));
+    // the readout is the same quantity the verdict uses
+    approx(lo.ride.kinkRatio, 0.97, 0.02, v + ' m/s ride.kinkRatio');
+    approx(hi.fd.detail.value / hi.fd.detail.limit, 1.03, 0.02, v + ' m/s derail detail ratio');
+  }
+  // a kink that the fast train rides over is never fatal for a slower one
+  const k = lim(42) * 0.95;
+  for (const v of [20, 30, 36, 40]) assert(rigid(k, v).st === 'success', 'slower train (' + v + ' m/s) over a kink the 42 m/s train survives');
+});
+
 test('rail: masonry arch viaduct carries steam trains; posts-only arch is a mechanism', () => {
   const v = railViaduct('steam_local', 40, [10, 20, 30], -4, 3, 'steel', 2);
   const r = runHeadless(v.L, v.d);

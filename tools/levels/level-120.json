@@ -2,7 +2,7 @@
   "id": 120,
   "campaign": "rail",
   "name": "Grand Terminus",
-  "hint": "Everything at once: road traffic on a lower deck, the express at full speed and the ore train last of all, over a shipping channel with two rocky islands. Build it heavy, build it flat.",
+  "hint": "Everything at once: the express at full speed, then the road traffic, and the ore train last of all, over a shipping channel with two rocky islands. Road and rail both start at the top bank bolts - ramp the road down onto a lower deck (the lower bolts are for the structure). Build it heavy, build it flat.",
   "theme": "volcanic",
   "terrain": {
     "leftEdge": 0,
@@ -72,8 +72,14 @@
     "girder",
     "cable"
   ],
-  "budget": 476000,
+  "budget": 492000,
   "traffic": [
+    {
+      "type": "train",
+      "train": "highspeed_long",
+      "count": 1,
+      "interval": 2
+    },
     {
       "type": "car",
       "count": 2,
@@ -83,12 +89,6 @@
       "type": "truck",
       "count": 2,
       "interval": 2.5
-    },
-    {
-      "type": "train",
-      "train": "highspeed_long",
-      "count": 1,
-      "interval": 2
     },
     {
       "type": "train",
