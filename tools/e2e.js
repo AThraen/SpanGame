@@ -7,7 +7,8 @@
 // Famous Bridges), unlock gates, Next / finale per campaign (bonus 53 too), Continue across campaigns, the title's
 // Daily + Endless entry points, and results-modal layering (badges, history card over the results); the unlock rule
 // explained (chapter-finale gates, skipped markers, the (i) tooltip, the skip toast, the migration) and the hint only
-// auto-showing on an empty design or a level never passed. Exit code 0 = all passed.
+// auto-showing on an empty design or a level never passed; land-side structures (§17) on a test level; the hidden
+// Anchorages chapter (opened by level 40, its own Next / finale on 58). Exit code 0 = all passed.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -529,6 +530,37 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   ok('§17 without backstays the land pylons topple; the results explain it', r.res && !r.res.passed && top.piers.some(Boolean) && /land pylon toppled/.test(top.text), { passed: r.res && r.res.passed, piers: top.piers });
   await shot('44-land-toppled');
   await page.evaluate(() => { const i = BG.Levels.findIndex(l => l.id === 9901); if (i >= 0) BG.Levels.splice(i, 1); BG.Storage.clearDesign && BG.Storage.clearDesign(9901); });
+
+  // ================================================================ the hidden Anchorages chapter (54-58): opens after level 40
+  const anch = await page.evaluate(() => {
+    const G = BG.Game, S = BG.Storage, L = id => G.findLevel(id), nx = id => { const n = G.nextInCampaign(L(id)); return n ? n.id : null; };
+    return { next: [40, 53, 54, 57, 58].map(nx), finale: S.finaleOf(L(58)), gate: S.isGate(L(58)) };
+  });
+  ok('Anchorages: Next 40 -> 41, 53 ends, 54 -> 55, 57 -> 58, 58 ends; 58 is its finale, not a gate', JSON.stringify(anch.next) === '[41,null,55,58,null]' && anch.finale === 'anchorages' && !anch.gate, anch);
+  const r39 = []; for (let i = 1; i <= 39; i++) r39.push(i);
+  await seed(r39); await page.waitForTimeout(500);
+  const shut = await page.evaluate(() => ({ chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), lock: BG.Storage.lockText(54, BG.Levels) }));
+  ok('before level 40: the Anchorages chapter is hidden and locked', !shut.chapters.includes('Anchorages') && /level 40/.test(shut.lock || ''), shut);
+  await page.evaluate(() => { BG.Game.openLevel(40, { force: true }); }); await page.waitForTimeout(900);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(40));
+  r = await runSim(120); await page.waitForTimeout(1900);
+  const op = await page.evaluate(() => ({ opened: BG.Game.lastResult.bonusOpened, next: BG.Game.lastResult.hasNext, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | '), open54: BG.Game.isUnlocked(54), open55: BG.Game.isUnlocked(55) }));
+  ok('passing level 40 reveals the Anchorages (toast), opens 54 only; Next still leads to 41', r.res && r.res.passed && (op.opened || []).includes('anchorages') && /hidden chapter has opened: Anchorages/.test(op.toast) && op.open54 && !op.open55 && op.next, op);
+  await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(600);
+  const ls2 = await page.evaluate(() => ({ chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), open: Array.from(document.querySelectorAll('.tile.open')).map(t => +t.dataset.id).filter(id => id >= 51), sub: (document.querySelector('[data-ref=lsSub]') || document.querySelector('#screen-levels .ls-sub') || {}).textContent || '' }));
+  ok('level select: the Anchorages chapter (54 open) after Grand Spans; Forces of Nature still hidden', ls2.chapters[ls2.chapters.length - 1] === 'Anchorages' && !ls2.chapters.includes('Forces of Nature') && ls2.open.join() === '54', ls2);
+  await page.evaluate(() => BG.Hud.scrollToLevel(54)); await page.waitForTimeout(300);
+  await shot('45-anchorages-chapter');
+  await page.click('.tile[data-id="54"]'); await page.waitForTimeout(1000);
+  const bar = await page.evaluate(() => ({ id: BG.Game.level.id, sub: document.querySelector('#screen-level').textContent }));
+  ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && /Anchorages · 36 m gap/.test(bar.sub), bar.id);
+  // the chapter finale (58)
+  await page.evaluate(() => { [54, 55, 56, 57].forEach(id => BG.Storage.recordResult(id, { passed: true, stars: 1, cost: 1 })); BG.Game.openLevel(58, { force: true }); }); await page.waitForTimeout(900);
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('58-best'));
+  r = await runSim(90); await page.waitForTimeout(1800);
+  const f58 = await page.evaluate(() => ({ banner: document.querySelector('[data-ref=resBanner]').textContent, cls: document.querySelector('[data-ref=results]').classList.contains('finale-bonus'), next: document.querySelector('[data-act=next] span').textContent, piers: (BG.Game.sim.piers || []).map(p => p.failed) }));
+  ok('58 passes with the Anchorages finale, pylons standing, then "All levels"', r.res && r.res.passed && r.res.finaleKind === 'anchorages' && f58.cls && /Anchorages complete/.test(f58.banner) && f58.next === 'All levels' && !f58.piers.some(Boolean), Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, f58));
+  await shot('46-anchorages-finale');
 
   ok('no console errors', errors.length === 0, errors.slice(0, 15));
   console.log(`\n${results.filter(r => r.pass).length}/${results.length} e2e checks passed`);

@@ -5,6 +5,7 @@
 // - every chapter end of the level select is a gate; Famous Bridges only gate their finale
 // - campaigns open after road 10 (Iron Road) / road 15 (Famous Bridges); ?unlockall opens everything
 // - "skipped" levels (open, unfinished, a later level done), lock texts, the rule text
+// - the branching Anchorages chapter (54-58): opens after 40, own unlock list, no gates, own finale, main line untouched
 // - migration: levels the old rule had open (or that were played) stay open; other levels follow the gates
 'use strict';
 const fs = require('fs');
@@ -59,7 +60,28 @@ fresh(range(1, 49));
 ok('Roads finale 50 gates the hidden bonus chapter (51)', open(50) && !open(51));
 fresh(range(1, 50));
 ok('50 done: bonus 51 and 52 open', open(51) && open(52) && !open(53));
-ok('a plain lock text names the two levels before', /level 1 or level 2/.test((fresh([]), S.lockText(3, L)) || ''), S.lockText(3, L));
+// ---- the hidden Anchorages chapter (54-58) branches off after level 40: own unlock list, no gates, main line untouched
+const lvOf = id => L.find(l => l.id === id);
+ok('Anchorages registered as a branching bonus chapter of the Roads (54-58, after 40)', (() => { const b = S.bonusChapterOf(lvOf(56)); return !!b && b.id === 'anchorages' && b.first === 54 && b.last === 58 && b.unlockAfter === 40 && !S.bonusChapterOf(lvOf(53)) && !S.bonusChapterOf(lvOf(40)); })());
+ok('Anchorages levels are Roads levels and none of them is a gate', [54, 55, 56, 57, 58].every(id => lvOf(id) && S.campaignOf(lvOf(id)) === 'road' && !S.isGate(lvOf(id))));
+fresh(range(1, 39));
+ok('Anchorages closed before level 40', !open(54) && /level 40/.test(S.lockText(54, L) || '') && /Anchorages/.test(S.lockText(54, L) || ''), S.lockText(54, L));
+fresh(range(1, 40));
+ok('40 done: 54 opens (and 41, 42 on the main line), 55 not yet', open(54) && !open(55) && !open(56) && open(41) && open(42) && !open(43), openIds([41, 42, 43, 54, 55, 56]));
+fresh(range(1, 40).concat([54]));
+ok('54 done: 55 and 56 open (skip one), 57 locked', open(55) && open(56) && !open(57));
+fresh(range(1, 40).concat([54, 56]));
+ok('54 + 56 done: 57 and 58 open, 55 skipped (58 is no gate, nothing after it)', open(57) && open(58) && S.isSkipped(55, L));
+fresh(range(1, 40).concat(range(54, 58)));
+ok('finishing the Anchorages never marks main-line levels as skipped or opens them early', !S.isSkipped(41, L) && open(42) && !open(43));
+fresh(range(1, 39).concat([54]), { legacy: true });
+ok('migration keeps nothing in the Anchorages (it postdates the gates)', S.migrateUnlocks(L).every(id => id < 54 || id > 58) && !open(54));
+ok('unlock lists: 54-58 on their own, the main line skips them', JSON.stringify(S.unlockList(L, lvOf(55)).map(l => l.id)) === '[54,55,56,57,58]' && S.unlockList(L, lvOf(53)).every(l => l.id < 54) && S.unlockList(L, lvOf(53)).some(l => l.id === 53));
+ok('finales: 53 bonus, 58 anchorages, 50 road', S.finaleOf(lvOf(53)) === 'bonus' && S.finaleOf(lvOf(58)) === 'anchorages' && S.finaleOf(lvOf(50)) === 'road' && S.finaleOf(lvOf(57)) === null);
+fresh(range(1, 50));
+ok('50 done: both bonus chapters open (51 and 54)', open(51) && open(54));
+
+ok('a plain lock text names the two levels before',/level 1 or level 2/.test((fresh([]), S.lockText(3, L)) || ''), S.lockText(3, L));
 
 // ---- Iron Road
 fresh(range(1, 9));

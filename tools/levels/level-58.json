@@ -1,0 +1,77 @@
+{
+  "id": 58,
+  "name": "Grand Anchorage",
+  "theme": "snow",
+  "hint": "The finale: a 100 m suspension bridge with its towers on the banks. Drape the main cable between the tower tops, hang the deck from it, stiffen the deck against the heavy trucks - and carry the pull of the main cable back into the anchorages in the hillsides.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 100,
+    "rightY": 0,
+    "floorY": -34,
+    "waterY": -26
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 100,
+      "y": 0
+    },
+    {
+      "x": -34,
+      "y": 6,
+      "inland": true
+    },
+    {
+      "x": 134,
+      "y": 6,
+      "inland": true
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": -10,
+      "x1": -4,
+      "ground": "left"
+    },
+    {
+      "x0": 104,
+      "x1": 110,
+      "ground": "right"
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -36,
+    "x1": 136,
+    "y0": -8,
+    "y1": 40
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "steel",
+    "rope",
+    "cable"
+  ],
+  "budget": 98000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 55,
+  "templates": true
+}

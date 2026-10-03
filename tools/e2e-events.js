@@ -35,9 +35,10 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond }); console
   ok('hidden bonus levels not counted in road stars / badge totals', t0.stars.endsWith('/ 150') && !!t0.badges && !t0.badges.endsWith('/ ' + t0.all), t0);
   // completing level 50 reveals it (the chapter finales before it are gates, so they are complete too)
   const after = await page.evaluate(() => { [5, 10, 20, 30, 40, 50].forEach(id => BG.Storage.recordResult(id, { passed: true, stars: 1, cost: 1 })); BG.Hud.buildLevelSelect(); return { chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), open51: !!document.querySelector('.tile.open[data-id="51"]'), open53: !!document.querySelector('.tile.open[data-id="53"]') }; });
-  ok('Forces of Nature chapter appears after level 50', after.chapters.length === 7 && after.chapters[6] === 'Forces of Nature' && after.open51 && !after.open53, after);
+  // (level 40 also reveals the Anchorages, 54-58, listed after the Forces of Nature)
+  ok('Forces of Nature chapter appears after level 50', after.chapters.length === 8 && after.chapters[6] === 'Forces of Nature' && after.chapters[7] === 'Anchorages' && after.open51 && !after.open53, after);
   const t1 = await page.evaluate(() => { const totals = () => ({ stars: document.querySelector('[data-ref=lsStars]').textContent.trim(), badges: (document.querySelector('.ls-right .badge-chip') || {}).textContent || null }); return totals(); });
-  ok('revealed bonus levels count in the totals', t1.stars.endsWith('/ 159') && (t1.badges || '').endsWith('/ ' + t0.all), Object.assign({ allGoals: t0.all }, t1));
+  ok('revealed bonus levels count in the totals', t1.stars.endsWith('/ 174') && (t1.badges || '').endsWith('/ ' + t0.all), Object.assign({ allGoals: t0.all }, t1));
   await page.waitForTimeout(700);
   await shot('01-levelselect-bonus');
   // the Iron Road tab never shows the bonus chapter

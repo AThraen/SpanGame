@@ -1,0 +1,70 @@
+{
+  "id": 56,
+  "name": "Lone Pylon",
+  "theme": "autumn",
+  "hint": "Only the near bank can carry a pylon. Fan stays from one tall pylon right across the gorge - then balance all of that pull with backstays to the deadman anchors buried behind it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 34,
+    "rightY": 0,
+    "floorY": -26,
+    "waterY": -20
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 34,
+      "y": 0
+    },
+    {
+      "x": -20,
+      "y": 0,
+      "inland": true
+    },
+    {
+      "x": -30,
+      "y": 0,
+      "inland": true
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": -9,
+      "x1": -3,
+      "ground": "left"
+    }
+  ],
+  "maxPiers": 1,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -32,
+    "x1": 40,
+    "y0": -4,
+    "y1": 30
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "rope",
+    "cable"
+  ],
+  "budget": 28000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 2,
+      "interval": 3
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

@@ -1,0 +1,75 @@
+{
+  "id": 54,
+  "name": "Dead Weight",
+  "theme": "meadow",
+  "hint": "No steel today - only road and cable. There is nothing to stand on in the gorge, but the banks are solid: raise a pylon in each striped zone on land and hang the deck from it. The stays pull the pylon toward the gap, so tie it back to the deadman anchor buried behind it, or it will topple.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 36,
+    "rightY": 0,
+    "floorY": -22,
+    "waterY": -16
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 36,
+      "y": 0
+    },
+    {
+      "x": -22,
+      "y": 0,
+      "inland": true
+    },
+    {
+      "x": 58,
+      "y": 0,
+      "inland": true
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": -8,
+      "x1": -3,
+      "ground": "left"
+    },
+    {
+      "x0": 39,
+      "x1": 44,
+      "ground": "right"
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -24,
+    "x1": 60,
+    "y0": -4,
+    "y1": 22
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "rope",
+    "cable"
+  ],
+  "budget": 26500,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 3
+    },
+    {
+      "type": "truck",
+      "count": 1,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true
+}

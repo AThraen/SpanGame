@@ -1,0 +1,83 @@
+{
+  "id": 57,
+  "name": "Buried or Tied",
+  "theme": "city",
+  "hint": "Two ways to hold a suspension cable. Stand the towers in the river and tie the cable ends down to the road ends - or stand them on the banks and run the cables back to the deadman anchors buried behind them. River piers are deep and dear; the banks are cheap, solid ground.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 60,
+    "rightY": 0,
+    "floorY": -20,
+    "waterY": -14
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 60,
+      "y": 0
+    },
+    {
+      "x": -30,
+      "y": 0,
+      "inland": true
+    },
+    {
+      "x": 90,
+      "y": 0,
+      "inland": true
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": -9,
+      "x1": -4,
+      "ground": "left"
+    },
+    {
+      "x0": 5,
+      "x1": 10
+    },
+    {
+      "x0": 50,
+      "x1": 55
+    },
+    {
+      "x0": 64,
+      "x1": 69,
+      "ground": "right"
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -32,
+    "x1": 92,
+    "y0": -6,
+    "y1": 30
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "rope",
+    "cable"
+  ],
+  "budget": 34000,
+  "traffic": [
+    {
+      "type": "bus",
+      "count": 3,
+      "interval": 3
+    },
+    {
+      "type": "van",
+      "count": 2,
+      "interval": 2.5
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

@@ -9,8 +9,8 @@ It is plain HTML, CSS and JavaScript, with no build step and no runtime dependen
 
 ## The game at a glance
 
-- **Three campaigns, 85 hand-made levels**, one tab each on the level select:
-  - **Roads** (levels 1–50 in six chapters): from a 10 m creek crossed with two planks to a 150 m span carrying tankers and heavy haulers. Finishing the Roads reveals the bonus chapter **Forces of Nature** (51–53): a hurricane, an earthquake and a galloping deck in pulsing wind.
+- **Three campaigns, 90 hand-made levels**, one tab each on the level select:
+  - **Roads** (levels 1–50 in six chapters): from a 10 m creek crossed with two planks to a 150 m span carrying tankers and heavy haulers. Finishing the Roads reveals the bonus chapter **Forces of Nature** (51–53): a hurricane, an earthquake and a galloping deck in pulsing wind. Finishing level 40 reveals a second bonus chapter, **Anchorages** (54–58): land pylons, buried deadman anchors and backstays.
   - **Iron Road** (101–120, opens after level 10): railway bridges for handcars, trams, steam, 2000-tonne ore trains and 150 km/h expresses. Trains derail on kinks, steep grades and broken rails, and a track recording and ride-quality grade show why.
   - **Famous Bridges** (201–212, opens after level 15): scaled-down versions of real crossings, from the Pont du Gard to the Golden Gate, the Forth Bridge, Tacoma Narrows and the Millau Viaduct. Each one opens with a history card: who built it, when, and why the engineers chose that shape.
 - **Real physics:** every member carries tension, compression and bending; road decks flex between supports; members turn yellow, then red, then snap. **Inspect** shows the peak stress each member reached, and the results name the first member that gave way and why.
@@ -238,14 +238,14 @@ You need Node 18 or later (developed on Node 24). The browser checks also need t
 
 ```sh
 node tools/test-physics.js     # 31 physics tests incl. exploits, stability, rail rules & >=4x realtime perf
-node tools/verify-levels.js    # every level (50 road + 3 bonus + 20 rail + 12 Famous Bridges), reference + best design each (see "Levels" below)
+node tools/verify-levels.js    # every level (50 road + 8 bonus + 20 rail + 12 Famous Bridges), reference + best design each (see "Levels" below)
                                #   --campaign road|rail|famous, --only 101-120, --ref-only
 node tools/test-editor.js      # editor behaviour (140 checks)
 node tools/test-unlock.js      # campaign unlock rule: skip one level, chapter-finale gates, skipped markers, migration
 node tools/test-templates.js   # templates across synthetic + real levels; no template earns ★★★ on 101-120 (--no-sim skips that)
 node tools/test-railinfo.js    # derailment explainer: every derail cause, ride card, read-only readouts
 node tools/test-terrain-fix.js # underwater rule, editor feedback, drawn cliffs vs model (--no-browser: Node only)
-node tools/test-anchors.js     # inland anchors, land pylons (guyed stands / unguyed topples), roadway envelope, templates, editor
+node tools/test-anchors.js     # inland anchors, land pylons (guyed stands / unguyed topples), roadway envelope, templates, editor, Anchorages 54-58
 node tools/test-goals.js       # every badge goal re-verified by simulation (tools/gen-goals.js regenerates them)
 node tools/test-events.js      # wind / quake events (add --full for the bit-identity check on every road and rail design)
 node tools/e2e-goals.js [outDir]   # headless browser check of the badges UI + persistence
@@ -266,7 +266,7 @@ node tools/serve.js [port]     # static http server (PWA features need http(s))
 
 ## Levels
 
-Roads: 50 levels in 6 chapters, plus a hidden bonus chapter (the level select groups them the same way):
+Roads: 50 levels in 6 chapters, plus two hidden bonus chapters (the level select groups them the same way):
 
 | Chapter | Levels | Gaps | Traffic | Introduces |
 |---|---|---|---|---|
@@ -289,7 +289,7 @@ Roads: 50 levels in 6 chapters, plus a hidden bonus chapter (the level select gr
 
 **Grand Spans:** 41 Cold Open (100 m) · 42 Twin Channels (105 m) · 43 Monsoon Stays (115 m) · 44 Moonlit Crescent (120 m) · 45 Caldera Cantilever (125 m) · 46 Avalanche Arch (130 m) · 47 Paradise Suspended (140 m) · 48 Flight Path (135 m) · 49 The Long Night (145 m) · 50 Magnum Opus (150 m)
 
-The hidden bonus chapter **7 Forces of Nature** (51–53) is described below.
+The hidden bonus chapters **7 Forces of Nature** (51–53) and **8 Anchorages** (54–58) are described below.
 
 Every level is verified by `node tools/verify-levels.js` against two designs in `tools/solutions/`:
 
@@ -337,6 +337,20 @@ Finishing level 50 reveals a hidden seventh chapter where the weather fights bac
 
 Any level can use weather: add an `events` list to its JSON (see SPEC.md §12).
 
+### Anchorages (bonus chapter, levels 54–58)
+
+Finishing level 40 reveals a hidden eighth chapter about structures that stand on the banks (SPEC.md §17). It branches off the Roads: completing 40 opens 54 (a toast says so), inside the chapter the usual rule applies (either of the two before), none of its levels is a chapter finale that blocks anything, and the Roads carry on at 41 as before. No steel on 54–57: only road, cable and rope, so the deck has to hang from pylons. A pylon in a striped land zone is a concrete column on a footing that can only take a small sideways pull; the stays pull it toward the gap, so every pylon needs a backstay to an inland anchor behind it, or it leans and topples onto the bank. Nothing may cross the amber "KEEP CLEAR" band over the bank roads except the deck and members that end at an inland anchor.
+
+| Level | Gap | Traffic | The idea |
+|---|---|---|---|
+| 54 Dead Weight | 36 m | 3 buses, 1 truck | Two land pylons, each tied back to a deadman anchor buried in the bank: the backstays are the whole puzzle. |
+| 55 Guy Lines | 44 m | 3 trucks | The land zones stand well back from the crumbling edges, so the pylons must be tall enough for their stays to clear the trucks; guy them back to anchorages set into hillsides. |
+| 56 Lone Pylon | 34 m | 2 trucks, 2 buses | One pylon on the near bank fans stays across the whole gorge, and two deadmen behind it can share the pull. |
+| 57 Buried or Tied | 60 m | 3 buses, 2 vans | A suspension or stayed span either way: towers in the river with the cable ends tied down to the road ends, or cheaper towers on the banks with the cables run back to buried deadmen. |
+| 58 Grand Anchorage | 100 m | 2 buses, 3 trucks | The finale: a suspension bridge with towers on both banks, a stiffened deck (steel is back) and the main cable carried into hillside anchorages. |
+
+The reference design of 57 stands its towers in the river; every best design uses land pylons. Without their backstays the best designs lose their pylons (checked by `tools/test-anchors.js`, which also checks that no template earns ★★★ here).
+
 ### Famous Bridges (levels 201–212)
 
 A separate campaign of real bridges, scaled down but faithful: each crossing keeps the real bridge's proportions, pier positions, shipping channel and kind of traffic, and is set up so that the historical structural type is the natural answer. Before each level a **history card** shows when and where it was built, its engineers, span and type, three facts, and why it matters (the bridge icon in the top bar opens it again). Pick a bridge from the **Famous Bridges** tab on the level select (the third campaign tab, after Roads and Iron Road). It opens when road level 15 is complete; after that the usual rule applies (either of the two previous famous bridges; only the last one, the finale, can't be skipped).
@@ -360,7 +374,7 @@ Levels use ids 201+ and `campaign: 'famous'` (`tools/levels/level-2NN.json`, sol
 
 ### Campaigns, tabs and the title screen
 
-The level select has one tab per campaign: **Roads** (1–50, plus the hidden *Forces of Nature* chapter 51–53 once 50 is done), **Iron Road** (101–120, opens after road level 10) and **Famous Bridges** (201–212, opens after road level 15). The rules live in one table, `BG.Storage.CAMPAIGNS` (unlock level, final id, the bonus chapter's end), and every campaign follows them the same way: a level opens when either of the two playable levels before it in its campaign is complete, but never past an unfinished chapter finale (the `gates`: road 5, 10, 20, 30, 40, 50, rail 105, 110, 115, 120, and each campaign's last level; players who already had levels open past one keep them), **Next** stays inside the campaign, and each campaign has its own finale (after 50, after the bonus level 53, after 120 and after 212). `BG.Hud` draws the tabs from its own table of looks; a feature adds a campaign with `BG.Hud.registerCampaign(id, {...})` (Famous Bridges does). **Continue** on the title screen resumes the last level played in any campaign, or the next open level of that campaign (then of the others). The title screen also has the **Daily Challenge** and **Endless** buttons; both keep their results apart from the campaigns.
+The level select has one tab per campaign: **Roads** (1–50, plus the hidden *Forces of Nature* chapter 51–53 once 50 is done and the hidden *Anchorages* chapter 54–58 once 40 is done), **Iron Road** (101–120, opens after road level 10) and **Famous Bridges** (201–212, opens after road level 15). The rules live in one table, `BG.Storage.CAMPAIGNS` (unlock level, final id, the bonus chapter's end), and every campaign follows them the same way: a level opens when either of the two playable levels before it in its campaign is complete, but never past an unfinished chapter finale (the `gates`: road 5, 10, 20, 30, 40, 50, rail 105, 110, 115, 120, and each campaign's last level; players who already had levels open past one keep them), **Next** stays inside the campaign, and each campaign has its own finale (after 50, after the bonus level 53, after 120 and after 212). `BG.Hud` draws the tabs from its own table of looks; a feature adds a campaign with `BG.Hud.registerCampaign(id, {...})` (Famous Bridges does). **Continue** on the title screen resumes the last level played in any campaign, or the next open level of that campaign (then of the others). The title screen also has the **Daily Challenge** and **Endless** buttons; both keep their results apart from the campaigns.
 
 ### Adding a level
 

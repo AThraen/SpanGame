@@ -63,7 +63,21 @@
     if (BG.Storage && BG.Storage.campaignLevels) return BG.Storage.campaignLevels(levels(), campaign);
     return levels().filter(l => campaignOf(l) === campaign).sort((a, b) => a.id - b.id);
   }
-  // which finale a passed level ends ('road' after 50, 'bonus' after 53, 'rail' after 120, 'famous' after 212), or null
+  // the list a level unlocks along and Next follows: its campaign's main line, or its branching bonus chapter
+  // (Anchorages, 54-58: BG.Storage.CAMPAIGNS.road.bonus)
+  function unlockList(lv) {
+    if (BG.Storage && BG.Storage.unlockList) return BG.Storage.unlockList(levels(), lv);
+    return campaignLevels(campaignOf(lv));
+  }
+  // the branching bonus chapters ({id, name, first, last, unlockAfter}) of every campaign
+  function bonusChapters() {
+    const C = (BG.Storage && BG.Storage.CAMPAIGNS) || {};
+    const out = [];
+    campaignOrder().forEach(c => { (C[c] && C[c].bonus || []).forEach(b => out.push(b)); });
+    return out;
+  }
+  // which finale a passed level ends ('road' after 50, 'bonus' after 53, 'anchorages' after 58, 'rail' after 120,
+  // 'famous' after 212), or null
   function finaleOf(lv) {
     if (!lv || !BG.Storage || !BG.Storage.finaleOf) return null;
     return BG.Storage.finaleOf(lv);
@@ -353,11 +367,12 @@
       return firstOpen || last || L[0];
     },
     campaignOf(lv) { return campaignOf(lv || this.level); },
-    // next playable level in the same campaign (Roads 1-53, Iron Road 101-120, Famous Bridges 201-212), or null at the end
+    // next playable level in the same campaign (Roads 1-53, Iron Road 101-120, Famous Bridges 201-212), or null at the end;
+    // inside a branching bonus chapter (Anchorages 54-58) the next level of that chapter
     nextInCampaign(lv) {
       lv = lv || this.level;
       if (!lv) return null;
-      const list = campaignLevels(campaignOf(lv));
+      const list = unlockList(lv);
       const i = list.indexOf(lv);
       if (i >= 0) return list[i + 1] || null;
       const all = levels();
@@ -1057,11 +1072,15 @@
       const wasOpen = {};
       campaignOrder().forEach(c => { wasOpen[c] = campaignOpen(c); });
       // levels of this campaign that were locked before the run (to spot ones this result opens by skipping)
-      const campList = campaignLevels(campaignOf(lv));
+      const campList = unlockList(lv);
+      // branching bonus chapters this result opens (Anchorages after level 40)
+      const bonusFirst = b => levels().find(l => l && l.id === b.first);
+      const bonusWasShut = bonusChapters().filter(b => bonusFirst(b) && !this.isUnlocked(b.first));
       const inCampaign = campList.indexOf(lv) >= 0;
       const wasLocked = inCampaign && passed ? campList.filter(l => !this.isUnlocked(levelId(l))) : [];
       if (S) rec = safe(() => S.recordResult(levelId(lv), { passed, stars, cost }), rec) || rec;
       const opened = campaignOrder().filter(c => !wasOpen[c] && campaignOpen(c) && campaignLevels(c).length > 0);
+      const bonusOpened = bonusWasShut.filter(b => this.isUnlocked(b.first));
       // a level opened although the one right before it is unfinished: the player may skip one level
       const skipOpened = wasLocked.filter(l => {
         const i = campList.indexOf(l), prev = campList[i - 1];
@@ -1075,6 +1094,7 @@
         brokenBeams: broken, hasNext: !!next, improved: !!rec.improved, best: rec.entry, firstBreak: fb || null,
         finale: passed && !!finaleOf(lv), finaleKind: passed ? finaleOf(lv) : null, campaign,
         railUnlocked: opened.includes('rail'), campaignsOpened: opened, skipUnlocked: skipOpened.map(levelId),
+        bonusOpened: bonusOpened.map(b => b.id),
         rail: BG.RailInfo && sim.ride ? safe(() => BG.RailInfo.rideCard(sim, sum), null) : null,
         derail: this._derailFx && this._derailFx.info ? this._derailFx.info : null,
       };
@@ -1090,11 +1110,16 @@
         hudCall('toast', OPEN_TOAST[c] || 'A new campaign is open on the level select.', 'good', 5200);
         if (c === 'rail') sfx('horn', { kind: 'whistle' });
       }, 1500 + i * 1800));
+      // a hidden bonus chapter revealed by this result (Anchorages after level 40)
+      bonusOpened.forEach((b, i) => setTimeout(() => {
+        if (this.state !== 'results') return;
+        hudCall('toast', 'A hidden chapter has opened: ' + b.name + ' (levels ' + b.first + '–' + b.last + ') on the level select.', 'good', 5200);
+      }, 1500 + (opened.length + i) * 1800));
       // explain the unlock rule the moment it lets the player skip ahead
       skipOpened.forEach((l, i) => setTimeout(() => {
         if (this.state !== 'results') return;
         hudCall('toast', this.skipUnlockText(l), 'info', 5200);
-      }, 1500 + (opened.length + i) * 1800));
+      }, 1500 + (opened.length + bonusOpened.length + i) * 1800));
     },
     // "Level 13 unlocked - you can skip one level (chapter finales can't be skipped)"
     skipUnlockText(lv) {

@@ -1,0 +1,37 @@
+{
+  "nodes": [
+    {"id":"n1","x":5,"y":0},
+    {"id":"n2","x":9.75,"y":0},
+    {"id":"n3","x":14.75,"y":0},
+    {"id":"n4","x":19.5,"y":0},
+    {"id":"n5","x":24.5,"y":0},
+    {"id":"n6","x":29.25,"y":0},
+    {"id":"n7","x":34.25,"y":0},
+    {"id":"n8","x":39,"y":0}
+  ],
+  "beams": [
+    {"a":"a0","b":"n1","m":"reinforced_road"},
+    {"a":"n1","b":"n2","m":"reinforced_road"},
+    {"a":"n2","b":"n3","m":"reinforced_road"},
+    {"a":"n3","b":"n4","m":"reinforced_road"},
+    {"a":"n4","b":"n5","m":"reinforced_road"},
+    {"a":"n5","b":"n6","m":"reinforced_road"},
+    {"a":"n6","b":"n7","m":"reinforced_road"},
+    {"a":"n7","b":"n8","m":"reinforced_road"},
+    {"a":"n8","b":"a1","m":"reinforced_road"},
+    {"a":"n1","b":"p0","m":"cable"},
+    {"a":"n2","b":"p0","m":"cable"},
+    {"a":"n3","b":"p0","m":"cable"},
+    {"a":"n4","b":"p0","m":"cable"},
+    {"a":"n5","b":"p1","m":"cable"},
+    {"a":"n6","b":"p1","m":"cable"},
+    {"a":"n7","b":"p1","m":"cable"},
+    {"a":"n8","b":"p1","m":"cable"},
+    {"a":"p0","b":"a2","m":"cable"},
+    {"a":"p1","b":"a3","m":"cable"}
+  ],
+  "piers": [
+    {"x":-10,"topY":12},
+    {"x":54,"topY":12}
+  ]
+}

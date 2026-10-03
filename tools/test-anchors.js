@@ -2,7 +2,10 @@
 // Usage: node tools/test-anchors.js [--verbose]
 //   model: anchor kinds (edge / inland deadman / hillside), hillsides are solid, land pier zones (base on the bank,
 //          cost from the bank), roadway envelope (height = tallest vehicle + margin; joints, members and land pylon
-//          tops; road / rail decks and members ending at an inland anchor exempt), shipped levels untouched;
+//          tops; road / rail decks and members ending at an inland anchor exempt), only the Anchorages levels (54-58)
+//          use land features - every other shipped level is untouched;
+//   Anchorages (54-58): land features on every level, the best designs stand their pylons, the same designs
+//          without their backstays topple, no template earns three stars;
 //   physics: a land pylon guyed back with a backstay stays up, without it the stay pull topples it; an unloaded
 //          land pylon stands; deterministic; quake moves the footing; floor piers stay fixed;
 //   templates: suspension + cable-stayed use land pylons backstayed to inland anchors (valid, pass);
@@ -61,13 +64,14 @@ section('anchor kinds');
   ok(M.anchorMounds(L).length === 1 && M.anchorMounds(L)[0].i === 3, 'one hillside (under a3)');
 }
 
-section('shipped levels are untouched');
+section('shipped levels are untouched (only the Anchorages, 54-58, use land features)');
 {
+  const ANCH = [54, 55, 56, 57, 58];
   const lv = BG.Levels.filter((l) => M.hasLandFeatures(l) || M.roadEnvelope(l) || (l.pierZones || []).some((z) => z.ground) || M.anchorMounds(l).length);
-  ok(lv.length === 0, 'no shipped level uses land features yet (no envelope, no land zones, no hillsides)', lv.map((l) => l.id));
+  ok(JSON.stringify(lv.map((l) => l.id)) === JSON.stringify(ANCH), 'land features (envelope, land zones, hillsides) on exactly levels 54-58', lv.map((l) => l.id));
   const fs = require('fs');
   let bad = [];
-  for (const l of BG.Levels) for (const suf of ['', '-best']) {
+  for (const l of BG.Levels.filter((q) => ANCH.indexOf(q.id) < 0)) for (const suf of ['', '-best']) {
     const f = path.join(__dirname, 'solutions', 'level-' + String(l.id).padStart(2, '0') + suf + '.json');
     if (!fs.existsSync(f)) continue;
     const d = M.deserialize(fs.readFileSync(f, 'utf8'));
@@ -171,6 +175,35 @@ section('physics: land pylons');
   let moved = 0, finite = true;
   for (let i = 0; i < 120; i++) { q.step(); moved = Math.max(moved, Math.abs(q.pyBX[0] - q.pyBX0[0])); finite = finite && isFinite(q.px[q.pyN[0]]); }
   ok(moved > 1e-3 && finite, 'quake: land pylon footings move with the ground', moved);
+}
+
+// ====================================================================== the Anchorages bonus chapter
+section('Anchorages (54-58): land pylons stand when guyed, topple without their backstays; no template earns three stars');
+{
+  const fs = require('fs');
+  const sol = (id, suf) => M.deserialize(fs.readFileSync(path.join(__dirname, 'solutions', 'level-' + id + suf + '.json'), 'utf8'));
+  for (const id of [54, 55, 56, 57, 58]) {
+    const L = BG.Levels.find((l) => l.id === id);
+    ok(!!L && !L.campaign && M.hasLandFeatures(L) && M.roadEnvelope(L) && (L.pierZones || []).some((z) => z.ground) && M.inlandAnchors(L).length >= 2 && !!L.hint, id + ': a Roads level with land pier zones, inland anchors, the roadway envelope and a hint');
+    const d = sol(id, '-best');
+    const r = runHeadless(L, d, { keepSim: true });
+    const land = r.sim.piers.filter((p) => p.ground);
+    ok(r.status === 'success' && land.length >= 1 && r.pylonsToppled === 0 && land.every((p) => Math.abs(p.tilt) < 0.03), id + ': the best design stands its ' + land.length + ' land pylon(s)', { st: r.status, top: r.pylonsToppled, tilt: land.map((p) => p.tilt) });
+    // the lesson: the same bridge without the members tied into the inland anchors loses its pylons
+    const inland = new Set(M.inlandAnchors(L).map((a) => a.id));
+    const cut = M.clone(d); cut.beams = cut.beams.filter((b) => !inland.has(b.a) && !inland.has(b.b));
+    const rc = runHeadless(L, cut, { keepSim: true });
+    ok(rc.status === 'failed' && rc.pylonsToppled > 0 && rc.firstTopple, id + ': without its backstays a pylon topples and the run fails', { st: rc.status, top: rc.pylonsToppled });
+    // no template (offered or not) may reach three stars
+    const three = [];
+    for (const t of BG.Templates.list) {
+      const td = BG.Templates.generate(t.id, L, {});
+      if (!td || !td.beams.length || M.cost(L, td).total > 0.7 * L.budget) continue;
+      const tr = runHeadless(L, td);
+      if (tr.status === 'success' && tr.valid) three.push(t.id + ' ' + Math.round(100 * tr.cost / L.budget) + '%');
+    }
+    ok(three.length === 0, id + ': no template earns three stars', three);
+  }
 }
 
 // ====================================================================== templates

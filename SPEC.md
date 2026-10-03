@@ -45,7 +45,7 @@ js/core/vehicles.js      BG.Vehicles (definitions)
 js/core/model.js         BG.Model (design helpers, cost, validation, serialization)
 js/core/physics.js       BG.Simulation (+ BG.SimHooks extension points, §12.2)
 js/core/events.js        BG.Forces (wind / quake level events, §12)
-js/core/levels.js        BG.Levels (generated: roads 1-53, Iron Road 101-120, Famous Bridges 201-212)
+js/core/levels.js        BG.Levels (generated: roads 1-58, Iron Road 101-120, Famous Bridges 201-212)
 js/core/templates.js     BG.Templates (bridge-type generators)
 js/core/generator.js     BG.Generator (procedural, proven-solvable road levels for daily / endless, §13.1)
 js/render/effects.js     BG.Effects (particles, debris, shake)
@@ -474,8 +474,9 @@ the worst kink as a share of its limit; `BG.Goals.metrics` reads `.ride` from a 
 passes `sim.ride` along) was added and goals were regenerated for 101-120, 205 (Forth) and 209 (Tacoma; with its wind on):
 Iron Road 59 goals (15 Smooth Ride), Famous Bridges 34. An "All Stone" (masonry-only) goal was tried and dropped: every
 all-masonry variant of the stone-viaduct designs (106-110) derails or cracks, so no design proves it.
-The level select shows tile counts on every campaign tab (famous tiles too); the total chip counts all 85
-levels (234 goals).
+The Anchorages bonus levels 54-58 (§17.7) were added at their merge (`--only 54,55,56,57,58`; 14 goals).
+The level select shows tile counts on every campaign tab (famous tiles too); the total chip counts all 90
+levels (248 goals; hidden bonus levels count once revealed).
 
 ### 11.4 Storage
 `BG.Storage.getBadges(id)`, `recordBadges(id, ids)` -> newly earned, `totalBadges()`, `maxBadges()`; key `span.v1.badges` =
@@ -680,12 +681,13 @@ is never part of the Roads (unlocking, "next level", continue, star totals).
 After the Iron Road, terrain fix, goals, weather events, daily challenge and Famous Bridges were merged, the
 campaign logic that each feature had grown separately was folded into one system.
 
-- **Rules: `BG.Storage.CAMPAIGNS`** (js/ui/storage.js) - `road {first 1, last 50, bonusLast 53}`,
+- **Rules: `BG.Storage.CAMPAIGNS`** (js/ui/storage.js) - `road {first 1, last 50, bonusLast 53, bonus: [{id 'anchorages', first 54,
+  last 58, unlockAfter 40}]}`,
   `rail {first 101, last 120, unlockAfter 10}`, `famous {first 201, last 212, unlockAfter 15}`, order
   `CAMPAIGN_ORDER = ['road', 'rail', 'famous']`. `campaignOf(level)` (`level.campaign`, absent = road),
   `isPlayable(level)` (`BG.Requirements.met`), `campaignLevels(levels, c)` (playable, by id: the unlock and "Next"
   order), `isCampaignUnlocked(c)`, `campaignLockText(c)`, `campaignStars`, `isUnlocked(id, levels)` (unplayable
-  levels never open, not even with `?unlockall`), `finaleOf(level)` → `'road' | 'bonus' | 'rail' | 'famous' | null`.
+  levels never open, not even with `?unlockall`), `finaleOf(level)` → `'road' | 'bonus' | 'anchorages' | 'rail' | 'famous' | null`.
   `js/main.js` and `js/ui/hud.js` delegate `campaignOf` to it; no other file decides unlocking.
 - **Unlock rule** (`BG.Storage.isUnlocked`, tested by `tools/test-unlock.js`): a level opens when either of the two
   levels before it in its campaign is complete (skip one hard crossing, come back later), **but never past an
@@ -694,6 +696,16 @@ campaign logic that each feature had grown separately was folded into one system
   50. Daily / endless levels are not in any campaign list and are unaffected. Helpers: `isSkipped(id, levels)` (open,
   unfinished, a later level of the campaign done), `lockText(id, levels)` ("Complete level 20 first - chapter finales
   can't be skipped."), `unlockRuleText(campaign)`.
+- **Branching bonus chapters** (`CAMPAIGNS[c].bonus`; the Anchorages, 54-58): a chapter that branches off a campaign's main line.
+  `bonusChapterOf(level)` names it, `unlockList(levels, level)` is the list a level unlocks along and **Next** follows (the
+  chapter's own levels, or the main line without any branching chapter). Its first level opens once `unlockAfter` is complete,
+  then the either-of-two rule applies inside the chapter; none of its levels is a gate, finishing one never opens or "skips"
+  a main-line level, and finishing `last` is its own finale (`finaleOf` → the chapter id, `'anchorages'`; hud.js
+  `CAMPAIGN_UI.road.bonusFinales`, styled like the Forces of Nature finale). A result that opens such a chapter carries
+  `bonusOpened: [ids]` and toasts "A hidden chapter has opened: Anchorages (levels 54–58)". The migration skips these
+  chapters (they postdate the gates). Its level-select chapter (`{n: 8, name: 'Anchorages', from: 54, to: 58, hidden: true}`)
+  is in hud.js `CHAPTERS`; chapters are listed by their first level, so Forces of Nature (7) comes before it once both
+  are revealed. Hidden levels stay out of the star / badge totals until revealed, as in §12.4.
 - **Migration** (`migrateUnlocks(levels)`, run once by `BG.Game.init`; key `unlocks {v: 2, keep: [ids]}`): every level
   the old rule had open, or that was ever played, but that the gates would now lock stays open (`keep`); the gates
   only affect levels that were not open yet. Reset progress empties `keep`; a save import without the key migrates
@@ -842,8 +854,8 @@ working from `file://` and without storage.
 Engine, editor, renderer and template support for structures that stand on the banks: backstayed pylons, deadman
 anchorages and hillside anchor blocks. **A level without the new fields behaves exactly as before**: every rule below
 is gated on them (all 170 reference / best designs and every goal design were re-run against the pre-change engine:
-validation, cost and the full simulation trace are bit-identical). `tools/test-anchors.js` asserts that no shipped
-level uses them yet. Levels that use them come next.
+validation, cost and the full simulation trace are bit-identical). `tools/test-anchors.js` asserts that only the
+Anchorages levels (54-58, §17.7) use them.
 
 ### 17.1 Level fields (all optional)
 ```js
@@ -927,3 +939,23 @@ a guyed pylon standing vs an unguyed one toppling (deterministic), an unloaded p
 both templates (valid, pass, backstayed), editor feedback + pier tool, shipped levels untouched. `tools/e2e.js` (at the
 end): a land level in the browser - camera framing, the red "roadway" ghost + toast, the pier tool on the bank, the
 cable-stayed template passing with standing pylons, and the same bridge without backstays toppling with the explanation.
+
+### 17.7 Bonus chapter "Anchorages" (levels 54–58)
+A hidden Roads chapter that opens when level 40 is complete (a branching bonus chapter, §15: not a gate, its own unlock list,
+Next and finale). Every level has land pier zones, flagged inland anchors, the roadway envelope and a hint; 54-57 offer
+only road, reinforced road, rope and cable (no compression members, so the deck must hang from pylons), 58 adds wood and
+steel for a stiffening truss.
+
+| Level | Gap | Land structures | Traffic | Budget | Reference | Best |
+|---|---|---|---|---|---|---|
+| 54 Dead Weight | 36 m | land zones at the edges, deadmen 22 m behind | 3 buses, truck | 26.5k | 0.78 (stayed, reinforced deck) | 0.70 (two 8 m pylons, road deck) |
+| 55 Guy Lines | 44 m | zones 10-15 m behind the edges, hillside anchors 6 m up | 3 trucks | 44k | 0.78 (16 m pylons) | 0.70 (12 m pylons) |
+| 56 Lone Pylon | 34 m | one zone on the left, two deadmen behind it | 2 trucks, 2 buses | 28k | 0.77 (backstays to both deadmen) | 0.69 |
+| 57 Buried or Tied | 60 m | river pier zones near both cliffs + land zones, deadmen 30 m back | 3 buses, 2 vans | 34k | 0.81 (river towers, stays, ends tied down) | 0.70 (land towers, earth-anchored suspension) |
+| 58 Grand Anchorage | 100 m | land zones, hillside anchorages 34 m back | 2 buses, 3 trucks | 98k | 0.84 | 0.70 (suspension, steel stiffening truss) |
+
+The designs come from parametric generators / optimisers (cable-stayed and suspension families, greedy coordinate search
+with random restarts). Budget = best / 0.70 rounded up to $500 (54-57) / $1000 (58). `tools/test-anchors.js` checks that
+every best design stands its land pylons, that the same design without the members tied into the inland anchors topples a
+pylon and fails, and that no template (offered or not) reaches ★★★; the cable-stayed template passes 54 at ★★, no template
+passes 55-58.

@@ -93,14 +93,19 @@
     // ---- campaigns ----
     // ONE table for every campaign (rules only; js/ui/hud.js owns their tabs and looks). A level names its
     // campaign in `level.campaign` ('rail' = Iron Road, 'famous' = Famous Bridges); no field (or 'road') = Roads,
-    // which also holds the hidden bonus chapter (51-53). `last` is the declared final id (the finale shows after
+    // which also holds the hidden bonus chapters (51-53 after 50, 54-58 after 40). `last` is the declared final id (the finale shows after
     // it, never after whichever level happens to be built last), `bonusLast` the end of the Roads' bonus chapter,
     // `unlockAfter` the road level that opens the campaign (with ?unlockall everything is open).
     // `gates`: the chapter finales (last level of each chapter / Iron Road line). A gate can't be skipped:
     // nothing after it unlocks until it is complete. The campaign's `last` and `bonusLast` are gates too.
     // Famous Bridges run in date order with no chapters, so only their finale is a gate.
+    // `bonus`: hidden bonus chapters that branch off the campaign's main line (Anchorages, 54-58, opens after level 40):
+    // their levels unlock in their own list (the first once `unlockAfter` is complete, then the usual either-of-two rule),
+    // they are never gates and never block the main line, Next stays inside the chapter, and finishing `last` shows the
+    // chapter's own finale (finaleOf -> the chapter id). The Forces of Nature (51-53) stay on the main line after 50.
     CAMPAIGNS: {
-      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null, gates: [5, 10, 20, 30, 40, 50], gateWord: 'chapter finale' },
+      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null, gates: [5, 10, 20, 30, 40, 50], gateWord: 'chapter finale',
+        bonus: [{ id: 'anchorages', name: 'Anchorages', first: 54, last: 58, unlockAfter: 40 }] },
       rail: { id: 'rail', name: 'Iron Road', first: 101, last: 120, unlockAfter: 10, gates: [105, 110, 115, 120], gateWord: 'line finale' },
       famous: { id: 'famous', name: 'Famous Bridges', first: 201, last: 212, unlockAfter: 15, gates: [], gateWord: 'finale' },
     },
@@ -120,7 +125,26 @@
       if (!c) return null;
       if (level.id === c.last) return camp;
       if (c.bonusLast != null && level.id === c.bonusLast) return 'bonus';
+      const b = Storage.bonusChapterOf(level);
+      if (b && level.id === b.last) return b.id;
       return null;
+    },
+    // the branching bonus chapter (CAMPAIGNS[c].bonus entry) a level belongs to, or null (main line)
+    bonusChapterOf(level) {
+      if (!level || typeof level.id !== 'number') return null;
+      const c = Storage.CAMPAIGNS[Storage.campaignOf(level)];
+      const list = c && Array.isArray(c.bonus) ? c.bonus : [];
+      for (const b of list) if (level.id >= b.first && level.id <= b.last) return b;
+      return null;
+    },
+    // the ordered list a level unlocks along and "Next" follows: its bonus chapter's playable levels, or its campaign's
+    // playable levels without the branching bonus chapters (the main line)
+    unlockList(levels, level) {
+      const camp = Storage.campaignOf(level);
+      const all = Storage.campaignLevels(levels, camp);
+      const b = Storage.bonusChapterOf(level);
+      if (b) return all.filter(l => Storage.bonusChapterOf(l) === b);
+      return all.filter(l => !Storage.bonusChapterOf(l));
     },
     isCampaignFinale(level) { return Storage.finaleOf(level) != null; },
     // a level can be played when the optional modules it needs are installed and it is not a stub
@@ -170,8 +194,8 @@
     _campaignListOf(id, levels) {
       const lv = levels && levels.length ? levels.find(l => l && l.id === id) : null;
       const campaign = lv ? Storage.campaignOf(lv) : (id > 200 ? 'famous' : id > 100 ? 'rail' : 'road');
-      const list = lv ? Storage.campaignLevels(levels, campaign) : (levels || []);
-      return { lv, campaign, list, idx: list.findIndex(l => (l.id != null ? l.id : -1) === id) };
+      const list = lv ? Storage.unlockList(levels, lv) : (levels || []);
+      return { lv, campaign, list, idx: list.findIndex(l => (l.id != null ? l.id : -1) === id), bonus: lv ? Storage.bonusChapterOf(lv) : null };
     },
     // A level is unlocked if it is the first one of its campaign (and that campaign is open), or by the rule
     // above, or if the player already had it open before the gates existed (`unlocks.keep`, see migrateUnlocks).
@@ -181,8 +205,10 @@
       if (lv && !Storage.isPlayable(lv)) return false;
       if (Storage.get('unlockAll', false)) return true;
       if (!levels || !levels.length) return id === 1;
-      const { campaign, list, idx } = Storage._campaignListOf(id, levels);
+      const { campaign, list, idx, bonus } = Storage._campaignListOf(id, levels);
       if (!Storage.isCampaignUnlocked(campaign)) return false;
+      // a branching bonus chapter opens once its unlockAfter level is complete
+      if (bonus && bonus.unlockAfter != null && !Storage.isCompleted(bonus.unlockAfter)) return false;
       if (idx <= 0) return idx === 0 || id === 1;
       if (Storage.keptUnlocks().indexOf(id) >= 0) return true;
       const done = (k) => k >= 0 && Storage.isCompleted(list[k].id != null ? list[k].id : k + 1);
@@ -203,6 +229,8 @@
       if (lv && !Storage.isPlayable(lv)) return 'This crossing is not available yet.';
       const shut = Storage.campaignLockText(campaign);
       if (shut) return shut;
+      const b = Storage.bonusChapterOf(lv);
+      if (b && b.unlockAfter != null && !Storage.isCompleted(b.unlockAfter)) return 'Complete level ' + b.unlockAfter + ' to open the ' + b.name + '.';
       const c = Storage.CAMPAIGNS[campaign] || {};
       const name = l => (campaign === 'famous' && l.name ? l.name : 'level ' + l.id);
       for (let k = 0; k < idx; k++) {
@@ -236,7 +264,7 @@
       const keep = [];
       const prog = Storage.getProgress().levels || {};
       Storage.CAMPAIGN_ORDER.forEach(camp => {
-        const list = Storage.campaignLevels(levels || [], camp);
+        const list = Storage.campaignLevels(levels || [], camp).filter(l => !Storage.bonusChapterOf(l));
         const done = (k) => k >= 0 && Storage.isCompleted(list[k].id);
         for (let i = 1; i < list.length; i++) {
           if (Storage._ruleOpen(list, i, done, false)) continue;

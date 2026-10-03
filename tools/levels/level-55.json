@@ -1,0 +1,70 @@
+{
+  "id": 55,
+  "name": "Guy Lines",
+  "theme": "canyon",
+  "hint": "The cliff edges are crumbling, so the pylons have to stand well back from them - and tall enough that their stays pass high over the trucks on the bank road. Guy each pylon back to the anchorage set into the hillside behind it.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 44,
+    "rightY": 0,
+    "floorY": -30,
+    "waterY": -24
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 44,
+      "y": 0
+    },
+    {
+      "x": -30,
+      "y": 6,
+      "inland": true
+    },
+    {
+      "x": 74,
+      "y": 6,
+      "inland": true
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": -15,
+      "x1": -10,
+      "ground": "left"
+    },
+    {
+      "x0": 54,
+      "x1": 59,
+      "ground": "right"
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [],
+  "buildArea": {
+    "x0": -32,
+    "x1": 76,
+    "y0": -6,
+    "y1": 32
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "rope",
+    "cable"
+  ],
+  "budget": 44000,
+  "traffic": [
+    {
+      "type": "truck",
+      "count": 3,
+      "interval": 3
+    }
+  ],
+  "timeLimit": 45,
+  "templates": true
+}

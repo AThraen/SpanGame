@@ -265,6 +265,13 @@
         banner: 'Forces of Nature weathered', title: 'Storm-proof!',
         text: starLine => 'Hurricane, earthquake and a galloping deck - your bridges rode out all three. ' + starLine,
       },
+      // finales of the branching bonus chapters (BG.Storage.CAMPAIGNS.road.bonus), keyed by chapter id
+      bonusFinales: {
+        anchorages: {
+          banner: 'Anchorages complete', title: 'Firmly anchored!',
+          text: starLine => 'Deadmen, guy lines, a lone pylon and a grand suspension span - every pull carried safely back into the ground. ' + starLine,
+        },
+      },
     },
     rail: {
       id: 'rail', name: 'Iron Road', sub: 'Four lines · twenty railway bridges', icon: () => icon('train'), cls: 'is-rail', levelK: 'RAIL',
@@ -287,14 +294,18 @@
     return level && level.campaign && level.campaign !== 'road' ? level.campaign : 'road';
   }
   function campaignUi(campaign) { return CAMPAIGN_UI[campaign] || CAMPAIGN_UI.road; }
-  // the level-select subtitle; the Roads mention their hidden bonus chapter once it is revealed
+  // the level-select subtitle; the Roads mention their hidden bonus chapters once they are revealed
   function campaignSub(campaign) {
     const sub = campaignUi(campaign).sub || '';
     if (campaign !== 'road') return sub;
-    const bonus = CHAPTERS.filter(ch => ch.hidden && levelsList().some(l => l && l.id >= ch.from && l.id <= ch.to));
-    return bonus.length && !hiddenLevelIds().length ? sub + ' · bonus: ' + bonus.map(ch => ch.name).join(', ') : sub;
+    const hidden = hiddenLevelIds();
+    const bonus = sortChapters(CHAPTERS).filter(ch => ch.hidden && !hidden.includes(ch.from) && levelsList().some(l => l && l.id >= ch.from && l.id <= ch.to));
+    return bonus.length ? sub + ' · bonus: ' + bonus.map(ch => ch.name).join(', ') : sub;
   }
-  function chaptersFor(campaign) { const c = campaignUi(campaign); return c.chapters ? c.chapters() : []; }
+  // chapters in level order (bonus chapters are registered by different modules: Anchorages here, Forces of Nature
+  // by forces-fx.js)
+  function sortChapters(list) { return list.slice().sort((a, b) => a.from - b.from); }
+  function chaptersFor(campaign) { const c = campaignUi(campaign); return c.chapters ? sortChapters(c.chapters()) : []; }
   function campaignOpen(campaign) {
     const S = stor();
     try { return S && S.isCampaignUnlocked ? S.isCampaignUnlocked(campaign) : true; } catch (e) { return true; }
@@ -351,6 +362,9 @@
     { n: 4, name: 'Shipping Lanes', from: 21, to: 30, desc: '46–70 m · buses & trucks · reinforced road, towers, clearances', theme: 'tropical' },
     { n: 5, name: 'Heavy Haul', from: 31, to: 40, desc: '70–100 m · trucks & semis · convoys, deep canyons, few piers', theme: 'canyon' },
     { n: 6, name: 'Grand Spans', from: 41, to: 50, desc: '100–150 m · semis, tankers & heavies · the finale', theme: 'volcanic' },
+    // hidden bonus chapter that branches off after level 40 (rules: BG.Storage.CAMPAIGNS.road.bonus); Forces of Nature
+    // (n 7, 51-53) is added by js/features/forces-fx.js
+    { n: 8, name: 'Anchorages', from: 54, to: 58, desc: 'Bonus · land pylons, deadman anchors and backstays', theme: 'autumn', hidden: true },
   ];
 
   function levelsList() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
@@ -1299,12 +1313,13 @@
       // banner, title and text come from that campaign's registered look (CAMPAIGN_UI[...].finale)
       const kind = res.finale ? (res.finaleKind || res.campaign || 'road') : null;
       el.classList.toggle('finale', !!kind);
-      CAMPAIGN_ORDER.concat(['bonus']).forEach(c => el.classList.toggle('finale-' + c, kind === c));
+      const bonusFin = kind && kind !== 'bonus' && !CAMPAIGN_UI[kind] ? kind : null; // a branching bonus chapter (anchorages)
+      CAMPAIGN_ORDER.concat(['bonus']).forEach(c => el.classList.toggle('finale-' + c, kind === c || (c === 'bonus' && !!bonusFin)));
       if (kind) {
-        const camp = kind === 'bonus' ? 'road' : kind;
+        const camp = kind === 'bonus' || bonusFin ? 'road' : kind;
         const c = campaignStarsOf(camp);
         const starLine = c.max ? 'You hold ' + c.got + ' of ' + c.max + ' stars' + (c.got < c.max ? '. The three-star lines are still waiting.' : '. A perfect run.') : '';
-        const fin = kind === 'bonus' ? CAMPAIGN_UI.road.bonusFinale : campaignUi(camp).finale;
+        const fin = kind === 'bonus' ? CAMPAIGN_UI.road.bonusFinale : bonusFin ? (CAMPAIGN_UI.road.bonusFinales || {})[bonusFin] : campaignUi(camp).finale;
         if (fin) {
           this.el.resBanner.textContent = fin.banner;
           this.el.resTitle.textContent = fin.title;
