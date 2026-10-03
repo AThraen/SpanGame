@@ -1,3 +1,25 @@
+# dependencies (Playwright is a dev dependency for the headless browser tests)
 node_modules/
-*.log
+
+# local git worktrees used during development
 .worktrees/
+
+# logs and scratch output (tools write screenshots and logs to %TEMP%, never into the repo)
+*.log
+*.tmp
+npm-debug.log*
+
+# the Pages workflow assembles the site here
+_site/
+
+# editors and OS clutter
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# local environment files
+.env
+.env.*

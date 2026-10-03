@@ -1,15 +1,43 @@
 {
-  "name": "bridgegame",
+  "name": "span-bridge-builder",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "SPAN: a physics bridge-construction puzzle game for the browser. 90 levels across road, railway and famous-bridge campaigns, daily challenges, touch support and offline play. Plain HTML, CSS and JavaScript with no build step.",
+  "private": true,
+  "license": "MIT",
+  "author": "Allan Thraen",
+  "homepage": "https://athraen.github.io/SpanGame/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AThraen/SpanGame.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AThraen/SpanGame/issues"
+  },
+  "keywords": [
+    "game",
+    "bridge",
+    "physics",
+    "puzzle",
+    "xpbd",
+    "canvas",
+    "pwa",
+    "railway"
+  ],
+  "scripts": {
+    "start": "node tools/serve.js",
+    "test": "node tools/run-tests.js node",
+    "test:browser": "node tools/run-tests.js browser",
+    "test:all": "node tools/run-tests.js all",
+    "test:physics": "node tools/test-physics.js",
+    "verify": "node tools/verify-levels.js",
+    "e2e": "node tools/e2e.js",
+    "build:levels": "node tools/build-levels.js",
+    "precache": "node tools/gen-precache.js",
+    "screenshots": "node tools/screenshots.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "playwright": "^1.63.0"
   }

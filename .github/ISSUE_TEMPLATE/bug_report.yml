@@ -1,0 +1,75 @@
+name: Bug report
+description: Something in SPAN doesn't work the way it should.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! The more of the details below you can fill in, the faster it can be fixed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "I built a Warren truss on level 12, pressed Test, and the bus drove through the deck instead of over it."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open level 12
+        2. Apply the Warren template
+        3. Press Test
+    validations:
+      required: true
+  - type: input
+    id: level
+    attributes:
+      label: Level
+      description: Level number or name, or "daily 2026-10-05", "endless", "title screen", ...
+      placeholder: "12 Lopsided"
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where were you playing?
+      options:
+        - Online (athraen.github.io/SpanGame)
+        - Installed app (PWA)
+        - Local copy (index.html opened from disk)
+        - Local server (tools/serve.js)
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Desktop or laptop (mouse / trackpad)
+        - Phone
+        - Tablet
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: "Chrome 141 on Windows 11, Safari on iOS 18, ..."
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Your design (optional, very helpful for physics bugs)
+      description: |
+        Open the browser console (F12) while the level is open and run
+        `copy(BG.Model.serialize(BG.Game.getDesign()))`, then paste the result here.
+      render: json
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, console errors, anything else
+      description: Drag images into this box. Errors from the browser console (F12) help a lot.

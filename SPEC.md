@@ -312,7 +312,8 @@ Then **Integrate**: one agent wires everything in a real browser (Playwright), f
 
 - **Never open a visible window.** Browser checks only via `node tools/shot.js out.png [eval.js] [waitMs]`
   (headless Chrome via local Playwright). Do not use the Playwright MCP browser tools, `start`, or
-  `explorer`. Write screenshots to the scratch/temp dir, not the project.
+  `explorer`. Write screenshots to the scratch/temp dir, not the project. The one exception is the documentation
+  set in `docs/screenshots/`, which only `node tools/screenshots.js` writes (deterministic scenes; GIF via `tools/gif.js`).
 - Node 24 available; no Python.
 
 ## 9. Iron Road — railway campaign (extension)

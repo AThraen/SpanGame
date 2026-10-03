@@ -1,0 +1,57 @@
+name: Level idea
+description: Suggest a crossing, a famous bridge, or a whole chapter.
+title: "[Level] "
+labels: ["level idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea for a crossing? Describe the gap and what it should teach. A rough sketch is plenty.
+        If you want to build it yourself, see [docs/LEVEL-AUTHORING.md](https://github.com/AThraen/SpanGame/blob/main/docs/LEVEL-AUTHORING.md): every level ships with two saved designs that prove it can be solved.
+  - type: dropdown
+    id: campaign
+    attributes:
+      label: Campaign
+      options:
+        - Roads
+        - Iron Road (railway)
+        - Famous Bridges
+        - Forces of Nature (wind / earthquake)
+        - Anchorages (land pylons and anchors)
+        - A new campaign or chapter
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Working title
+      placeholder: "Cantilever Cove"
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the player discover or learn? Which structure should feel like the natural answer?
+      placeholder: "A deep gorge with no pier zones and a ship channel high up the middle: you have to cantilever out from both banks and meet in the middle."
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: The setup
+      description: Gap width, bank heights, water, anchors, pier zones, no-build zones, materials, traffic, budget, theme. Rough numbers are fine.
+      placeholder: |
+        Gap: 70 m, banks level, deep canyon (no water)
+        Anchors: road ends plus two bolts 6 m down each cliff
+        No piers; materials: road, reinforced road, steel, cable
+        Traffic: 2 trucks, then a semi
+        Theme: canyon
+  - type: textarea
+    id: real
+    attributes:
+      label: Real bridge (Famous Bridges only)
+      description: Name, place, year, engineers, and what makes it worth building. Links to sources are welcome.
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Sketch or design (optional)
+      description: Drag in a sketch, or paste a design from the game (`copy(BG.Model.serialize(BG.Game.getDesign()))` in the browser console).
