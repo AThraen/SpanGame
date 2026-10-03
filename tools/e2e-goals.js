@@ -29,8 +29,10 @@ const ok = (name, cond, info) => { results.push(!!cond); console.log((cond ? 'PA
   const ls = await page.evaluate(() => ({ tiles: document.querySelectorAll('.tile-badges').length, chip: (document.querySelector('.ls-right .badge-chip') || {}).textContent }));
   ok('level tiles show badge counts', ls.tiles === 50, ls);
   const maxB = await page.evaluate(() => BG.Storage.maxBadges());
-  const sumB = Object.values(goalsData).reduce((a, s) => a + s.length, 0);
-  ok('level select total badge chip (both campaigns)', new RegExp('0\\s*/\\s*' + sumB).test(ls.chip || '') && maxB === sumB, { chip: ls.chip, maxB, sumB });
+  // unrevealed hidden bonus levels (Forces of Nature 51-53) are not counted until their chapter opens
+  const hiddenIds = await page.evaluate(() => (BG.Hud.hiddenLevelIds ? BG.Hud.hiddenLevelIds() : []));
+  const sumB = Object.entries(goalsData).reduce((a, [id, s]) => a + (hiddenIds.includes(+id) ? 0 : s.length), 0);
+  ok('level select total badge chip (both campaigns)', new RegExp('0\\s*/\\s*' + sumB).test(ls.chip || '') && maxB === sumB, { chip: ls.chip, maxB, sumB, hiddenIds });
   await shot('01-levelselect');
   // campaign tabs: the Iron Road tab rebuilds the grid; its tiles get badge counts too, and back again
   await page.evaluate(() => BG.Hud.setCampaignTab('rail')); await page.waitForTimeout(500);

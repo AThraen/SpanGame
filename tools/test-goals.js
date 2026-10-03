@@ -59,7 +59,7 @@ const G = BG.Goals;
 // ---------------------------------------------------------------- data shape
 const data = BG.GoalsData || {};
 const ids = Object.keys(data).map(Number).sort((a, b) => a - b);
-ok('goals data present for every level (roads 1-50 + Iron Road 101-120)', BG.Levels.every(l => data[l.id]), BG.Levels.filter(l => !data[l.id]).map(l => l.id));
+ok('goals data present for every level (roads 1-50, bonus 51-53, Iron Road 101-120)', BG.Levels.every(l => data[l.id]), BG.Levels.filter(l => !data[l.id]).map(l => l.id));
 let total = 0;
 const typeCount = {};
 for (const id of ids) {

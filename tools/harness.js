@@ -6,7 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const CORE = path.resolve(__dirname, '..', 'js', 'core');
-const ORDER = ['materials.js', 'vehicles.js', 'trains.js', 'model.js', 'physics.js', 'levels.js', 'templates.js'];
+const ORDER = ['materials.js', 'vehicles.js', 'trains.js', 'model.js', 'physics.js', 'events.js', 'levels.js', 'templates.js']; // forces: events.js = BG.Forces
 
 function load() {
   for (const f of ORDER) {

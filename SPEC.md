@@ -37,11 +37,12 @@ Opens directly from `index.html` (file://) — so **classic `<script>` tags, no 
 
 ```
 index.html               loads scripts in the order below
-css/style.css
+css/style.css            (+ feature stylesheets: css/goals.css, css/forces.css)
 js/core/materials.js     BG.Materials
 js/core/vehicles.js      BG.Vehicles (definitions)
 js/core/model.js         BG.Model (design helpers, cost, validation, serialization)
-js/core/physics.js       BG.Simulation
+js/core/physics.js       BG.Simulation (+ BG.SimHooks extension points, §12.2)
+js/core/events.js        BG.Forces (wind / quake level events, §12)
 js/core/levels.js        BG.Levels (array of 50 level objects)
 js/core/templates.js     BG.Templates (bridge-type generators)
 js/render/effects.js     BG.Effects (particles, debris, shake)
@@ -52,7 +53,8 @@ js/ui/editor.js          BG.Editor
 js/ui/hud.js             BG.Hud (menus, level select, palette, results, tooltips)
 js/main.js               BG.Game (state machine + main loop)
 js/features/*.js         optional feature modules, loaded last (core → render → ui → main → features);
-                         e.g. terrain-fix.js = BG.TerrainFix (§10), goals*.js = BG.Goals (§11)
+                         e.g. terrain-fix.js = BG.TerrainFix (§10), goals*.js = BG.Goals (§11),
+                         forces-fx.js = Forces of Nature visuals / HUD / audio (§12)
 tools/harness.js         Node loader for js/core/* + runHeadless()
 tools/test-physics.js    physics unit/behaviour tests
 tools/verify-levels.js   runs every level against its reference + best designs
@@ -119,7 +121,8 @@ Keyed by type: `car` (~1.2 t), `van` (~2.5 t), `bus` (~12 t), `truck` (~20 t), `
   budget: 2500,
   traffic: [ {type: 'car', count: 2, interval: 2.5 /* s between spawns */} ], // groups in order
   timeLimit: 40,                      // seconds of sim time
-  templates: true                     // whether template tool is offered
+  templates: true,                    // whether template tool is offered
+  events: [ ... ]                     // optional wind / quake events (§12.1); absent = no weather
 }
 ```
 Vehicles spawn on the left bank at `leftEdge - 25`, drive right, finish when the rear passes `rightEdge + 15`.
@@ -447,8 +450,78 @@ templates, material substitutions, mirror rebuilds and greedy member pruning; ev
 thresholds come from the best candidate plus slack (members +8 %, mass +6 %). 2 goals on levels 1-5, 2-3 later.
 Iron Road levels 101-120 are covered the same way (generated at the merge with `--only 101,...,120`; 58 goals): the
 rail sim decides the pass (derailments fail it), `timber_only` is never offered there (the deck needs `rail`).
-The level select shows tile counts on both campaign tabs; the total chip counts all 70 levels (191 goals).
+Bonus levels 51-53 (§12.4) were added the same way at their merge (`--only 51,52,53`; 8 goals, proven with
+the level's wind / quake events on, seed 1 as in the game).
+The level select shows tile counts on both campaign tabs; the total chip counts all 73 levels (199 goals).
 
 ### 11.4 Storage
 `BG.Storage.getBadges(id)`, `recordBadges(id, ids)` -> newly earned, `totalBadges()`, `maxBadges()`; key `span.v1.badges` =
 `{ [levelId]: [goalId] }`. Keyed by level id, so campaign levels work unchanged. `resetProgress()` clears badges too.
+
+## 12. Forces of Nature — wind & earthquake events (extension)
+
+Optional per-level weather. **A level without `events` must simulate bit-identically to the engine without
+this feature** (`node tools/test-events.js` compares against a pristine engine copy; `--full` checks every
+road and rail design; at the merge with the Iron Road all 140 road + rail designs were also compared against
+the pre-merge engine: bit-identical).
+
+### 12.1 Level field
+```js
+events: [
+  { type: 'wind', start, duration, speed /* m/s */, gust /* 0..1.5, default 0 */, dir /* +1 → +x, -1 */,
+    period? /* s per gust cycle, or [from, to] = linearly swept rhythm */, lift? /* CL amplitude, default
+    0.5 turbulent / 0.3 periodic */, rain? /* visual */, label? },
+  { type: 'quake' /* alias 'earthquake' */, start, duration, magnitude /* default 6.5 */, freq /* Hz, default 1.5 */,
+    vertical? /* vertical / horizontal ratio, 0.5 */, waveSpeed? /* m/s, 300 */, pga? /* g, overrides magnitude */, label? },
+]
+```
+Unknown types are ignored. Events may overlap. Peak ground acceleration from magnitude: `0.1 g · 2^(M − 6)`
+(M6 0.1 g, M7 0.2 g, M8 0.4 g).
+
+### 12.2 Physics — `js/core/events.js` (`BG.Forces`)
+- Plugs in through **`BG.SimHooks`**: an array of factories `(sim) => extension | null` that `BG.Simulation`'s
+  constructor calls; extensions may implement `beginStep(sim)`, `substep(sim, h, s)` (start of each XPBD
+  substep, before integration) and `endStep(sim)` (after `_postStep`, before `_syncOut`). With no extension,
+  `sim._ext === null` and no hook code runs. Other features may register their own hooks the same way.
+- Deterministic: seeded by `sim.seed`, own sine (`BG.Forces.sinDet`, basic IEEE ops only), fixed order.
+- **Wind** is a crosswind with an in-plane component `dir`. Per member and axis, drag from the projected
+  length normal to that axis and the *relative* air speed (so drag also damps sway):
+  `Fx = ½ρ·Cd·D·|Δy|·rx|rx|`, `Fy = ½ρ·Cd·Dv·|Δx|·ry|ry|`; decks (`isRoad`/`isRail`) also get lift
+  `Fy += ½ρ·V²·B·|Δx|·CL·g(x, t)` over their chord B. `D` = exposed depth (decks and cables catch more than their
+  drawn width), coefficients in `BG.Forces.AERO` (per material id, `DECK` fallback). `g` is the gust signal,
+  convected downwind at the wind speed (frozen turbulence: a travelling wave along the deck that excites
+  symmetric and antisymmetric modes): smooth seeded turbulence, or `sin` of the (swept) `period`. Gusts also
+  modulate speed: `V = dir·speed·env(t)·max(0, 1 + gust·g)`; 1.5 s ramps in and out. The field is sampled at
+  member midpoints once per 1/60 s step; drag is applied every substep. Vehicles get frontal-area drag along
+  x (head wind slows them; cruise control caps tail wind).
+- **Quake**: every fixed joint (anchors, pier tops) follows a seeded displacement series
+  `d(t − (x − leftEdge)/waveSpeed)`: four incommensurate sines near `freq` (vertical at 1.6 × freq), smooth
+  envelope (rise ≤ 1.5 s, decay over the last 45 %), scaled so the peak ground acceleration ≈ PGA. The terrain
+  collider (`sim.terrain` edges/heights and `sim.ground` segments) and `sim.piers` move with the ground; the
+  bridge feels the shaking through inertia. While the ground shakes (+1 s) the `vehicle_jumped` airborne
+  timer is held at zero (a bucking deck tossing traffic is not a ramp jump).
+- Live state `sim.forces = {time, list, wind:{v, speed, gust, active, event}, quake:{dx, dy, ax, intensity,
+  active, event}}`; sim events `wind_start {index, speed, dir, label}`, `wind_end`, `quake_start {index,
+  magnitude, label}`, `quake_end`.
+- API: `normalize(events)`, `timeline(level|events)` → `[{type, start, end, label, short, warnAt, ev}]`,
+  `label(ev)`, `attach(sim, events)` (add events to a sim built without them — e.g. a famous-bridges
+  scenario), `windSpeed(ev, t, seed, x?)`, `groundOffset(ev, x, t, seed)`, `presets.gale/storm/tacoma/quake(o)`.
+  **Tacoma Narrows:** `BG.Forces.presets.tacoma({ period })` — set `period` to the deck's first antisymmetric
+  vertical mode (a plain suspension deck with ~10 m sag: ≈ 2.2 s; use `[from, to]` to cover a band).
+
+### 12.3 Presentation — `js/features/forces-fx.js`, `css/forces.css`
+Wraps (does not edit) `Renderer.render` / `Renderer._drawShips`, `Hud.enterLevel` / `Hud.update` and
+`Game._onSimEvent`. Visuals: wind streaks, flying leaves, rain + storm grade + lightning, swaying trees,
+windsock, flag and tower pennants; quake camera rumble, cliff dust and pebbles, cracks growing in the banks.
+HUD: forecast chip, warning banner 3 s before an event, live banner, event timeline on the sim bar. Audio:
+wind howl + whistle, quake rumble, thunder, warning chirp (own WebAudio nodes on `BG.Audio.context`).
+
+### 12.4 Bonus chapter "Forces of Nature" (levels 51–53)
+Hidden in level select until one of its levels is unlocked (finish 49 or 50); chapter entry
+`{n: 7, from: 51, to: 53, hidden: true}` is pushed onto `BG.Hud.CHAPTERS` by forces-fx.js. 51 Hurricane Alley
+(wind 34 m/s headwind + gusts: plain-road stayed decks fail by uplift/bending), 52 Fault Line (M8 quake),
+53 Galloping Gertie (swept resonant wind: slender suspension decks gallop to failure, stiffened ones pass).
+Verified like every level (reference + best); no template reaches ★★★ (checked by test-events.js).
+The chapter is a Roads-tab chapter (levels 51–53 have no `campaign`, so they are road levels for unlocking and
+stars). Until it is revealed its levels are left out of the Roads star total and the badge total
+(`BG.Hud.hiddenLevelIds()`; used by hud.js and goals-ui.js), so the level select reads "/ 150" on a fresh profile.

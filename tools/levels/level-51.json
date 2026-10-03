@@ -1,0 +1,98 @@
+{
+  "id": 51,
+  "name": "Hurricane Alley",
+  "theme": "tropical",
+  "hint": "A hurricane rolls in 5 seconds after the first van sets off, gusting past 45 m/s straight into the traffic. Gusts do not only push - they lift the deck, and cables can only pull, so a light road gets flung up and snaps in bending. Give the deck the weight and stiffness to ride it out, and hang it from plenty of stays.",
+  "terrain": {
+    "leftEdge": 0,
+    "leftY": 0,
+    "rightEdge": 60,
+    "rightY": 0,
+    "floorY": -10,
+    "waterY": -5
+  },
+  "anchors": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 60,
+      "y": 0
+    },
+    {
+      "x": -14,
+      "y": 0
+    },
+    {
+      "x": 74,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": -4
+    },
+    {
+      "x": 60,
+      "y": -4
+    }
+  ],
+  "pierZones": [
+    {
+      "x0": 6,
+      "x1": 10
+    },
+    {
+      "x0": 50,
+      "x1": 54
+    }
+  ],
+  "maxPiers": 2,
+  "noBuild": [
+    {
+      "x0": 11,
+      "x1": 49,
+      "y0": -5,
+      "y1": -1
+    }
+  ],
+  "buildArea": {
+    "x0": -14,
+    "x1": 74,
+    "y0": -5,
+    "y1": 22
+  },
+  "materials": [
+    "road",
+    "reinforced_road",
+    "wood",
+    "rope",
+    "cable"
+  ],
+  "budget": 44500,
+  "traffic": [
+    {
+      "type": "van",
+      "count": 3,
+      "interval": 2.5
+    },
+    {
+      "type": "bus",
+      "count": 2,
+      "interval": 3.5
+    }
+  ],
+  "timeLimit": 40,
+  "templates": true,
+  "events": [
+    {
+      "type": "wind",
+      "start": 5,
+      "duration": 26,
+      "speed": 34,
+      "gust": 0.45,
+      "dir": -1,
+      "rain": true
+    }
+  ]
+}

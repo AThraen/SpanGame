@@ -287,6 +287,17 @@
     const S = stor();
     try { return S ? S.isUnlocked(id, levelsList()) : id === 1; } catch (e) { return id === 1; }
   }
+  // forces: ids of levels in hidden bonus chapters ({hidden: true}) that are not revealed yet (none of their
+  // levels unlocked); they stay out of the level select and out of the star / badge totals until then
+  function hiddenLevelIds() {
+    const out = [];
+    CHAPTERS.concat(RAIL_CHAPTERS).forEach(ch => {
+      if (!ch.hidden) return;
+      const lv = levelsList().filter(l => l && l.id >= ch.from && l.id <= ch.to);
+      if (!lv.some(l => unlocked(l.id))) lv.forEach(l => out.push(l.id));
+    });
+    return out;
+  }
 
   // mini terrain thumbnail for level tiles
   function thumbSvg(level) {
@@ -410,7 +421,7 @@
       let total = 0;
       try { total = S ? S.totalStars() : 0; } catch (e) { /* */ }
       $('[data-ref=titleStars] b', el).textContent = total;
-      const nLv = levelsList().length;
+      const nLv = levelsList().length - hiddenLevelIds().length;
       $('[data-ref=titleStars]', el).lastChild.textContent = ' / ' + (nLv ? nLv * 3 : 150);
       const cont = $('[data-act=continue]', el);
       const target = call('continueTarget');
@@ -491,6 +502,7 @@
       const railOpen = railCampaignOpen();
       const cs = c => { try { return S && S.campaignStars ? S.campaignStars(levelsList(), c) : { got: S ? S.totalStars() : 0, max: 150 }; } catch (e) { return { got: 0, max: 0 }; } };
       const road = cs('road'), rail = cs('rail');
+      road.max = Math.max(0, road.max - 3 * hiddenLevelIds().length); // forces: hidden bonus levels (no stars yet)
       const cur = camp === 'rail' ? rail : road;
       $('[data-ref=lsStars] b', el).textContent = cur.got;
       $('[data-ref=lsStars]', el).lastChild.textContent = ' / ' + (cur.max || (camp === 'rail' ? 60 : 150));
@@ -512,6 +524,8 @@
           </div>`));
       }
       chaptersFor(camp).forEach(ch => {
+        // forces: hidden bonus chapters stay out of the list until one of their levels is unlocked
+        if (ch.hidden && hiddenLevelIds().includes(ch.from)) return;
         const th = theme(ch.theme);
         let chStars = 0, chMax = 0, anyOpen = false;
         const tiles = [];
@@ -1251,7 +1265,7 @@
 
     // exposed helpers
     icon, money, theme, vehSvg, trainSvg, material, materials, levelMaterials, CHAPTERS, RAIL_CHAPTERS, THEMES,
-    campaignOf, displayNum, levelLabel,
+    campaignOf, displayNum, levelLabel, hiddenLevelIds,
   };
 
   function budgetColor(r) {

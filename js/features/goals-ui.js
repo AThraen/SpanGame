@@ -40,7 +40,9 @@
     let t = 0;
     const ids = new Set(Object.keys(BG.GoalsData || {}).map(Number));
     (BG.Levels || []).forEach(l => ids.add(l.id));
-    ids.forEach(id => { t += G.forLevel(id).length; });
+    // hidden bonus levels (Forces of Nature, before they are revealed) do not count yet
+    const hidden = new Set(BG.Hud && typeof BG.Hud.hiddenLevelIds === 'function' ? BG.Hud.hiddenLevelIds() : []);
+    ids.forEach(id => { if (!hidden.has(id)) t += G.forLevel(id).length; });
     return t;
   };
   if (typeof S.resetProgress === 'function') {
