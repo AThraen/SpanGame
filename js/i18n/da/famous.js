@@ -40,7 +40,7 @@
     'famous.202.type': 'Flad stenbue (segmentbue)',
     'famous.202.fact1': 'Buerne er segmentbuer: de rejser sig kun omkring en femtedel af spændet, så broen havde kun brug for to piller i floden.',
     'famous.202.fact2': 'Slagtere, garvere og fiskehandlere havde engang butik på broen; i 1593 tillod storhertug Ferdinando I kun guldsmede og juvelerer.',
-    'famous.202.fact3': 'I 1944 var den den eneste bro i Firenze, som den tilbagetrækkende tyske hær ikke sprængte.',
+    'famous.202.fact3': 'I 1944 var den den eneste bro i Firenze, som den tilbagetrækkende tyske hær ikke ødelagde.',
     'famous.202.why': 'Flade segmentbuer lod middelalderens Firenze krydse Arno med få, slanke piller - og stadig bære en hel gade af butikker med Vasari-korridoren (1565) ovenover.',
 
     // 203 The Iron Bridge
@@ -68,7 +68,7 @@
     'famous.204.span': 'Hovedspænd 486,3 m',
     'famous.204.type': 'Kombineret hænge- og skråstagsbro',
     'famous.204.fact1': 'John Roebling døde af stivkrampe efter en ulykke ved arbejdets start; da trykfaldssyge lagde hans søn Washington i sengen, var det Emily Warren Roebling, der bragte ingeniørarbejdet ud på byggepladsen.',
-    'famous.204.fact2': 'Hvert af de fire bærekabler rummer 5.282 parallelle galvaniserede ståltråde, og skrå stag spreder sig ud fra tårnene for ekstra stivhed.',
+    'famous.204.fact2': 'Hvert af de fire bærekabler rummer 5.282 parallelle galvaniserede ståltråde, og skråstag spreder sig ud fra tårnene for ekstra stivhed.',
     'famous.204.fact3': 'I 1884 førte P. T. Barnum 21 elefanter, heriblandt Jumbo, over broen for at bevise, at den var sikker.',
     'famous.204.why': 'Den første hængebro med kabler af ståltråd og verdens længste hængebro fra 1883 til 1903.',
 
@@ -85,7 +85,7 @@
     'famous.205.fact2': 'For at forklare, hvordan den virker, sad ingeniøren Kaichi Watanabe på en stol hængt op mellem Fowler og Baker, hvis arme og stokke var konsollerne - den berømte "menneskelige cantilever".',
     'famous.205.fact3': 'Den holdes sammen af omkring 6,5 millioner nitter og blev UNESCO-verdensarv i 2015.',
     'famous.205.why': 'Da den åbnede, havde den verdens længste konsolspænd - et dristigt svar i stål på Tay-katastrofen, og den bærer stadig tog i dag.',
-    'famous.205.note': 'Skaleret ned fra 2,5 km til 150 m: tre konsoltårne, to sejlrender og et damp-eksprestog, ligesom i 1890.',
+    'famous.205.note': 'Skaleret ned fra 2,5 km til 150 m: tre konsoltårne, to sejlrender og et dampeksprestog, ligesom i 1890.',
 
     // 206 Tower Bridge
     'famous.206.name': 'Tower Bridge',
@@ -114,7 +114,7 @@
     'famous.207.fact1': 'De to buehalvdele blev bygget ud fra hver sin kyst, holdt tilbage af kabler forankret i tunneler, indtil de mødtes den 19. august 1930.',
     'famous.207.fact2': 'Omkring seks millioner nitter, alle slået i med håndkraft, holder 52.800 tons stål sammen.',
     'famous.207.fact3': 'De fire granitbeklædte pyloner bærer ingenting - de blev tilføjet for udseendets skyld og for at berolige befolkningen.',
-    'famous.207.why': 'Med kælenavnet "Bøjlen" bærer den otte vejbaner, to jernbanespor, et fortov og en cykelsti, og den var verdens bredeste bro med langt spænd indtil 2012.',
+    'famous.207.why': 'Med kælenavnet "The Coathanger" (bøjlen) bærer den otte vejbaner, to jernbanespor, et fortov og en cykelsti, og den var verdens bredeste bro med langt spænd indtil 2012.',
 
     // 208 Golden Gate Bridge
     'famous.208.name': 'Golden Gate Bridge',
@@ -128,7 +128,7 @@
     'famous.208.fact1': 'Farven, "International Orange", blev valgt, så den passede til landskabet og holdt broen synlig i tåge.',
     'famous.208.fact2': 'Hvert bærekabel består af 27.572 enkelte ståltråde.',
     'famous.208.fact3': 'Et sikkerhedsnet under kørebanen reddede 19 arbejdere, som kaldte sig "Halvvejs til Helvede-klubben".',
-    'famous.208.why': 'Den havde rekorden for verdens længste hængespænd fra 1937 til 1964, over et dybt, blæsende og tåget stræde, som mange mente ikke kunne overbygges.',
+    'famous.208.why': 'Den havde rekorden for verdens længste hængespænd fra 1937 til 1964, over et dybt, blæsende og tåget stræde, som mange mente var umuligt at slå bro over.',
 
     // 209 Tacoma Narrows
     'famous.209.name': 'Tacoma Narrows-broen',
@@ -141,7 +141,7 @@
     'famous.209.type': 'Hængebro med lav pladedrager som kørebane',
     'famous.209.fact1': 'Kørebanens dragere var kun 2,4 m høje, så den bølgede selv i svag vind - bilisterne kaldte den "Galloping Gertie" (Galoperende Gertrud).',
     'famous.209.fact2': 'Fire måneder efter åbningen satte en jævn vind på 64 km/t selvforstærkende aeroelastisk flagren i gang, som vred kørebanen fra hinanden.',
-    'famous.209.fact3': 'Det eneste dødsoffer var Tubby, en cockerspaniel, der var efterladt i en bil på broen. Sammenstyrtningen blev filmet og studeres af ingeniører den dag i dag.',
+    'famous.209.fact3': 'Det eneste dødsoffer var Tubby, en cockerspaniel, der var efterladt i en bil på broen. Sammenbruddet blev filmet og studeres af ingeniører den dag i dag.',
     'famous.209.why': 'Ulykken grundlagde broaerodynamikken: alle broer med lange spænd er siden blevet testet mod vind. En stivere afløser åbnede i 1950.',
     'famous.209.note': 'Vinden rammer præcis rytmen i en almindelig hængebro: hæng din kørebane op i lodrette hængestænger alene, og se den galoppere.',
 
@@ -170,9 +170,9 @@
     'famous.211.type': 'Skråstagsbro, vej over jernbane',
     'famous.211.fact1': 'Den er kun halvdelen af forbindelsen: via den kunstige ø Peberholm dykker den ned i en 4 km lang tunnel, så den holder sig fri af Københavns Lufthavn og sejlrenden.',
     'famous.211.fact2': 'Seksten udetonerede bomber fra Anden Verdenskrig blev fundet på havbunden under byggeriet - alligevel åbnede broen tre måneder før tid.',
-    'famous.211.fact3': 'Fire motorvejsspor kører på det øverste dæk og to jernbanespor nedenunder.',
+    'famous.211.fact3': 'Fire motorvejsbaner kører på det øverste dæk og to jernbanespor nedenunder.',
     'famous.211.why': 'Verdens længste skråstagsspænd med både vej og jernbane - og forbindelsen, der bandt Danmark og Sverige sammen.',
-    'famous.211.note': 'Jernbanedækket kommer med Jernbane-modulet; denne udgave bærer kun vejtrafik.',
+    'famous.211.note': 'Jernbanedækket kommer med modulet Jernbanen; denne udgave bærer kun vejtrafik.',
 
     // 212 Millau Viaduct
     'famous.212.name': 'Millau-viadukten',

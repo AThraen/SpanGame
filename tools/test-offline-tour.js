@@ -284,8 +284,10 @@ async function tour(browser, base, dev, setSwVersion) {
     await page.goto(base + 'index.html');
     await waitGame('title');
     setSwVersion('offline-tour-v2');
-    await page.evaluate(() => BG.PWA.checkForUpdate());
-    const shown = await page.waitForSelector('.pwa-update.in', { timeout: 20000 }).then(() => true, () => false);
+    // Chrome may hold this update job for up to a minute (seen on a busy machine: the request for the new sw.js
+    // only goes out after ~60 s), so the wait is generous; the check is that the toast comes, not how fast
+    await page.evaluate(() => { BG.PWA.checkForUpdate(); });
+    const shown = await page.waitForSelector('.pwa-update.in', { timeout: 120000 }).then(() => true, () => false);
     ok(tag + 'update: toast appears for a new worker', shown);
     if (shown) {
       const nav = page.waitForEvent('framenavigated', { timeout: 15000 }).then(() => true, () => false);
@@ -322,7 +324,7 @@ async function tour(browser, base, dev, setSwVersion) {
       return Buffer.from(s);
     },
   });
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   let size = 0;
   try {
     for (const dev of DEVICES) size = await tour(browser, srv.url, dev, dev.name === 'desktop' ? v => { swVersion = v; } : null) || size;

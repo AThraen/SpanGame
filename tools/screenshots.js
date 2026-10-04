@@ -297,7 +297,7 @@ function seedProgress() {
 }
 
 (async () => {
-  browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  browser = await require('./browser').launch(chromium);
   for (const [name, fn] of Object.entries(SCENES)) {
     if (ONLY ? ONLY.indexOf(name) < 0 : name === 'probe') continue;
     console.log(name);

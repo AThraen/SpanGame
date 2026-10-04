@@ -4,5 +4,32 @@
     "SPAN"
   ],
   "files": {
-  }
+  },
+  "_sameAsEnglishDoc": "Dictionary keys whose translation is deliberately the same text as the English one (proper names, years, words that are the same in the language). Every other translated text must differ from English (tools/test-i18n.js, completeness). Exact keys or /regex/.",
+  "sameAsEnglish": [
+    "/^famous\\.\\d+\\.(name|year|built|location|crosses|engineer)$/",
+    "/^levels\\.2\\d\\d\\.name$/",
+    "hud.levels.subBonus",
+    "hud.settings.vibration",
+    "hud.settings.perfAuto",
+    "hud.keys.test",
+    "hud.keys.pause",
+    "hud.keys.zoom",
+    "hud.sim.test",
+    "editor.tip.type",
+    "editor.label.pylonHeight",
+    "editor.arch.bar.auto",
+    "editor.arch.bar.nAuto",
+    "editor.arch.bar.connectorAuto",
+    "results.stat.budget",
+    "features.famous.card.type",
+    "features.famous.card.budget",
+    "features.daily.diff.6",
+    "features.forces.wind.5",
+    "features.forces.windShort.5",
+    "features.forces.windShort.6",
+    "vehicles.road.bus",
+    "vehicles.car.tender",
+    "features.history.dur.min"
+  ]
 }

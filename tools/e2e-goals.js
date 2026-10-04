@@ -12,7 +12,7 @@ const results = [];
 const ok = (name, cond, info) => { results.push(!!cond); console.log((cond ? 'PASS ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errors = [];

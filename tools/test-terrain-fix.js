@@ -95,7 +95,7 @@ async function browserPart() {
   try { ({ chromium } = require('playwright')); } catch (e) { console.log('  (playwright not available: browser part skipped)'); return; }
   section('renderer: drawn cliffs match the model; waterline overlay');
   const url = require('url');
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errs = [];

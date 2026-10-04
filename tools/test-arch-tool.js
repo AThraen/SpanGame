@@ -657,7 +657,7 @@ async function browser() {
   const url = require('url');
   fs.mkdirSync(OUT, { recursive: true });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const b = await chromium.launch({ headless: true, channel: 'chrome' });
+  const b = await require('./browser').launch(chromium);
   try {
     // ---------------------------------------------------------------- desktop
     section('browser (desktop 1440x900): levels 15, 106, 208 with mouse + bar, Test passes');

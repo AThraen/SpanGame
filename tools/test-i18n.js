@@ -88,6 +88,7 @@ function checkDictionaries() {
   ok('every key starts with its area', !issues.prefix.length, issues.prefix);
   ok('no empty texts', !issues.empty.length, issues.empty);
   ok('the English and Danish dictionaries are not empty', Object.keys(en).length > 50 && Object.keys(I.dict.da).length === Object.keys(en).length);
+  completeness();
 
   // every literal key used in the code exists in English (dynamic keys like 'hud.chapter.' + key are not checked)
   const keyRe = new RegExp('[\'"`]((?:' + I18N_AREAS.join('|') + ')\\.[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)[\'"`]', 'g');
@@ -101,6 +102,36 @@ function checkDictionaries() {
     }
   });
   ok('every key used in js/ exists in English', !unknown.length, unknown);
+}
+
+// every non-English dictionary is complete: no placeholder (TODO, FIXME, XXX, TBD, ???, [en] ...), no text copied from
+// English, no English sentence left inside a translation. A text that really is the same in both languages (a proper
+// name, a year, "Budget", "Bus", a pure "{n} × {name}") is listed under "sameAsEnglish" in tools/i18n-allowlist.json
+// (keys or /regex/); a text without any word of three letters or more ("{v} kN", "{n} s") needs no entry.
+const PLACEHOLDER = /\b(TODO|FIXME|XXX|TBD|TRANSLATE)\b|\?\?\?|\[(en|da|todo)\]|^\s*-\s*$/i;
+const ENGLISH = /\b(the|and|with|your|you|are|this|that|these|those|what|when|which|would|should|could|every|into|been|it's|don't|can't|won't|isn't|doesn't)\b/i;
+function completeness() {
+  const file = path.join(__dirname, 'i18n-allowlist.json');
+  const allow = ((fs.existsSync(file) && JSON.parse(fs.readFileSync(file, 'utf8')).sameAsEnglish) || [])
+    .map(p => (p.charAt(0) === '/' ? new RegExp(p.slice(1, p.lastIndexOf('/')), p.slice(p.lastIndexOf('/') + 1)) : p));
+  const allowed = k => allow.some(p => (typeof p === 'string' ? p === k : p.test(k)));
+  const flat = v => (v && typeof v === 'object' ? Object.keys(v).sort().map(f => v[f]).join(' | ') : String(v));
+  const words = s => s.replace(/\{\w+\}/g, ' ').replace(/<[^>]*>/g, ' ').match(/[A-Za-zÆØÅæøå]{3,}/g) || [];
+  const proseOf = s => s.replace(/"[^"]*"|“[^”]*”|<[^>]*>|\{\w+\}/g, ' ');   // quoted names ("The Coathanger") are not prose
+  LANGS.filter(l => l !== 'en').forEach(l => {
+    const d = I.dict[l], todo = [], copied = [], english = [], stale = [];
+    Object.keys(d).forEach(k => {
+      const v = flat(d[k]), e = flat(I.dict.en[k]);
+      if (PLACEHOLDER.test(v)) todo.push(k + ': ' + v.slice(0, 60));
+      if (v === e && words(v).length && !allowed(k)) copied.push(k + ': ' + v.slice(0, 60));
+      if (v !== e && !allowed(k) && ENGLISH.test(proseOf(v))) english.push(k + ': ' + v.slice(0, 80));
+    });
+    allow.filter(p => typeof p === 'string').forEach(k => { if (!(k in d) || flat(d[k]) !== flat(I.dict.en[k])) stale.push(k); });
+    ok(l + ': no TODO / placeholder texts', !todo.length, todo);
+    ok(l + ': no text copied from English (except "sameAsEnglish" in tools/i18n-allowlist.json)', !copied.length, copied);
+    ok(l + ': no English words left inside a translation', !english.length, english);
+    ok(l + ': every "sameAsEnglish" key still exists and is still the same text', !stale.length, stale);
+  });
 }
 
 function jsFiles(dirs, filter) {
@@ -418,7 +449,7 @@ function formatting() {
 async function browser() {
   console.log('\n--- 4. headless Chrome');
   const { chromium } = require('playwright');
-  const b = await chromium.launch({ headless: true, channel: 'chrome' });
+  const b = await require('./browser').launch(chromium);
   const href = url.pathToFileURL(path.join(ROOT, 'index.html')).href;
   const warnings = [];
   const watch = (page, tag) => page.on('console', m => {

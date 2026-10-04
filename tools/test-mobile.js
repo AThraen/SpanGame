@@ -1,5 +1,7 @@
 // Headless mobile / touch test for SPAN (js/features/mobile.js + css/mobile.css). Never opens a window.
-// Usage: node tools/test-mobile.js [outDir=%TEMP%/span-mobile] [--only=<device>] [--no-shots]
+// Usage: node tools/test-mobile.js [outDir=%TEMP%/span-mobile] [--only=<device>] [--no-shots] [--lang=da]
+//   --lang=da  every device in Danish (?lang=da): longer words, same overflow / touch-target checks; the texts the
+//              checks look for come from the dictionaries
 // For every device (phone portrait / landscape, Android, iPad both ways; touch emulation):
 //   - no visible HUD element overflows the viewport on title, level select, settings, edit, sheet,
 //     templates, sim and results; HUD buttons are >= 44 px touch targets
@@ -25,9 +27,10 @@ const url = require('url');
 const ROOT = path.resolve(__dirname, '..');
 const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions', 'level-' + String(n).padStart(2, '0') + '.json'), 'utf8'));
 const args = process.argv.slice(2);
-const OUT = args.find(a => !a.startsWith('--')) || path.join(require('os').tmpdir(), 'span-mobile');
+const OUT = args.find(a => !a.startsWith('--')) || path.join(require('os').tmpdir(), 'span-mobile' + ((args.find(a => a.startsWith('--lang=')) || '').slice(7) ? '-' + (args.find(a => a.startsWith('--lang=')) || '').slice(7) : ''));
 const ONLY = (args.find(a => a.startsWith('--only=')) || '').slice(7);
 const SHOTS = !args.includes('--no-shots');
+const LANG = (args.find(a => a.startsWith('--lang=')) || '').slice(7);
 fs.mkdirSync(OUT, { recursive: true });
 
 const UA_PHONE = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
@@ -79,6 +82,15 @@ const OVERFLOW_JS = () => {
   });
   const se = document.scrollingElement || document.documentElement;
   if (se.scrollWidth > W + 1) bad.push('page scrollWidth ' + se.scrollWidth);
+  // text cut off inside its own box (a longer translation in a fixed-width button, chip or heading)
+  document.querySelectorAll('#ui button, #ui .btn, #ui h1, #ui h2, #ui h3, #ui h4, #ui label, #ui b, #ui span, #ui em').forEach(el => {
+    if (!visible(el) || !Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim())) return;
+    const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+    if (r.width < 1 || r.bottom < 0 || r.top > H || !/(hidden|clip)/.test(cs.overflowX + cs.overflowY) || cs.textOverflow === 'ellipsis') return;   // an ellipsis is a deliberate cut
+    if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2) {
+      bad.push('clipped text ' + (typeof el.className === 'string' && el.className ? el.className.split(' ')[0] : el.tagName) + ' "' + el.textContent.trim().slice(0, 32) + '" ' + el.scrollWidth + '>' + el.clientWidth);
+    }
+  });
   return bad.slice(0, 8);
 };
 // every visible element matching sel lies fully inside the viewport and is the topmost element at its centre
@@ -164,8 +176,12 @@ async function runDevice(browser, dev) {
   const waitFor = async (fn, arg, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 15000)) { if (await page.evaluate(fn, arg)) return true; await wait(120); } return false; };
   const startWith = (design) => page.evaluate((d) => { if (d) BG.Game._replaceDesign(BG.Model.clone(d)); BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, design || null);
 
-  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?unlockall');
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?unlockall' + (LANG ? '&lang=' + LANG : ''));
   await page.waitForTimeout(2300);
+  const X = await page.evaluate(() => { const t = (k, p) => BG.i18n.t(k, p); return { lang: BG.i18n.lang(), wood: t('vehicles.material.wood'),
+    delJoint: t('features.mobile.ctx.delete.joint'), undo: t('features.mobile.ctx.undo'), more: t('features.mobile.moreBelow'),
+    shareHead: t('features.daily.share.head', { no: '#', date: '' }).split('#')[0], runScore: t('features.daily.runScore', { cleared: '#', stars: '#' }).split('#')[1] }; });
+  ok('language on screen: ' + (LANG || 'en'), X.lang === (LANG || 'en'), X.lang);
   const env = await page.evaluate(() => ({ cls: document.documentElement.className, coarse: matchMedia('(pointer: coarse)').matches, M: !!BG.Mobile, perf: BG.Perf && { low: BG.Perf.low, dpr: BG.Game.renderer.dpr, cap: BG.Perf.dprCap } }));
   ok('touch layer active', env.M && /m-touch/.test(env.cls) && (/m-phone/.test(env.cls) === dev.phone), env);
   ok('performance mode: phones auto-on, DPR <= 2', env.perf && env.perf.dpr <= 2 && (!dev.phone || env.perf.low), env.perf);
@@ -191,7 +207,7 @@ async function runDevice(browser, dev) {
   ok('rotate prompt only on phones in portrait', rot === (dev.phone && dev.viewport.height > dev.viewport.width), rot);
   if (rot) { await tapEl('.m-rotate [data-mact=rotateOk]'); await page.waitForTimeout(400); }
   const hint = await page.evaluate(() => ({ show: document.querySelector('[data-ref=hint]').classList.contains('show'), text: document.querySelector('[data-ref=hintText]').textContent }));
-  ok('hint wording adapted for touch', hint.show && !/right-click|\(Space\)|key 2/i.test(hint.text) && /tap/i.test(hint.text), hint.text);
+  ok('hint wording adapted for touch', hint.show && (X.lang === 'da' ? !/højreklik|\(Mellemrum\)|tast 2|\bklik/i.test(hint.text) && /\btryk/i.test(hint.text) : !/right-click|\(Space\)|key 2/i.test(hint.text) && /tap/i.test(hint.text)), hint.text);
   await overflow('edit + hint'); await targets('edit HUD', '#screen-level .topbar button, #screen-level .rail button, .test-btn, .m-mat-chip, [data-ref=hint] button');
   await shot('04-edit');
   await tapEl('[data-ref=hint] [data-act=hideHint]'); await page.waitForTimeout(450);
@@ -216,7 +232,7 @@ async function runDevice(browser, dev) {
     await overflow('material sheet'); await targets('material sheet', '[data-ref=palette] .mat');
     await shot('05-sheet');
     await tapEl('[data-ref=palette] [data-mat=wood]'); await page.waitForTimeout(450);
-    ok('picking wood closes the sheet', await page.evaluate(() => !BG.Mobile.sheetOpen() && BG.Game.editor.material === 'wood' && /Wood/.test(document.querySelector('.m-mat-chip b').textContent)));
+    ok('picking wood closes the sheet', await page.evaluate(() => !BG.Mobile.sheetOpen() && BG.Game.editor.material === 'wood' && document.querySelector('.m-mat-chip b').textContent.includes(BG.i18n.t('vehicles.material.wood'))));
   } else {
     await tapEl('[data-ref=palette] [data-mat=wood]'); await page.waitForTimeout(250);
     ok('tap palette picks wood', await page.evaluate(() => BG.Game.editor.material === 'wood'));
@@ -244,15 +260,15 @@ async function runDevice(browser, dev) {
   // ---- long-press + lift on the joint -> context menu -> delete, then undo from the menu
   await T.start([p6]); await wait(Math.round(700)); await T.end(); await wait(200);
   const cm = await page.evaluate(() => ({ open: BG.Mobile.ctxOpen, target: BG.Mobile.ctxTarget, chain: BG.Game.editor.chainFrom, items: Array.from(document.querySelectorAll('.m-ctx button')).map(b => b.textContent) }));
-  ok('long-press + lift opens the context menu (not a tap)', cm.open && cm.target === 'joint' && cm.chain === null && cm.items.some(t => /Delete joint/.test(t)), cm);
+  ok('long-press + lift opens the context menu (not a tap)', cm.open && cm.target === 'joint' && cm.chain === null && cm.items.some(t => t.includes(X.delJoint)), cm);
   await overflow('context menu'); await targets('context menu', '.m-ctx button');
   await shot('07-context');
   await tapEl('.m-ctx button.danger'); await page.waitForTimeout(150);
   ok('context menu deletes the joint', await page.evaluate(() => BG.Game.getDesign().beams.length === 0 && !BG.Mobile.ctxOpen));
   const empty = await W2S(5, 3);
   await T.start([empty]); await wait(700); await T.end(); await wait(200);
-  await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.m-ctx button')).find(x => /Undo/.test(x.textContent)); window.__undoBtn = !!b; });
-  const ub = await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.m-ctx button')).find(x => /Undo/.test(x.textContent)); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.m-ctx button')).find(x => x.textContent.includes(BG.i18n.t('features.mobile.ctx.undo'))); window.__undoBtn = !!b; });
+  const ub = await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.m-ctx button')).find(x => x.textContent.includes(BG.i18n.t('features.mobile.ctx.undo'))); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
   await T.tap(ub); await page.waitForTimeout(150);
   ok('context menu undo restores the bridge', await page.evaluate(() => BG.Game.getDesign().beams.length === 3 && BG.Model.validate(BG.Game.level, BG.Game.getDesign()).ok));
 
@@ -447,7 +463,7 @@ async function runDevice(browser, dev) {
     await new Promise(r => setTimeout(r, 60));
     return { scrolls, before, after, cue };
   });
-  ok('rail results: "More below" cue while the card has more, gone at the bottom', more.before === more.scrolls && !more.after && (!dev.phone || /More below/.test(more.cue)), more);
+  ok('rail results: "More below" cue while the card has more, gone at the bottom', more.before === more.scrolls && !more.after && (!dev.phone || more.cue.includes(X.more)), more);
   await page.evaluate(() => BG.Game.openLevel(102, { force: true })); await page.waitForTimeout(900); await quiet();
   await startWith({ nodes: [{ id: 'n1', x: 4, y: 0 }, { id: 'n2', x: 8, y: 0 }], beams: [{ a: 'a0', b: 'n1', m: 'rail' }, { a: 'n1', b: 'n2', m: 'rail' }, { a: 'n2', b: 'a1', m: 'rail' }], piers: [] });
   const der = await page.evaluate(() => { const g = BG.Game; for (let i = 0; i < 60 * 20 && g.state === 'sim' && !g._derailFx; i++) g._updateSim(1 / 60); return !!g._derailFx; });
@@ -491,7 +507,7 @@ async function runDevice(browser, dev) {
   await page.evaluate(() => BG.Game._replaceDesign(BG.Model.clone(BG.Game.level.generator.solution.design)));
   await startWith(); rr = await runSim(120); await page.waitForTimeout(1800);
   const share = await page.evaluate(() => ({ txt: (document.querySelector('.dly-share-text') || {}).textContent || '' }));
-  ok('daily: pass shows the share card', rr.res && rr.res.passed && /SPAN Daily/.test(share.txt), { rr, share });
+  ok('daily: pass shows the share card', rr.res && rr.res.passed && share.txt.startsWith(X.shareHead), { rr, share });
   await overflow('daily results + share card'); await targets('daily results', '.res-actions button, .dly-res button'); await reachable('daily results actions', '.res-actions button');
   await shot('23-daily-results');
   await page.evaluate(() => BG.Daily.startEndless(true));
@@ -499,7 +515,7 @@ async function runDevice(browser, dev) {
   await page.waitForTimeout(400); await quiet();
   await page.evaluate(() => BG.Game._replaceDesign(BG.Model.clone(BG.Game.level.generator.solution.design)));
   await startWith(); rr = await runSim(120); await page.waitForTimeout(1600);
-  ok('endless: pass shows the run score', rr.res && rr.res.passed && /cleared/.test(await page.evaluate(() => (document.querySelector('.dly-res') || {}).textContent || '')), rr);
+  ok('endless: pass shows the run score', rr.res && rr.res.passed && (await page.evaluate(() => (document.querySelector('.dly-res') || {}).textContent || '')).includes(X.runScore), rr);
   await overflow('endless results'); await reachable('endless results actions', '.res-actions button');
   await shot('24-endless-results');
 
@@ -526,7 +542,7 @@ async function runDevice(browser, dev) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   try {
     for (const dev of DEVICES) {
       if (ONLY && dev.name !== ONLY) continue;

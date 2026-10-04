@@ -23,6 +23,7 @@ It is plain HTML, CSS and JavaScript: no build step, no frameworks, no runtime d
 - [Controls](#controls)
 - [Campaigns](#campaigns)
 - [Install and offline play](#install-and-offline-play)
+- [Languages](#languages)
 - [Running it locally](#running-it-locally)
 - [Tests](#tests)
 - [Project structure](#project-structure)
@@ -183,10 +184,16 @@ Every campaign level ships with two saved solutions: a reference design and a ch
 Served over http(s), SPAN is an installable Progressive Web App:
 
 - **Install:** in Chrome or Edge (desktop or Android) open Settings and press **Install SPAN**, or use the browser's install icon. On iPhone / iPad, tap **Share**, then **Add to Home Screen**. The app opens full-screen in any orientation.
-- **Offline:** the first visit precaches every game file (about 2.9 MB; `node tools/gen-precache.js` prints the current size). After that everything works with no connection. `node tools/test-offline-tour.js` proves it by touring every screen offline.
+- **Offline:** the first visit precaches every game file (about 3.3 MB; `node tools/gen-precache.js` prints the current size). After that everything works with no connection. `node tools/test-offline-tour.js` proves it by touring every screen offline.
 - **Updates:** when a new version is deployed, a **New version available — tap to reload** toast appears. Designs are saved, so reloading is safe.
 
 Opened from `file://` the game plays exactly the same, just without install and offline caching (browsers only run service workers on https and localhost).
+
+## Languages
+
+SPAN speaks **English** and **Dansk** (Danish): every menu, hint, level name, history card and result, with numbers, money and dates in the player's own format. A Danish browser starts in Danish; switch any time in **Settings → Language** (the screen re-renders at once, no reload), or add `?lang=da` / `?lang=en` to the URL for a single visit.
+
+Want SPAN in your language? [docs/I18N.md](docs/I18N.md) explains how the dictionaries work and how to add a language; `node tools/test-i18n.js` tells you what is still missing.
 
 ## Running it locally
 
@@ -197,7 +204,7 @@ cd SpanGame
 
 - **Just play:** open `index.html` in a modern browser (Chrome, Edge, Firefox or Safari). No server and no install step.
 - **With a local server** (needed for the PWA features): `node tools/serve.js [port]` serves the repo at `http://localhost:8080/`. It has no dependencies.
-- **Handy URL parameters:** `?level=12` opens level 12, `?screen=levels` opens the level select, `?unlockall` unlocks everything, `?daily` plays today's daily (`?daily=20261002` a given date), `?endless` continues the endless run, `?touchui=1` / `?touchui=0` forces the touch layout on or off, `?noresume` starts on the title screen.
+- **Handy URL parameters:** `?level=12` opens level 12, `?screen=levels` opens the level select, `?unlockall` unlocks everything, `?daily` plays today's daily (`?daily=20261002` a given date), `?endless` continues the endless run, `?touchui=1` / `?touchui=0` forces the touch layout on or off, `?noresume` starts on the title screen, `?lang=da` / `?lang=en` picks the language for this visit.
 
 The live site at https://athraen.github.io/SpanGame/ is deployed by [.github/workflows/pages.yml](.github/workflows/pages.yml) on every push to `main` and on `v*` tags. It runs the physics and level checks, refreshes the service worker's precache list and publishes only the game files.
 

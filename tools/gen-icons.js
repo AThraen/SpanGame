@@ -55,7 +55,7 @@ const RENDERS = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   const page = await browser.newPage();
   await page.setContent('<!doctype html><body></body>');
   for (const [file, kind, size] of RENDERS) {

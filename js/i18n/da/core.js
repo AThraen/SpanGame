@@ -6,7 +6,7 @@
 //   level -> bane            crossing -> overgang           chapter -> kapitel        line (Iron Road) -> linje
 //   campaign -> kampagne     Roads -> Veje                   Iron Road -> Jernbanen    Famous Bridges -> Berømte broer
 //   star -> stjerne          badge -> mærke                  hint -> tip               budget -> budget
-//   cost -> pris             over budget -> over budget      test (verb/noun) -> test  run (a test) -> forsøg
+//   cost -> pris             over budget -> over budgettet     test (verb/noun) -> test  run (a test) -> forsøg
 //   build -> byg             erase -> slet                   select -> vælg            mirror -> spejl
 //   undo / redo -> fortryd / gentag                          template -> skabelon      pier zone -> pillezone
 //   beam / member -> bjælke  joint -> knudepunkt             anchor -> ankerpunkt      deadman (anchor) -> ankerblok
@@ -20,7 +20,8 @@
 //   span -> spænd            rise (arch) -> pilhøjde         sag (cable) -> nedhæng    sag (deck) -> nedbøjning
 //   panel -> fag             segment -> segment              no-build zone -> byggeforbudszone
 //   build area -> byggefelt  bank -> bred                    gap -> kløft              ship channel -> sejlrende
-//   load -> belastning       stress -> spænding              peak stress -> maks. spænding
+//   load -> last (vægten)    stress -> belastning (% af styrken)   peak stress -> maks. belastning
+//   stress map -> belastningskort   failed -> mislykket   collapse -> sammenbrud   Inspect -> Undersøg   Test -> Test
 //   tension -> træk          compression -> tryk             bending -> bøjning        force -> kraft
 //   derail -> afspore        derailment -> afsporing         grade -> stigning         kink -> knæk
 //   ride quality -> kørekomfort                             smoothness -> jævnhed     track recording -> sporregistrering

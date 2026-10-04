@@ -48,7 +48,7 @@
     'hud.chapter.road1.name': 'De første overgange',
     'hud.chapter.road1.desc': '10–20 m kløfter · biler og varevogne · vej, træ og trekanter',
     'hud.chapter.road2.name': 'Træ og stål',
-    'hud.chapter.road2.desc': '20–28 m · biler, varevogne og busser · gitterdragere, siden stål',
+    'hud.chapter.road2.desc': '20–28 m · biler, varevogne og busser · gitterdragere, derefter stål',
     'hud.chapter.road3.name': 'Piller og kabler',
     'hud.chapter.road3.desc': '28–45 m · varevogne og busser · piller, reb og kabel, buer, sejlrender',
     'hud.chapter.road4.name': 'Sejlruter',
@@ -237,6 +237,6 @@
     'hud.sim.track': 'Spor',
     'hud.sim.trackTip': 'Sporregistrering (T)',
     'hud.sim.trackStripTip': 'Sporregistrering: stigning og knæk ved hver skinnesamling, rød over afsporingsgrænsen (T)',
-    'hud.sim.stress': 'Spænding',
+    'hud.sim.stress': 'Belastning',
   });
 })(typeof window !== 'undefined' ? window : globalThis);

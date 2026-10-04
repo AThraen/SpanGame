@@ -137,6 +137,25 @@
   }
 
   // ---------------------------------------------------------------- results modal reveal
+  // i18n: what the open results card's badges were built from, so a language switch rebuilds them in place
+  let shown = null;
+  function badgeHtml(ev, goals, stored, fresh, res) {
+    return '<div class="rb-title"><span>' + esc(t('features.goalsUi.resTitle')) + '</span><b>' + stored.size + ' / ' + goals.length + '</b></div><div class="rb-row">' +
+      ev.goals.map(x => {
+        const have = stored.has(x.id), isNew = fresh.indexOf(x.id) >= 0, now = x.met;
+        const cls = (have ? 'have ' : 'miss ') + (isNew ? 'new ' : '') + (now ? 'now' : '');
+        const note = esc(isNew ? t('features.goalsUi.new') : now ? t('features.goalsUi.earned') : have ? t('features.goalsUi.earnedBefore') : (res.passed ? x.text : t('features.goalsUi.passToEarn')));
+        return '<div class="rb ' + cls + '" data-goal="' + esc(x.id) + '" title="' + esc(x.desc) + '">' + img(x.icon, have ? '' : 'locked') +
+          '<b>' + esc(x.name) + '</b><span>' + note + '</span></div>';
+      }).join('') + '</div>';
+  }
+  function rebuildResultBadges() {
+    const box = Hud.el.results && Hud.el.results.querySelector('.res-badges');
+    if (!shown || !box || box.hidden || !Hud.el.results.classList.contains('show')) return;
+    const ev = G.evaluate(shown.lv, shown.design, shown.sum);
+    box.innerHTML = badgeHtml(ev, shown.goals, new Set(S.getBadges(shown.lv.id)), shown.fresh, shown.res);
+    box.querySelectorAll('.rb').forEach(el => el.classList.add('in'));   // no second reveal
+  }
   function renderResultBadges(res) {
     const card = Hud.el.results && Hud.el.results.querySelector('.results-card');
     if (!card) return;
@@ -150,6 +169,7 @@
     const goals = lv ? levelGoals(lv) : [];
     box.classList.remove('show');
     box.innerHTML = '';
+    shown = null;
     if (!lv || !goals.length || !res.passed) { box.hidden = true; return; }
     const g = game();
     const sum = g.sim && g.sim.summary ? Object.assign(g.sim.summary(), { ride: g.sim.ride || null }) : null;
@@ -159,14 +179,8 @@
     const stored = new Set(S.getBadges(lv.id));
     res.badges = { earned: ev.earned, fresh: fresh };
     box.hidden = false;
-    box.innerHTML = '<div class="rb-title"><span>' + esc(t('features.goalsUi.resTitle')) + '</span><b>' + stored.size + ' / ' + goals.length + '</b></div><div class="rb-row">' +
-      ev.goals.map(x => {
-        const have = stored.has(x.id), isNew = fresh.indexOf(x.id) >= 0, now = x.met;
-        const cls = (have ? 'have ' : 'miss ') + (isNew ? 'new ' : '') + (now ? 'now' : '');
-        const note = esc(isNew ? t('features.goalsUi.new') : now ? t('features.goalsUi.earned') : have ? t('features.goalsUi.earnedBefore') : (res.passed ? x.text : t('features.goalsUi.passToEarn')));
-        return '<div class="rb ' + cls + '" data-goal="' + esc(x.id) + '" title="' + esc(x.desc) + '">' + img(x.icon, have ? '' : 'locked') +
-          '<b>' + esc(x.name) + '</b><span>' + note + '</span></div>';
-      }).join('') + '</div>';
+    box.innerHTML = badgeHtml(ev, goals, stored, fresh, res);
+    shown = { lv, goals, fresh, res, sum, design: JSON.parse(JSON.stringify(g.getDesign())) };
     // staged reveal: after the stars, one badge at a time (earned ones pop, others fade in dim)
     box.classList.add('show');
     const items = Array.prototype.slice.call(box.querySelectorAll('.rb'));
@@ -278,7 +292,7 @@
   wrap('buildLevelSelect', decorateTiles);
   wrap('refreshTitle', refreshChips);
   // i18n: the panel text is built in code (the button and panel labels carry data-i18n-* and follow by themselves)
-  if (BG.i18n) BG.i18n.on('languagechange', () => safe(() => { lastSig = ''; refreshPanel(true); }));
+  if (BG.i18n) BG.i18n.on('languagechange', () => safe(() => { lastSig = ''; refreshPanel(true); rebuildResultBadges(); }));
 
   BG.GoalsUI = { refresh: () => { refreshPanel(true); refreshChips(); }, evaluateCurrent: currentEval,
     isOpen: () => panelOpen, setOpen: (open, noSave) => setPanel(!!open, noSave) }; // mobile: setOpen(false, true) closes without saving the preference

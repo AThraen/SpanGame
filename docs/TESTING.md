@@ -10,7 +10,7 @@ Nothing ever opens a visible window. Screenshots and logs from the browser suite
 ## Setup
 
 - **Node 18 or later** (the project is developed on Node 24).
-- For the browser suites: `npm install` (installs Playwright, the only dev dependency) and a local **Google Chrome**. The suites launch Chrome through Playwright's `channel: 'chrome'`, so no separate browser download is needed.
+- For the browser suites: `npm install` (installs Playwright, the only dev dependency) and a local **Google Chrome**. The suites launch Chrome through Playwright's `channel: 'chrome'`, so no separate browser download is needed. They all take their launch options from `tools/browser.js`, which renders in software (no GL, software compositing): the game only draws 2D canvases, and frames, screenshots and Playwright's click checks then work even when the machine's GPU cannot bring up GL (a busy or sleeping GPU, a driver update, a remote session), where headless Chrome would otherwise produce no frames at all.
 
 ## Running
 
@@ -42,24 +42,24 @@ npm run test:all       # both; run this before a pull request
 | `node tools/test-daily.js --node-only` | daily and endless records, streaks, practice runs, the share text |
 | `node tools/test-famous.js --node-only` | Famous Bridges data: history cards complete, illustrations exist, stubs stay locked, no template earns ★★★ |
 | `node tools/test-history.js --node-only` | run history, personal bests, retention, save export / import, storage failures |
-| `node tools/test-i18n.js --node-only --report-only` | translations: every key in English and Danish with the same params and plural forms, formatting in both languages (with and without `Intl`), and the hard-coded string lint, which reports user-visible English not routed through `t()` per file (`--verbose` lists them; without `--report-only` any left fails). See [I18N.md](I18N.md) |
+| `node tools/test-i18n.js --node-only` | translations: every key in English and Danish with the same params and plural forms; Danish complete (no placeholders, nothing copied from English, no English words inside a translation); formatting in both languages (with and without `Intl`); the hard-coded string lint, which fails on user-visible English not routed through `t()` (`--verbose` lists every hit). See [I18N.md](I18N.md) |
 | `node tools/test-i18n-content.js` | game content in both languages: the English level / history-card dictionaries match `tools/levels/*.json` and Danish has every entry; `level.name`, `level.hint`, `level.history.*`, vehicle / train / material names and template names follow the language; `trafficSummary` in both; every generated daily / endless name is grammatical Danish ("Mandagskløften", "Den blæsende kløft") and survives the daily cache. See [I18N.md](I18N.md) |
 
 ### Headless Chrome
 
 | Suite | What it proves |
 |---|---|
-| `node tools/e2e.js [outDir]` | the whole game end to end: level select, a level built with real mouse drags, pass and fail runs, results, inspect, templates, undo / redo, mirror and piers, the Iron Road (tab gating, a derail callout, the follow camera, the finale), campaign tabs and unlocks, Continue, the Anchorages chapter |
+| `node tools/e2e.js [outDir] [--lang=da]` | the whole game end to end: level select, a level built with real mouse drags, pass and fail runs, results, inspect, templates, undo / redo, mirror and piers, the Iron Road (tab gating, a derail callout, the follow camera, the finale), campaign tabs and unlocks, Continue, the Anchorages chapter. `--lang=da` plays it all in Danish (the checked texts come from the dictionaries) |
 | `node tools/e2e-goals.js [outDir]` | the badges UI: goals panel, results reveal, tile counts, persistence |
 | `node tools/e2e-events.js [outDir]` | the Forces of Nature levels: hidden chapter, forecast chip, warning and live banners, timeline, quake rumble, reference designs passing in the real game |
 | `node tools/test-terrain-fix.js` | the drawn cliffs match the model's terrain on every level, and the waterline overlay appears where it should |
 | `node tools/test-daily.js` | the daily flow in the browser: generation time, browser level bit-identical to the Node level, playing the daily, the share card and clipboard, endless runs |
 | `node tools/test-famous.js` | the Famous Bridges tab, unlock, history card, and a full run of a famous level |
 | `node tools/test-history.js` | autosave and resume across a reload on desktop, phones and tablets; the history screen; loading a design |
-| `node tools/test-mobile.js [outDir] [--no-shots]` | phones and tablets in both orientations: no HUD overflow, 44 px touch targets, a level built with real touch input, the magnifier, the long-press menu, pinch zoom, and every feature screen |
+| `node tools/test-mobile.js [outDir] [--no-shots] [--lang=da]` | phones and tablets in both orientations: no HUD overflow and no text cut off inside its button or heading, 44 px touch targets, a level built with real touch input, the magnifier, the long-press menu, pinch zoom, and every feature screen. `--lang=da` runs every device in Danish |
 | `node tools/test-pwa.js [outDir]` | the service worker installs and precaches everything, the game reloads offline, the update toast works, the install button and the iOS hint appear where they should |
 | `node tools/test-i18n.js --browser-only` | switching the language re-renders the title screen, level select and the open settings panel without a reload; the choice persists; a Danish browser starts in Danish; no missing-key warnings |
-| `node tools/test-i18n-ui.js` | the in-level screens in both languages: HUD, palette, Arch tool bar, a passed and a failed results card, the Iron Road derail callout and ride-quality card, canvas labels; switching the language while each is on screen re-renders it in place (Danish numbers, no missing keys) |
+| `node tools/test-i18n-ui.js` | the in-level screens in both languages: HUD, palette, Arch tool bar, a passed and a failed results card, the Iron Road derail callout and ride-quality card, canvas labels; switching the language while each is on screen re-renders it in place (Danish numbers, no missing keys); then every screen and modal (title, settings, level-select tabs, history modal, famous card, daily panel, goals panel, results with badges) is opened in English and switched to Danish, and no English dictionary text may remain on screen |
 | `node tools/test-offline-tour.js [outDir] [--no-shots]` | installs once, goes offline, and tours every screen and campaign on desktop and a phone; fails on any request the service worker does not serve, any console error or any broken image |
 
 ## Other tools
@@ -91,7 +91,7 @@ SPAN_LV=24 SPAN_T=5,8 node tools/screenshots.js --only probe --out <dir>   # loo
 - Put it in `tools/` as `test-<feature>.js` (Node, or Node + browser) or `e2e-<feature>.js` (browser only), and add it to the lists in `tools/run-tests.js`.
 - Follow the existing style: a tiny `ok(name, condition, info)` helper that prints `PASS` / `FAIL` lines, and `process.exit(1)` when anything failed.
 - Node tests load the core with `const { BG, runHeadless } = require('./harness')`.
-- Browser tests launch `chromium.launch({ headless: true, channel: 'chrome' })`, open `index.html` through a `file://` URL (or `tools/serve.js` when a service worker is needed), and drive the game through real input where the feature is about input. Use `?level=N&unlockall&noresume` to skip menus.
+- Browser tests launch `chromium.launch(require('./browser').options())` (headless Chrome, software rendering), open `index.html` through a `file://` URL (or `tools/serve.js` when a service worker is needed), and drive the game through real input where the feature is about input. Use `?level=N&unlockall&noresume` to skip menus.
 - Write screenshots under `os.tmpdir()`, never into the repository.
 - If a browser test needs a mixed suite to stay runnable without Chrome, add a `--node-only` (or `--no-browser`) flag.
 

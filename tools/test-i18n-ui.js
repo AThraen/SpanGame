@@ -16,7 +16,7 @@ const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions'
 
 (async () => {
   const { chromium } = require('playwright');
-  const b = await chromium.launch({ headless: true, channel: 'chrome' });
+  const b = await require('./browser').launch(chromium);
   const href = url.pathToFileURL(path.join(ROOT, 'index.html')).href;
   const problems = [];
   try {
@@ -97,7 +97,7 @@ const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions'
     ok('English results card', /safely\./.test(c1.reason) && c1.stats === 'Cost|Budget|Vehicles|Peak stress|Time|Broken' && /% of budget$/.test(c1.cap) && c1.next === 'Next level' && c1.retry === 'Replay', c1);
     await setLang('da');
     const c2 = await card();
-    ok('Dansk: the open results card is rebuilt (title, text, stats, buttons)', /sikkert over\./.test(c2.reason) && c2.stats === 'Pris|Budget|Køretøjer|Maks. spænding|Tid|Brudt' &&
+    ok('Dansk: the open results card is rebuilt (title, text, stats, buttons)', /sikkert over\./.test(c2.reason) && c2.stats === 'Pris|Budget|Køretøjer|Maks. belastning|Tid|Brudt' &&
       /\s%\saf budgettet$/.test(c2.cap) && c2.next === 'Næste bane' && c2.retry === 'Se igen' && c2.title !== c1.title, c2);
     await page.evaluate(() => BG.Game.backToEdit());
     await page.waitForTimeout(300);
@@ -108,7 +108,7 @@ const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions'
     await runSim(60);
     await page.waitForTimeout(400);
     const f1 = await card();
-    ok('Dansk: a failed run is explained in Danish', /Broen holdt ikke|Ud over kanten|Sammenstyrtning/.test(f1.banner + f1.title) && /bjælke|kørebane|vej/i.test(f1.reason) && c2.retry !== f1.retry && f1.retry === 'Prøv igen', f1);
+    ok('Dansk: a failed run is explained in Danish', /Broen holdt ikke|Ud over kanten|Sammenbrud/.test(f1.banner + f1.title) && /bjælke|kørebane|vej/i.test(f1.reason) && c2.retry !== f1.retry && f1.retry === 'Prøv igen', f1);
     await setLang('en');
     const f2 = await card();
     ok('English again: the failure text follows', /beam|deck|road/i.test(f2.reason) && f2.retry === 'Retry', f2);
@@ -141,6 +141,65 @@ const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions'
     const rc2 = await rail();
     ok('Dansk: ride-quality card and derail explanation rebuilt', /Konstruktionen holdt/.test(rc2.verdicts) && /Kørekomfort/.test(rc2.ride) && /Værste knæk/.test(rc2.ride) && /Knæk på/.test(rc2.reason), rc2);
     await ctx.close();
+
+    // ---- every screen and modal, opened in English and switched to Danish while it is on screen: no English left.
+    // "English" = a text node, title, aria-label or placeholder that matches an English dictionary text (with {params}
+    // as wildcards) whose Danish text is different.
+    const ctx2 = await b.newContext({ locale: 'en-US', viewport: { width: 1280, height: 800 } });
+    const p2 = await ctx2.newPage();
+    p2.on('console', m => { if (m.type() === 'error' || /\[i18n\]/.test(m.text())) problems.push(m.text()); });
+    p2.on('pageerror', e => problems.push('pageerror: ' + e.message));
+    await p2.goto(href + '?noresume&unlockall&lang=en');
+    await p2.waitForSelector('#screen-title.active');
+    await p2.evaluate(() => {
+      const en = BG.i18n.dict.en, da = BG.i18n.dict.da, vals = v => (v && typeof v === 'object' ? Object.values(v) : [v]);
+      const exact = new Set(), pats = [];
+      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      Object.keys(en).forEach(k => vals(en[k]).forEach(x => {
+        x = String(x).replace(/<[^>]*>/g, '').trim();
+        if (x.replace(/\{\w+\}/g, '').replace(/[^A-Za-z]/g, '').length < 4 || vals(da[k]).some(y => String(y).replace(/<[^>]*>/g, '').trim() === x)) return;
+        if (/\{\w+\}/.test(x)) pats.push(new RegExp('^' + x.split(/\{\w+\}/).map(esc).join('.+?') + '$')); else exact.add(x);
+      }));
+      window.__english = root => {
+        const out = [], seen = new Set();
+        const test = (s, where) => { s = (s || '').replace(/\s+/g, ' ').trim(); if (!s || seen.has(s)) return; if (exact.has(s) || pats.some(r => r.test(s))) { seen.add(s); out.push(where + s.slice(0, 60)); } };
+        const shown = el => { for (let p = el; p && p !== document.documentElement; p = p.parentElement) { const cs = getComputedStyle(p); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return false; } return true; };
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n;
+        while ((n = w.nextNode())) if (n.parentElement && shown(n.parentElement)) { test(n.textContent, ''); test(n.parentElement.textContent, ''); }
+        root.querySelectorAll('[title],[aria-label],[placeholder],[data-tip]').forEach(e => { if (shown(e)) ['title', 'aria-label', 'placeholder', 'data-tip'].forEach(a => test(e.getAttribute(a), a + ': ')); });
+        return out;
+      };
+    });
+    const sweep = async (label, open) => {
+      await p2.evaluate(() => BG.i18n.setLanguage('en'));
+      await open();
+      await p2.waitForTimeout(350);
+      const before = await p2.evaluate(() => window.__english(document.getElementById('ui') || document.body).length);
+      await p2.evaluate(() => BG.i18n.setLanguage('da'));
+      await p2.waitForTimeout(250);
+      const left = await p2.evaluate(() => window.__english(document.getElementById('ui') || document.body));
+      ok('live switch, no English left: ' + label, before > 0 && left.length === 0, { before, left });
+    };
+    await sweep('title screen', async () => {});
+    await sweep('settings panel', () => p2.evaluate(() => BG.Hud.openSettings()));
+    await p2.evaluate(() => BG.Hud.closeSettings());
+    await sweep('level select (Roads)', () => p2.evaluate(() => { BG.Game.goLevelSelect(); BG.Hud.setCampaignTab('road'); }));
+    await sweep('level select (Iron Road)', () => p2.evaluate(() => BG.Hud.setCampaignTab('rail')));
+    await sweep('level select (Famous Bridges)', () => p2.evaluate(() => BG.Hud.setCampaignTab('famous')));
+    await sweep('history modal: runs', () => p2.evaluate(() => { BG.History.open('runs'); }));
+    await sweep('history modal: levels', () => p2.evaluate(() => { BG.History.open('levels'); }));
+    await sweep('history modal: stats', () => p2.evaluate(() => { BG.History.open('stats'); }));
+    await p2.keyboard.press('Escape');
+    await sweep('famous history card', () => p2.evaluate(() => { BG.Game.goLevelSelect(); BG.Famous.showCard(BG.Game.findLevel(206)); }));
+    await p2.keyboard.press('Escape');
+    await sweep('daily panel', () => p2.evaluate(() => { BG.Game.goTitle(); BG.Daily.openPanel(); }));
+    await p2.keyboard.press('Escape');
+    await sweep('level HUD + goals panel (level 11)', () => p2.evaluate(() => { BG.Game.openLevel(11, { force: true }); BG.Hud.hideHint(); BG.GoalsUI.setOpen(true, true); }));
+    await sweep('results card (level 11 passed)', () => p2.evaluate(d => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); const g = BG.Game; let t = 0; while (g.state === 'sim' && t < 120) { g._updateSim(1 / 6); t += 1 / 6; } }, sol(11)));
+    await sweep('history modal over a level', () => p2.evaluate(() => { BG.History.open('runs'); }));
+    await p2.keyboard.press('Escape');
+    await sweep('rail level HUD (level 112)', () => p2.evaluate(() => { BG.Game.openLevel(112, { force: true }); BG.Hud.hideHint(); }));
+    await ctx2.close();
   } catch (e) {
     fail++; console.log('FAIL exception: ' + (e && e.stack || e));
   } finally {

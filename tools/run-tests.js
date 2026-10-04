@@ -23,7 +23,7 @@ const NODE = [
   ['test-daily.js', '--node-only'],
   ['test-famous.js', '--node-only'],
   ['test-history.js', '--node-only'],
-  ['test-i18n.js', '--node-only', '--report-only'], // i18n: the hard-coded string lint reports until the extraction is done
+  ['test-i18n.js', '--node-only'], // i18n: dictionaries complete in every language, the hard-coded string lint, formatting
   ['test-i18n-content.js'], // i18n: level, famous, vehicle and generated texts in both languages
 ];
 const BROWSER = [

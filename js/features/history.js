@@ -472,7 +472,9 @@
     }
     return out;
   };
+  let shownBests = null;   // i18n: the open results card's bests line, rebuilt on a language change
   function showResultBests(res, rec) {
+    shownBests = [res, rec];
     const card = Hud.el && Hud.el.results && Hud.el.results.querySelector('.results-card');
     if (!card) return;
     let box = card.querySelector('.hist-res');
@@ -848,7 +850,10 @@
   }
   BG.History.open = openHistory;
   // i18n: the open overlay's lists are built in code; rebuild them in the new language
-  if (BG.i18n) BG.i18n.on('languagechange', () => { if (UI.open) safe(renderHistory); });
+  if (BG.i18n) BG.i18n.on('languagechange', () => {
+    if (UI.open) safe(renderHistory);
+    if (shownBests && Hud.el && Hud.el.results && Hud.el.results.classList.contains('show')) safe(() => showResultBests(shownBests[0], shownBests[1]));
+  });
   BG.History.close = closeHistory;
   BG.History.isOpen = () => UI.open;
   // Esc closes the overlay; other keys must not reach the game while it is open

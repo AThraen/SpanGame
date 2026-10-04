@@ -1,5 +1,7 @@
 // Headless end-to-end check for SPAN. Never opens a visible window.
-// Usage: node tools/e2e.js [outDir=%TEMP%/span-e2e] [viewportW=1440] [viewportH=900]
+// Usage: node tools/e2e.js [outDir=%TEMP%/span-e2e] [viewportW=1440] [viewportH=900] [--lang=da]
+//   --lang=da  plays everything in Danish (?lang=da): the texts it checks come from the dictionaries, so the same
+//              checks run in either language; the screenshots then show the Danish layout
 // Drives the real game headless: level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
 // auto-split beginner path), pass/fail runs, templates (level 4), undo/redo, mirror + piers (level 11),
 // frame timing, progress; Iron Road: campaign tab gating, mouse-built 101, a derail callout (102), 108, the
@@ -14,15 +16,18 @@ const path = require('path');
 const fs = require('fs');
 const url = require('url');
 const ROOT = path.resolve(__dirname, '..');
-const OUT = process.argv[2] || path.join(require('os').tmpdir(), 'span-e2e');
-const VW = +(process.argv[3] || 1440), VH = +(process.argv[4] || 900);
+const POS = process.argv.slice(2).filter(a => !a.startsWith('--'));
+const LANG = (process.argv.find(a => a.startsWith('--lang=')) || '').slice(7);
+const Q = LANG ? 'lang=' + LANG : '';
+const OUT = POS[0] || path.join(require('os').tmpdir(), 'span-e2e' + (LANG ? '-' + LANG : ''));
+const VW = +(POS[1] || 1440), VH = +(POS[2] || 900);
 fs.mkdirSync(OUT, { recursive: true });
 const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions', 'level-' + String(n).padStart(2, '0') + '.json'), 'utf8'));
 const results = [];
 const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); console.log((cond ? 'PASS ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : '')); };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errors = [];
@@ -43,9 +48,21 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
     return { state: g.state, time: g.sim ? g.sim.time : null, res: g.lastResult };
   }, maxSec);
 
-  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href);
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + (Q ? '?' + Q : ''));
   await page.waitForTimeout(1800);
   ok('title state', await page.evaluate(() => BG.Game.state) === 'title');
+  const X = await page.evaluate(() => { const t = (k, p) => BG.i18n.t(k, p); const anch = t('hud.chapter.anchorages.name'); return {
+    lang: BG.i18n.lang(), tabLocked10: t('hud.levels.tabLocked', { n: 10 }), tabLocked15: t('hud.levels.tabLocked', { n: 15 }), ref15: t('hud.unlock.levelRef', { n: 15 }),
+    ref40: t('hud.unlock.levelRef', { n: 40 }), gate20: t('hud.unlock.gate.road', { name: t('hud.unlock.levelRef', { n: 20 }) }), structure: t('results.rail.structure'),
+    onRails: t('results.rail.onRails'), railFinale: t('results.finale.rail.banner'), forces: t('hud.chapter.forces.name'), allLevels: t('hud.camp.road.all'),
+    rule: t('hud.unlock.rule.road'), skipped: t('hud.levels.skipped'), roadway: t('editor.reason.roadway'), anch, anchBanner: t('results.finale.anchorages.banner'),
+    anchToast: t('results.toast.bonus', { name: anch, from: 54, to: 58 }), why: ['results.why.bendRoad', 'results.why.bendTrack', 'results.why.compression', 'results.why.tension'].map(k => t(k)),
+    pierCount: t('hud.tool.pierCount'), kinkTitle: t('results.derail.kink.title'), famousOpen: t('results.toast.open.famous'),
+    contPonte: t('hud.title.continueLevel', { level: 'Ponte Vecchio' }), skip3: t('results.toast.skip.road', { name: t('core.level', { n: 3 }) }), topple: t('results.why.topple'),
+    anchSub: anch + ' · ' + t('hud.level.gap', { gap: BG.i18n.meters(36, 0) }) }; });
+  // a dictionary template as a pattern: {params} match anything
+  const tplRx = tpl => new RegExp(String(tpl).split(/\{\w+\}/).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?'));
+  ok('language on screen: ' + (LANG || 'en'), X.lang === (LANG || 'en'), X.lang);
   ok('real renderer', await page.evaluate(() => !BG.Game.usingFallbackRenderer));
   await shot('01-title');
 
@@ -116,7 +133,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   r = await runSim(60);
   await page.waitForTimeout(1500);
   ok('weak design fails', r.res && !r.res.passed && r.res.brokenBeams > 0, r.res && { title: r.res.title, reason: r.res.reason, broken: r.res.brokenBeams });
-  ok('failure explains the first break', r.res && r.res.firstBreak && /bent too far|compression|tension/.test(r.res.reasonText), r.res && r.res.reasonText);
+  ok('failure explains the first break', r.res && r.res.firstBreak && X.why.some(w => tplRx(w).test(r.res.reasonText)), r.res && r.res.reasonText);
   ok('after a failure Edit is the main action', await page.evaluate(() => document.querySelector('[data-act=resEdit]').classList.contains('btn-primary') && !document.querySelector('[data-act=retry]').classList.contains('btn-primary')));
   await shot('09-level1-fail');
   await page.click('[data-act=inspect]'); await page.waitForTimeout(400);
@@ -194,7 +211,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.mouse.click(pz.x, pz.y); await page.waitForTimeout(100);
   const piers = await page.evaluate(() => BG.Game.getDesign().piers);
   ok('pier placed on level 11', piers.length === 1, piers);
-  ok('pier tool shows the pier allowance', await page.evaluate(() => /Pier 1\/\d/.test(document.querySelector('[data-tool=pier] span').textContent)));
+  ok('pier tool shows the pier allowance', await page.evaluate(() => document.querySelector('[data-tool=pier] span').textContent) === await page.evaluate(() => BG.i18n.t('hud.tool.pierCount', { n: 1, max: BG.Game.level.maxPiers })));
   await page.keyboard.press('b');
   await page.keyboard.press('m');
   await page.keyboard.press('1');
@@ -217,7 +234,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
     const tick = () => { const n = performance.now(); frames.push(n - last); last = n; if (frames.length < 240) requestAnimationFrame(tick); else { g._frame = orig; frames.sort((a, b) => a - b); work.sort((a, b) => a - b); const avg = a => a.reduce((s, x) => s + x, 0) / a.length; res({ avgFrame: avg(frames), p95Frame: frames[Math.floor(frames.length * 0.95)], avgWork: avg(work), p95Work: work[Math.floor(work.length * 0.95)], maxWork: work[work.length - 1], simTime: g.sim && g.sim.time }); } };
     requestAnimationFrame(tick);
   }));
-  ok('level 3 frame work < 12ms p95', perf.p95Work < 12, perf);
+  ok('level 3 frame work < 12ms p95' + (require('./browser').software() ? ' (software rendering: not timed)' : ''), require('./browser').software() || perf.p95Work < 12, perf);
   await shot('15-level3-sim');
   r = await runSim(80);
   await page.waitForTimeout(1600);
@@ -244,7 +261,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   // ================================================================ Iron Road (levels 101-120)
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(700);
   const lockInfo = await page.evaluate(() => ({ locked: document.querySelector('[data-camp=rail]').classList.contains('locked'), sub: document.querySelector('[data-ref=ctRail]').textContent, open: BG.Storage.isCampaignUnlocked('rail') }));
-  ok('Iron Road tab locked until level 10 is complete', lockInfo.locked && /Complete level 10/.test(lockInfo.sub) && !lockInfo.open, lockInfo);
+  ok('Iron Road tab locked until level 10 is complete', lockInfo.locked && lockInfo.sub.includes(X.tabLocked10) && !lockInfo.open, lockInfo);
   await page.click('[data-camp=rail]'); await page.waitForTimeout(400);
   const lockedView = await page.evaluate(() => ({ closed: !!document.querySelector('.camp-locked'), open: document.querySelectorAll('.tile.is-rail.open').length }));
   ok('locked Iron Road tab opens no level', lockedView.closed && lockedView.open === 0, lockedView);
@@ -271,7 +288,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await shot('22-rail101-sim');
   r = await runSim(60); await page.waitForTimeout(1600);
   const card101 = await page.evaluate(() => { const c = document.querySelector('.ride-card'); return { card: !!c && !c.closest('[hidden]'), text: (document.querySelector('.rv-row') || {}).textContent || '' }; });
-  ok('101 passes; results show both verdicts and the ride card', r.res && r.res.passed && card101.card && /Structure held/.test(card101.text) && /stayed on the rails/.test(card101.text), r.res && { passed: r.res.passed, stars: r.res.stars, rail: r.res.rail, card101 });
+  ok('101 passes; results show both verdicts and the ride card', r.res && r.res.passed && card101.card && card101.text.includes(X.structure) && card101.text.includes(X.onRails), r.res && { passed: r.res.passed, stars: r.res.stars, rail: r.res.rail, card101 });
   ok('101 is not the finale', r.res && !r.res.finale);
   await shot('23-rail101-results');
   await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
@@ -285,7 +302,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.waitForTimeout(350);
   const callout = await page.evaluate(() => { const dc = document.querySelector('[data-ref=derail]'); return { show: dc.classList.contains('show'), title: dc.querySelector('[data-ref=dcTitle]').textContent, cause: dc.querySelector('[data-ref=dcCause]').textContent }; });
   ok('102 bare track: the tram derails on a kink', der.fx && der.reason === 'kink', der);
-  ok('derail callout shows the cause with numbers', callout.show && /kink/i.test(callout.title + callout.cause) && /\d/.test(callout.cause), callout);
+  ok('derail callout shows the cause with numbers', callout.show && callout.title === X.kinkTitle && /\d/.test(callout.cause), callout);
   await shot('24-rail102-derail-callout');
   r = await runSim(40); await page.waitForTimeout(1500);
   ok('102 bare track fails as derailed', r.res && !r.res.passed && r.res.reason === 'derailed', r.res && { reason: r.res.reason, title: r.res.title });
@@ -323,7 +340,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await shot('26-rail120-follow');
   r = await runSim(140); await page.waitForTimeout(1800);
   const fin = await page.evaluate(() => ({ cls: document.querySelector('[data-ref=results]').classList.contains('finale-rail'), banner: document.querySelector('[data-ref=resBanner]').textContent }));
-  ok('120 reference passes and shows the Iron Road finale', r.res && r.res.passed && r.res.finale && fin.cls && /Iron Road complete/.test(fin.banner), r.res && { passed: r.res.passed, reason: r.res.reason, finale: r.res.finale, fin });
+  ok('120 reference passes and shows the Iron Road finale', r.res && r.res.passed && r.res.finale && fin.cls && fin.banner.includes(X.railFinale), r.res && { passed: r.res.passed, reason: r.res.reason, finale: r.res.finale, fin });
   await shot('27-rail120-finale');
 
   // ================================================================ one campaign system (Roads + bonus | Iron Road | Famous Bridges)
@@ -335,7 +352,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
     famousSub: document.querySelector('[data-ref=ctFamous]').textContent,
     lock: BG.Storage.campaignLockText('famous'),
   }));
-  ok('level select: one tab bar - Roads | Iron Road | Famous Bridges; Famous locked until road 15', tabs.camps.join() === 'road,rail,famous' && tabs.famousLocked && /Complete level 15/.test(tabs.famousSub) && /level 15/.test(tabs.lock || ''), tabs);
+  ok('level select: one tab bar - Roads | Iron Road | Famous Bridges; Famous locked until road 15', tabs.camps.join() === 'road,rail,famous' && tabs.famousLocked && tabs.famousSub.includes(X.tabLocked15) && (tabs.lock || '').includes(X.ref15), tabs);
   const rules = await page.evaluate(() => {
     const G = BG.Game, S = BG.Storage, L = id => G.findLevel(id), nx = id => { const n = G.nextInCampaign(L(id)); return n ? n.id : null; };
     return {
@@ -353,7 +370,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(15));
   r = await runSim(90); await page.waitForTimeout(1700);
   const open15 = await page.evaluate(() => ({ opened: BG.Game.lastResult.campaignsOpened, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | '), open: BG.Storage.isCampaignUnlocked('famous') }));
-  ok('passing road 15 opens Famous Bridges (toast)', r.res && r.res.passed && open15.open && (open15.opened || []).includes('famous') && /Famous Bridges is open/.test(open15.toast), open15);
+  ok('passing road 15 opens Famous Bridges (toast)', r.res && r.res.passed && open15.open && (open15.opened || []).includes('famous') && open15.toast.includes(X.famousOpen), open15);
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(400);
   await page.click('.camp-tab[data-camp=famous]'); await page.waitForTimeout(500);
   const fv = await page.evaluate(() => ({ tab: BG.Hud.tab, mode: document.getElementById('screen-levels').classList.contains('fb-mode'), chaptersHidden: getComputedStyle(document.querySelector('.chapters')).display === 'none', tiles: document.querySelectorAll('.fb-tile').length, open: Array.from(document.querySelectorAll('.fb-tile.open')).map(t => +t.dataset.id), badges: document.querySelectorAll('.fb-tile .tile-badges').length, stars: document.querySelector('[data-ref=lsStars]').textContent }));
@@ -385,7 +402,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   // Continue works across campaigns: last played = an unfinished famous bridge
   await page.evaluate(() => { BG.Storage.setLastLevel(202); BG.Game.goTitle(); }); await page.waitForTimeout(700);
   const cont = await page.evaluate(() => ({ label: document.querySelector('[data-act=continue] .lbl').textContent, target: BG.Game.continueTarget().id, daily: !!document.querySelector('#screen-title .dly-title-btn'), endless: !!document.querySelector('#screen-title .dly-endless-btn'), endlessSub: (document.querySelector('.dly-endless-btn small') || {}).textContent, stars: document.querySelector('[data-ref=titleStars]').textContent }));
-  ok('title: Continue resumes the famous bridge; Daily Challenge + Endless entry points', cont.target === 202 && /Continue · Ponte Vecchio/.test(cont.label) && cont.daily && cont.endless && !!cont.endlessSub, cont);
+  ok('title: Continue resumes the famous bridge; Daily Challenge + Endless entry points', cont.target === 202 && cont.label.includes(X.contPonte) && cont.daily && cont.endless && !!cont.endlessSub, cont);
   await shot('30-title-entry-points');
   await page.click('[data-act=continue]'); await page.waitForTimeout(500);
   ok('Continue opens the history card of that bridge', await page.evaluate(() => BG.Famous.card.open && /Ponte Vecchio/.test(document.querySelector('.fb-card h2').textContent)));
@@ -404,10 +421,10 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('53-best'));
   r = await runSim(90); await page.waitForTimeout(1800);
   const b53 = await page.evaluate(() => ({ banner: document.querySelector('[data-ref=resBanner]').textContent, cls: document.querySelector('[data-ref=results]').classList.contains('finale-bonus'), next: document.querySelector('[data-act=next] span').textContent }));
-  ok('53 passes with the Forces of Nature finale', r.res && r.res.passed && r.res.finaleKind === 'bonus' && b53.cls && /Forces of Nature/.test(b53.banner) && b53.next === 'All levels', Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, b53));
+  ok('53 passes with the Forces of Nature finale', r.res && r.res.passed && r.res.finaleKind === 'bonus' && b53.cls && b53.banner.includes(X.forces) && b53.next === X.allLevels, Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, b53));
   await shot('31-bonus-finale');
   await page.click('[data-act=next]'); await page.waitForTimeout(700);
-  const back = await page.evaluate(() => ({ state: BG.Game.state, tab: BG.Hud.tab, bonus: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent).includes('Forces of Nature') }));
+  const back = await page.evaluate(() => ({ state: BG.Game.state, tab: BG.Hud.tab, bonus: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent).includes(BG.i18n.t('hud.chapter.forces.name')) }));
   ok('after the bonus finale: back on the Roads tab with the Forces of Nature chapter', back.state === 'levelSelect' && back.tab === 'road' && back.bonus, back);
 
   // ================================================================ unlock rule explained: gates on chapter finales
@@ -427,14 +444,14 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   ok('unlock: 19 done -> chapter finale 20 open, 21 locked (finales can\'t be skipped); every chapter end is a gate', gate.t20 && gate.gate20 && !gate.t21 && gate.ends.every(id => gate.gates.includes(id)), gate);
   await page.evaluate(() => document.querySelector('.tile[data-id="21"]').click()); await page.waitForTimeout(300); // aria-disabled: no Playwright click
   const lock21 = await toasts();
-  ok('unlock: tapping locked 21 names level 20 as the finale to finish', /level 20 first/.test(lock21) && /can't be skipped/.test(lock21) && await page.evaluate(() => BG.Game.state === 'levelSelect'), lock21);
+  ok('unlock: tapping locked 21 names level 20 as the finale to finish', lock21.includes(X.gate20) && await page.evaluate(() => BG.Game.state === 'levelSelect'), lock21);
   const info = await page.evaluate(() => { const b = document.querySelector('.chapter .ch-head .ch-info'); return b && { tip: b.dataset.tip, n: document.querySelectorAll('.chapter .ch-info').length, ch: document.querySelectorAll('.chapter').length }; });
-  ok('unlock: every chapter header has an (i) with the rule', info && info.n === info.ch && /either of the two levels/.test(info.tip) && /Chapter finales/.test(info.tip), info);
+  ok('unlock: every chapter header has an (i) with the rule', info && info.n === info.ch && info.tip === X.rule, info);
   await page.click('.chapter .ch-info'); await page.waitForTimeout(300);
-  ok('unlock: the (i) also shows the rule as a toast', /either of the two levels/.test(await toasts()));
+  ok('unlock: the (i) also shows the rule as a toast', (await toasts()).includes(X.rule));
   await seed(r19.slice(0, 18).concat([20])); await page.waitForTimeout(500);
   const skip = await page.evaluate(() => { const t = document.querySelector('.tile[data-id="19"]'); return { skipped: t.classList.contains('skipped'), text: (t.querySelector('.tile-skip') || {}).textContent, others: Array.from(document.querySelectorAll('.tile.skipped')).map(e => +e.dataset.id), open21: document.querySelector('.tile[data-id="21"]').classList.contains('open') }; });
-  ok('unlock: skipped-but-open level 19 shows "Skipped — come back later" (finale 20 done -> 21 open)', skip.skipped && /Skipped — come back later/.test(skip.text) && skip.others.join() === '19' && skip.open21, skip);
+  ok('unlock: skipped-but-open level 19 shows "Skipped — come back later" (finale 20 done -> 21 open)', skip.skipped && (skip.text || '').includes(X.skipped) && skip.others.join() === '19' && skip.open21, skip);
   await shot('32-unlock-skipped');
   // a pass that opens a level by skipping explains the rule
   await seed([]); await page.evaluate(() => BG.Game.openLevel(1)); await page.waitForTimeout(800);
@@ -442,7 +459,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   r = await runSim(60); await page.waitForTimeout(2000);
   const skipToast = await toasts();
   ok('unlock: passing 1 opens 3 by skipping -> toast "Level 3 unlocked — you can skip one level (chapter finales can\'t be skipped)"',
-    r.res && r.res.passed && (r.res.skipUnlocked || []).join() === '3' && /Level 3 unlocked — you can skip one level \(chapter finales can't be skipped\)/.test(skipToast), { skip: r.res && r.res.skipUnlocked, skipToast });
+    r.res && r.res.passed && (r.res.skipUnlocked || []).join() === '3' && skipToast.includes(X.skip3), { skip: r.res && r.res.skipUnlocked, skipToast });
   // migration: a player who already had levels open past an unbeaten finale keeps them, nothing new opens
   await page.evaluate(() => {
     const lv = {}; for (let i = 1; i <= 19; i++) lv[i] = { completed: true, stars: 1, bestCost: 1, attempts: 1 };
@@ -450,14 +467,14 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
     localStorage.setItem('span.v1.progress', JSON.stringify({ levels: lv, lastLevel: 22 }));
     localStorage.removeItem('span.v1.unlocks'); localStorage.removeItem('span.v1.hist.session');
   });
-  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?screen=levels'); await page.waitForTimeout(1500);
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?screen=levels' + (Q ? '&' + Q : '')); await page.waitForTimeout(1500);
   const mig = await page.evaluate(() => ({ open: [20, 21, 22, 23, 24, 25].filter(id => BG.Game.isUnlocked(id)), keep: BG.Storage.keptUnlocks() }));
   ok('unlock migration: 21-24 (open before the gates) stay open, 25 stays locked until 20 is done', mig.open.join() === '20,21,22,23,24', mig);
   // hint: auto-shown on an empty design or a level never passed; not on a built, passed level after a reload
   const hintAt = async (id, prep) => {
     await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(200); // leave (and autosave) first
     await page.evaluate(prep, sol(1));
-    await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?level=' + id); await page.waitForTimeout(1400);
+    await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?level=' + id + (Q ? '&' + Q : '')); await page.waitForTimeout(1400);
     return page.evaluate(() => ({ show: document.querySelector('[data-ref=hint]').classList.contains('show'), btn: !document.querySelector('[data-act=hint]').hidden, beams: BG.Game.getDesign().beams.length }));
   };
   const hBuilt = await hintAt(1, (d) => { const S = BG.Storage; S.resetProgress(); S.recordResult(1, { passed: true, stars: 3, cost: 1 }); S.saveDesign(1, d); });
@@ -470,7 +487,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   ok('hint: auto-shown on a built level that was never passed', hNew.show && hNew.beams > 0, hNew);
 
   // ================================================================ land-side structures (SPEC §17): inland anchors, land pylons, roadway envelope
-  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?noresume'); await page.waitForTimeout(1200);
+  await page.goto(url.pathToFileURL(path.join(ROOT, 'index.html')).href + '?noresume' + (Q ? '&' + Q : '')); await page.waitForTimeout(1200);
   const landLevel = {
     id: 9901, name: 'Anchor Yard', theme: 'meadow', hint: 'Guy the pylons back to the anchors.',
     terrain: { leftEdge: 0, leftY: 0, rightEdge: 40, rightY: 0, floorY: -10, waterY: -6 },
@@ -498,7 +515,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await shot('41-land-roadway-ghost');
   await page.mouse.up(); await page.waitForTimeout(150);
   const rw = await page.evaluate(() => ({ beams: BG.Game.getDesign().beams.length, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | ') }));
-  ok('§17 a member into the roadway envelope: red ghost "roadway", refused with "Keep the road clear"', gh && gh.valid === false && gh.reason === 'roadway' && rw.beams === 0 && /Keep the road clear/.test(rw.toast), { gh, rw });
+  ok('§17 a member into the roadway envelope: red ghost "roadway", refused with "Keep the road clear"', gh && gh.valid === false && gh.reason === 'roadway' && rw.beams === 0 && rw.toast.includes(X.roadway), { gh, rw });
   await page.keyboard.press('Escape');
   // pier tool on the bank: a land pylon whose top clears the envelope
   await page.keyboard.press('p');
@@ -527,7 +544,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   });
   r = await runSim(30); await page.waitForTimeout(1500);
   const top = await page.evaluate(() => ({ text: document.querySelector('[data-ref=results]').textContent, piers: (BG.Game.sim.piers || []).map(p => p.failed) }));
-  ok('§17 without backstays the land pylons topple; the results explain it', r.res && !r.res.passed && top.piers.some(Boolean) && /land pylon toppled/.test(top.text), { passed: r.res && r.res.passed, piers: top.piers });
+  ok('§17 without backstays the land pylons topple; the results explain it', r.res && !r.res.passed && top.piers.some(Boolean) && top.text.includes(X.topple), { passed: r.res && r.res.passed, piers: top.piers });
   await shot('44-land-toppled');
   await page.evaluate(() => { const i = BG.Levels.findIndex(l => l.id === 9901); if (i >= 0) BG.Levels.splice(i, 1); BG.Storage.clearDesign && BG.Storage.clearDesign(9901); });
 
@@ -540,20 +557,20 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   const r39 = []; for (let i = 1; i <= 39; i++) r39.push(i);
   await seed(r39); await page.waitForTimeout(500);
   const shut = await page.evaluate(() => ({ chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), lock: BG.Storage.lockText(54, BG.Levels) }));
-  ok('before level 40: the Anchorages chapter is hidden and locked', !shut.chapters.includes('Anchorages') && /level 40/.test(shut.lock || ''), shut);
+  ok('before level 40: the Anchorages chapter is hidden and locked', !shut.chapters.includes(X.anch) && (shut.lock || '').includes(X.ref40), shut);
   await page.evaluate(() => { BG.Game.openLevel(40, { force: true }); }); await page.waitForTimeout(900);
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(40));
   r = await runSim(120); await page.waitForTimeout(1900);
   const op = await page.evaluate(() => ({ opened: BG.Game.lastResult.bonusOpened, next: BG.Game.lastResult.hasNext, toast: Array.from(document.querySelectorAll('#toasts .toast')).map(t => t.textContent).join(' | '), open54: BG.Game.isUnlocked(54), open55: BG.Game.isUnlocked(55) }));
-  ok('passing level 40 reveals the Anchorages (toast), opens 54 only; Next still leads to 41', r.res && r.res.passed && (op.opened || []).includes('anchorages') && /hidden chapter has opened: Anchorages/.test(op.toast) && op.open54 && !op.open55 && op.next, op);
+  ok('passing level 40 reveals the Anchorages (toast), opens 54 only; Next still leads to 41', r.res && r.res.passed && (op.opened || []).includes('anchorages') && op.toast.includes(X.anchToast) && op.open54 && !op.open55 && op.next, op);
   await page.evaluate(() => BG.Game.goLevelSelect()); await page.waitForTimeout(600);
   const ls2 = await page.evaluate(() => ({ chapters: Array.from(document.querySelectorAll('.chapter h3')).map(h => h.textContent), open: Array.from(document.querySelectorAll('.tile.open')).map(t => +t.dataset.id).filter(id => id >= 51), sub: (document.querySelector('[data-ref=lsSub]') || document.querySelector('#screen-levels .ls-sub') || {}).textContent || '' }));
-  ok('level select: the Anchorages chapter (54 open) after Grand Spans; Forces of Nature still hidden', ls2.chapters[ls2.chapters.length - 1] === 'Anchorages' && !ls2.chapters.includes('Forces of Nature') && ls2.open.join() === '54', ls2);
+  ok('level select: the Anchorages chapter (54 open) after Grand Spans; Forces of Nature still hidden', ls2.chapters[ls2.chapters.length - 1] === X.anch && !ls2.chapters.includes(X.forces) && ls2.open.join() === '54', ls2);
   await page.evaluate(() => BG.Hud.scrollToLevel(54)); await page.waitForTimeout(300);
   await shot('45-anchorages-chapter');
   await page.click('.tile[data-id="54"]'); await page.waitForTimeout(1000);
   const bar = await page.evaluate(() => ({ id: BG.Game.level.id, sub: document.querySelector('#screen-level').textContent }));
-  ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && /Anchorages · 36\sm gap/.test(bar.sub), bar.id);
+  ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && bar.sub.includes(X.anchSub), bar.id);
   // the "KEEP CLEAR" labels (drawn over the structure): on screen, clear of the HUD side panels, of every built
   // land pylon and of the hillsides; at least one per level on a desktop screen
   const labels = [];
@@ -580,7 +597,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol('58-best'));
   r = await runSim(90); await page.waitForTimeout(1800);
   const f58 = await page.evaluate(() => ({ banner: document.querySelector('[data-ref=resBanner]').textContent, cls: document.querySelector('[data-ref=results]').classList.contains('finale-bonus'), next: document.querySelector('[data-act=next] span').textContent, piers: (BG.Game.sim.piers || []).map(p => p.failed) }));
-  ok('58 passes with the Anchorages finale, pylons standing, then "All levels"', r.res && r.res.passed && r.res.finaleKind === 'anchorages' && f58.cls && /Anchorages complete/.test(f58.banner) && f58.next === 'All levels' && !f58.piers.some(Boolean), Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, f58));
+  ok('58 passes with the Anchorages finale, pylons standing, then "All levels"', r.res && r.res.passed && r.res.finaleKind === 'anchorages' && f58.cls && f58.banner.includes(X.anchBanner) && f58.next === X.allLevels && !f58.piers.some(Boolean), Object.assign({ passed: r.res && r.res.passed, kind: r.res && r.res.finaleKind }, f58));
   await shot('46-anchorages-finale');
 
   ok('no console errors', errors.length === 0, errors.slice(0, 15));

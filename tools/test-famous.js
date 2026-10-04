@@ -91,7 +91,7 @@ else browser().then(finish, e => { ok('browser run', false, e.message); finish()
 async function browser() {
   fs.mkdirSync(OUT, { recursive: true });
   const { chromium } = require('playwright');
-  const b = await chromium.launch({ headless: true, channel: 'chrome' });
+  const b = await require('./browser').launch(chromium);
   const page = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });

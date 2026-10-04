@@ -80,7 +80,7 @@
     'editor.tip.kN': '{v} kN',
     'editor.tip.kNTension': '{v} kN træk',
     'editor.tip.kNCompression': '{v} kN tryk',
-    'editor.tip.stress': 'Spænding',
+    'editor.tip.stress': 'Belastning',
     'editor.tip.peakK': 'Maks.',
     'editor.tip.bending': 'heraf bøjning',
 

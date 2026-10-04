@@ -218,7 +218,7 @@ async function fileRun(browser) {
     transform: (rel, buf) => (rel === 'sw.js' && swVersion) ? Buffer.from(buf.toString('utf8').replace(/const VERSION = '[^']+'/, "const VERSION = '" + swVersion + "'")) : null,
   });
   const base = srv.url;
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   try {
     await deviceRun(browser, base, 'Pixel 7', { toastCheck: true, updateFlow: true, installPrompt: true, iosHint: false, setSwVersion: v => { swVersion = v; } });
     await deviceRun(browser, base, 'Pixel 7 landscape', {});

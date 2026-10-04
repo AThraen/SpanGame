@@ -245,7 +245,7 @@ async function browserTests() {
   fs.mkdirSync(OUT, { recursive: true });
   const href = url.pathToFileURL(path.join(ROOT, 'index.html')).href;
   const sol1 = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools/solutions/level-01.json'), 'utf8'));
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await require('./browser').launch(chromium);
   const profiles = [
     ['desktop', { viewport: { width: 1280, height: 800 } }],
     ['iPhone 14', devices['iPhone 14']],

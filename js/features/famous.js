@@ -104,7 +104,9 @@
       const H = level.history || {};
       const ter = level.terrain || {};
       const gap = Math.round((ter.rightEdge || 0) - (ter.leftEdge || 0));
-      const traffic = (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? ((BG.Trains && BG.Trains[g.train] && BG.Trains[g.train].name) || g.train || t('features.famous.card.train')) : vehName(g.type))).join(', ');
+      // traffic in words ('4 cars, 3 vans' / '4 biler, 3 varevogne'), as on the daily panel
+      const summary = BG.Model && BG.Model.trafficSummary && (level.traffic || []).length ? BG.Model.trafficSummary(level).text : '';
+      const traffic = summary ? esc(summary) : (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? ((BG.Trains && BG.Trains[g.train] && BG.Trains[g.train].name) || g.train || t('features.famous.card.train')) : vehName(g.type))).join(', ');
       const miss = Famous.playable(level) ? [] : [Famous.lockReason(level)]; // whatever keeps it from being built
       const st = S();
       const stars = st ? safe(() => st.getStars(level.id), 0) : 0;
