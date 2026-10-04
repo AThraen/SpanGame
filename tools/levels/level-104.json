@@ -10,7 +10,10 @@
     "rightEdge": 18,
     "rightY": 0,
     "floorY": -10,
-    "waterY": -7
+    "waterY": -7,
+    "ceiling": {
+      "kind": "ice"
+    }
   },
   "anchors": [
     {

@@ -54,7 +54,7 @@ Coordinates are metres, with **y up**. The left bank's road surface usually sits
 | `name` | string | shown on the tile and the top bar |
 | `theme` | string | scenery: `meadow`, `autumn`, `desert`, `canyon`, `snow`, `night`, `city`, `tropical`, `volcanic` |
 | `hint` | string | the level hint (key `H`); write it as a nudge, not a solution |
-| `terrain` | object | `leftEdge` / `rightEdge`: x where the left bank ends and the right bank starts; `leftY` / `rightY`: bank heights; `floorY`: the valley floor; `waterY`: water level, or `null` for a dry gap (the volcanic theme draws lava) |
+| `terrain` | object | `leftEdge` / `rightEdge`: x where the left bank ends and the right bank starts; `leftY` / `rightY`: bank heights; `floorY`: the valley floor; `waterY`: water level, or `null` for a dry gap (the volcanic theme draws lava); optional `ceiling`, see below |
 | `anchors` | array | fixed bolts `{x, y}`. **The first two must be the road ends** (left, then right); the rest are extra bolts on the cliff faces. Referenced in designs as `a0`, `a1`, … |
 | `pierZones` | array | `{x0, x1}` ranges on the valley floor where piers may stand (`[]` = none) |
 | `maxPiers` | number | how many piers may be built |
@@ -73,6 +73,7 @@ Coordinates are metres, with **y up**. The left bank's road surface usually sits
 | `campaign` | `"rail"` (Iron Road) or `"famous"` (Famous Bridges); absent means Roads |
 | `rail` | `{maxGrade, maxKinkDeg}` overrides the derailment limits (defaults 0.06 and 4°) |
 | `events` | wind and earthquake events, see below |
+| `terrain.ceiling` | `{kind, y?, from?}` draws what caps the build area as scenery: `rock` (an overhanging ledge), `ice` (a glacier), `cave` (a cave roof) or `girder` (a bridge above). Cosmetic only. A level whose `buildArea.y1` is within 5 m of the deck gets one even without the field (kind by theme), except on Famous Bridges; name the kind so it matches the hint, or set `false` for none. It is never drawn lower than the tallest traffic can pass, so a cap below the vehicles' roofs shows the scenery a little higher than the limit (the band between is hatched in the editor). See SPEC §19 |
 | `anchors[].inland` | `true` marks an inland anchor: a deadman block in a bank top, or (with `y` above the bank) an anchor block set into a hillside |
 | `pierZones[].ground` | `"left"` or `"right"`: a land pier zone on that bank, where piers become land pylons (optional `footing`: the footing's moment limit in N·m) |
 | `roadClearance` | the roadway clearance envelope on the banks switches on by itself when a level has inland anchors or land pier zones; a number sets its height in metres, `false` turns it off |

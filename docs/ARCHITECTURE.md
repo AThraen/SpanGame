@@ -27,7 +27,7 @@ js/render/      effects.js  renderer.js
 js/ui/          audio.js  storage.js  editor.js  railinfo.js  hud.js
                   input, menus, synthesized sound, localStorage
 js/main.js      BG.Game: state machine and main loop
-js/features/    terrain-fix  goals goals-data goals-ui  forces-fx  daily  requirements famous
+js/features/    terrain-fix  ceiling  goals goals-data goals-ui  forces-fx  daily  requirements famous
                 history  pwa  mobile
                   optional modules that extend what is already loaded
 ```
@@ -65,7 +65,7 @@ Every core file is wrapped so it can load in either environment:
 | `ui/railinfo.js` | `BG.RailInfo` | the derailment explainer, track recording strip and ride-quality card (display only) |
 | `ui/hud.js` | `BG.Hud` | title screen, level select, top bar, palette, sim controls, results, settings |
 | `main.js` | `BG.Game` | owns the current level, design and simulation; runs the loop |
-| `features/*` | `BG.Goals`, `BG.Daily`, `BG.Famous`, `BG.History`, `BG.PWA`, `BG.Mobile`, ... | badges, weather presentation, daily challenge, famous bridges, run history, PWA shell, touch layer |
+| `features/*` | `BG.TerrainFix`, `BG.Ceiling`, `BG.Goals`, `BG.Daily`, `BG.Famous`, `BG.History`, `BG.PWA`, `BG.Mobile`, ... | waterline build limit, build ceilings drawn as scenery, badges, weather presentation, daily challenge, famous bridges, run history, PWA shell, touch layer |
 
 ## The game state machine
 
@@ -123,7 +123,7 @@ The simulation never sees the frame rate: it only ever advances in exact 1/60 s 
 1. the painted background image for the theme (`assets/bg/<theme>.jpg`), with a gradient sky fallback;
 2. procedural parallax layers (mountains, hills, trees or city silhouettes), clouds, sun or moon, stars;
 3. the far valley walls, water with reflections and foam, ships in channels;
-4. terrain (strata, grass / snow / sand tops), anchors and piers;
+4. terrain (strata, grass / snow / sand tops), the ceiling scenery of low-cap levels (rock ledge, glacier, cave roof, girder above; `features/ceiling.js`), anchors and piers;
 5. beams, styled per material (planks, I-beams with rivets, ropes, decks with lane markings, sleepers and ballast on rail, stone voussoirs for masonry), tinted by stress in sim mode;
 6. vehicles and trains from the SVG sprites in `assets/sprites/`, with rotating wheels;
 7. effects (debris, smoke, sparks, splashes) and editor overlays (grid, ghost beam, labels, build limits).

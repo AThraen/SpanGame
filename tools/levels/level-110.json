@@ -9,7 +9,10 @@
     "leftY": 0,
     "rightEdge": 48,
     "rightY": 0,
-    "floorY": -20
+    "floorY": -20,
+    "ceiling": {
+      "kind": "cave"
+    }
   },
   "anchors": [
     {

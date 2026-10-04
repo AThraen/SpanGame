@@ -58,7 +58,7 @@ js/ui/hud.js             BG.Hud (menus, level select, palette, results, tooltips
 js/main.js               BG.Game (state machine + main loop)
 js/ui/arch-tool.js       BG.ArchTool: the Arch & Curve tool (§18); after main.js, before the feature scripts
 js/features/*.js         optional feature modules, loaded last (core → render → ui → main → features);
-                         e.g. terrain-fix.js = BG.TerrainFix (§10), goals*.js = BG.Goals (§11),
+                         e.g. terrain-fix.js = BG.TerrainFix (§10), ceiling.js = BG.Ceiling (§19), goals*.js = BG.Goals (§11),
                          forces-fx.js = Forces of Nature visuals / HUD / audio (§12),
                          daily.js = BG.Daily (Daily Challenge + Endless, §13.2),
                          requirements.js = BG.Requirements + famous.js = BG.Famous (Famous Bridges, §14),
@@ -122,6 +122,7 @@ Keyed by type: `car` (~1.2 t), `van` (~2.5 t), `bus` (~12 t), `truck` (~20 t), `
     rightEdge: 12, rightY: 0,     // right bank starts at x=rightEdge
     floorY: -10,                  // valley floor
     waterY: -7 /* or null */,
+    // ceiling: { kind: 'rock'|'ice'|'cave'|'girder', y?, from? } | false   optional, cosmetic (§19)
   },
   anchors: [ {x:0,y:0}, {x:12,y:0}, {x:0,y:-3}, ... ], // must include both road endpoints
                                      // ({x, y, inland: true} = inland anchor on a bank top / in a hillside, §17)
@@ -1096,3 +1097,34 @@ deck-aware touch default, no connectors while dragging, a tap on the handle does
 labels above / below the curve clear of the HUD, the idle hint; headless sim of level 25 (no steel: road hung from a cable
 between two towers) passing; in the browser Connect on by default with the dependent controls disabled when it is off, the
 Place button (106), level 25 built by mouse and passing, and on the phone the labels clear of the bar and the Place button.
+
+## 19. Build ceilings drawn as scenery (feature/ceiling)
+
+Some levels cap building a few metres above the road (`buildArea.y1`) and their hints name the cause ("a rock ledge
+caps you 4 m above the road", level 17; "an overhanging glacier", level 27), but nothing was drawn. `js/features/ceiling.js`
+(`BG.Ceiling`) draws the cause. It is cosmetic only: `BG.Model`, the simulation, `buildArea` and every solution are
+unchanged (`verify-levels` output is identical).
+
+- **Which levels.** A ceiling is drawn when `buildArea.y1` is within `MAX_HEADROOM` = 5 m of the deck (mean of the two
+  bank heights): such a cap leaves no room for a truss over the traffic. Famous Bridges are excepted (their caps stand
+  for the historical form). Campaign levels: 1, 2, 4, 8, 9, 11, 17, 27, 32, 101, 102, 104, 106–112, 114; each names
+  its kind in `terrain.ceiling`. Generated crossings get one on the "low roof" archetype (y1 = deck + 1).
+- **Level field** (optional): `terrain.ceiling = { kind, y?, from? }`. `kind`: `rock` (overhanging ledge in the
+  theme's strata, grass / sand / snow on top), `ice` (glacier tongue with layers, crevasses, icicles and a serac
+  front), `cave` (a roof over the whole view with stalactites; glows from below over lava), `girder` (the plate
+  girder of a bridge above). Default by theme: snow → ice, city / night → girder, volcanic → cave, else rock.
+  `y` raises the drawn underside; `from` (`left` / `right`) is the bank a ledge or glacier grows from (default the
+  higher bank, else by id). `ceiling: false` never draws one; an explicit object draws one on any level.
+- **Height.** `forLevel(level).y = max(buildArea.y1, y, snapUp(deckTop + tallest + MARGIN))` where `tallest` is the
+  drawn sprite height (`BG.Renderer.drawnHeight`) of every vehicle / rail car in the traffic and MARGIN = 0.6 m; an
+  overhead line (tram 3.95 m, other electrified lines 4.65 m) needs 0.45 m of air. Icicles and stalactites hang
+  between the underside and `y`, never below it. When the traffic is taller than the cap, the ceiling is drawn
+  above `y1` (`raised: true`): levels 1, 2, 4, 8, 9, 11, 27, 101, 102, 104, 106–112, 114 (e.g. 27: cap 2.5 m, trucks
+  3.7 m, glacier at 4.5 m; Iron Road: cap 4 m, locomotives 4.3 m, ceiling at 5 m). Level 17 and 32 sit exactly on the cap.
+- **Drawing.** In the static mid layer after the terrain (`_drawTerrain` wrapped), so it costs nothing per frame.
+  A soft shadow under the underside is drawn every frame over vehicles and beams (`_drawLights` wrapped). Street-lamp
+  and signal glows behind the mass are dropped. Edit mode (`_drawEditUnder` wrapped): a subtle hatch on the underside
+  and on any unbuildable band between `y1` and a raised ceiling, plus a small label (`editor.label.ceiling.<kind>`).
+  The camera fit (`levelBounds` wrapped) keeps 3.5 m of the mass in frame.
+- Tests: `tools/test-ceiling.js` (which levels, heights, outline, cosmetic-only runs, generated crossings; in the
+  browser every level renders and the drawn roofs of the traffic stay under the drawn ceiling).

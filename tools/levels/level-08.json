@@ -9,7 +9,10 @@
     "rightEdge": 24,
     "rightY": 0,
     "floorY": -22,
-    "waterY": null
+    "waterY": null,
+    "ceiling": {
+      "kind": "cave"
+    }
   },
   "anchors": [
     {

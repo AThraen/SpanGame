@@ -10,7 +10,10 @@
     "rightEdge": 40,
     "rightY": 0,
     "floorY": -16,
-    "waterY": -13
+    "waterY": -13,
+    "ceiling": {
+      "kind": "rock"
+    }
   },
   "anchors": [
     {

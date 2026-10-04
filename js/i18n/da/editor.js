@@ -87,6 +87,10 @@
     // ---- mærkater på lærredet
     'editor.label.keepClear': 'VEJ · HOLD FRI {h}',
     'editor.label.noBuild': 'BYGGEFORBUD',
+    'editor.label.ceiling.rock': 'KLIPPEUDHÆNG',
+    'editor.label.ceiling.ice': 'GLETSJER',
+    'editor.label.ceiling.cave': 'HULELOFT',
+    'editor.label.ceiling.girder': 'BRO OVENOVER',
     'editor.label.pierZone': 'PILLEZONE',
     'editor.label.pier': 'PILLE',
     'editor.label.pierHeight': '{h} pille',

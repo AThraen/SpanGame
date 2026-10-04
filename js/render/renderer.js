@@ -4272,6 +4272,16 @@
   R.setInsets = function (ins) { Object.assign(this.insets, ins || {}); };
 
   Renderer.THEMES = THEMES;
+  /** Drawn height (m) of a road vehicle or rail car sprite, as scaled to the vehicle's length; null if unknown. */
+  Renderer.drawnHeight = function (type) {
+    const rail = RAIL_META[type], road = SPRITE_META[type];
+    const def = rail ? BG.RailCars && BG.RailCars[type] : BG.Vehicles && BG.Vehicles[type];
+    const meta = rail || road;
+    if (!meta || !def) return def && def.height ? def.height : null;
+    return meta.h / 100 * ((def.length || meta.w / 100) / (meta.w / 100));
+  };
+  /** Shared drawing helpers for feature modules that paint scenery in the terrain style (ceiling.js). */
+  Renderer.util = { clamp, lerp, smooth, mix, rgba, hash, hash2, fbm, mulberry, TAU, FONT };
   Renderer.stressColor = stressColor;
   Renderer.materialStyle = matStyle;
   Renderer.Sprites = Sprites;

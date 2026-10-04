@@ -20,6 +20,7 @@ const NODE = [
   ['test-events.js'],
   ['test-generator.js', '--quick'],
   ['test-terrain-fix.js', '--no-browser'],
+  ['test-ceiling.js', '--no-browser'], // build ceilings drawn as scenery: which levels, heights, cosmetic only
   ['test-daily.js', '--node-only'],
   ['test-famous.js', '--node-only'],
   ['test-history.js', '--node-only'],
@@ -31,6 +32,7 @@ const BROWSER = [
   ['e2e-goals.js'],
   ['e2e-events.js'],
   ['test-terrain-fix.js'],
+  ['test-ceiling.js', '--browser-only'], // every level renders; traffic fits under the drawn ceilings
   ['test-daily.js'],
   ['test-famous.js'],
   ['test-history.js'],

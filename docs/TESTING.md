@@ -39,6 +39,7 @@ npm run test:all       # both; run this before a pull request
 | `node tools/test-events.js [--full]` | wind and earthquake physics; levels without events simulate bit-identically to the engine without the feature (`--full` checks every road and rail design) |
 | `node tools/test-generator.js [--quick]` | 365 daily levels and 200 random seeds: well-formed, proven solvable, deterministic, plus difficulty distributions and timing |
 | `node tools/test-terrain-fix.js --no-browser` | the waterline build rule and the editor feedback for it |
+| `node tools/test-ceiling.js --no-browser` | build ceilings drawn as scenery: exactly the low-cap levels (and generated low-roof crossings) get one, never below the build limit or the tallest traffic, the outline covers the gap, and the field never changes a run |
 | `node tools/test-daily.js --node-only` | daily and endless records, streaks, practice runs, the share text |
 | `node tools/test-famous.js --node-only` | Famous Bridges data: history cards complete, illustrations exist, stubs stay locked, no template earns ★★★ |
 | `node tools/test-history.js --node-only` | run history, personal bests, retention, save export / import, storage failures |
@@ -53,6 +54,7 @@ npm run test:all       # both; run this before a pull request
 | `node tools/e2e-goals.js [outDir]` | the badges UI: goals panel, results reveal, tile counts, persistence |
 | `node tools/e2e-events.js [outDir]` | the Forces of Nature levels: hidden chapter, forecast chip, warning and live banners, timeline, quake rumble, reference designs passing in the real game |
 | `node tools/test-terrain-fix.js` | the drawn cliffs match the model's terrain on every level, and the waterline overlay appears where it should |
+| `node tools/test-ceiling.js --browser-only` | every level renders with its ceiling (in Danish, no warnings); reference designs run on a sample of levels and a generated crossing, and every drawn roof stays under the drawn ceiling |
 | `node tools/test-daily.js` | the daily flow in the browser: generation time, browser level bit-identical to the Node level, playing the daily, the share card and clipboard, endless runs |
 | `node tools/test-famous.js` | the Famous Bridges tab, unlock, history card, and a full run of a famous level |
 | `node tools/test-history.js` | autosave and resume across a reload on desktop, phones and tablets; the history screen; loading a design |

@@ -10,7 +10,10 @@
     "rightEdge": 12,
     "rightY": 0,
     "floorY": -8,
-    "waterY": -5.5
+    "waterY": -5.5,
+    "ceiling": {
+      "kind": "girder"
+    }
   },
   "anchors": [
     {

@@ -87,6 +87,10 @@
     // ---- labels drawn on the canvas
     'editor.label.keepClear': 'ROAD · KEEP CLEAR {h}',
     'editor.label.noBuild': 'NO BUILD',
+    'editor.label.ceiling.rock': 'ROCK LEDGE',
+    'editor.label.ceiling.ice': 'GLACIER',
+    'editor.label.ceiling.cave': 'CAVE ROOF',
+    'editor.label.ceiling.girder': 'BRIDGE ABOVE',
     'editor.label.pierZone': 'PIER ZONE',
     'editor.label.pier': 'PIER',
     'editor.label.pierHeight': '{h} pier',
