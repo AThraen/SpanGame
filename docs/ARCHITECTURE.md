@@ -9,6 +9,7 @@ These rules shape everything below:
 - **No build step.** What is in the repository is what runs. Editing a file and reloading the page is the whole development loop.
 - **`file://` compatible.** Double-clicking `index.html` must work, so there are no ES modules (browsers block them from `file://`), no `fetch` of local JSON, and no reading pixels back from canvases. Levels are compiled into a script (`js/core/levels.js`), and images load through `<img>`.
 - **No runtime dependencies.** The only npm package is Playwright, a dev dependency used to drive headless Chrome in the tests.
+- **Every player-facing text is translatable.** UI code reads its words from `BG.i18n` dictionaries (English and Danish) and formats numbers through it; see [I18N.md](I18N.md).
 - **A deterministic simulation that also runs in Node.** The headless verifier must see exactly what the player sees, so the physics core has no DOM access, no `Math.random` and no wall-clock time.
 
 ## Layers and load order
@@ -16,6 +17,8 @@ These rules shape everything below:
 `index.html` loads the scripts in this order. Each layer may use the layers above it, never the ones below.
 
 ```
+js/i18n/        i18n.js  en/<area>.js  da/<area>.js
+                  BG.i18n and the dictionaries: no dependencies, loaded first (docs/I18N.md)
 js/core/        materials.js  vehicles.js  trains.js  model.js  physics.js  events.js
                 levels.js  templates.js  generator.js
                   pure logic: browser AND Node, no DOM, deterministic
@@ -44,6 +47,7 @@ Every core file is wrapped so it can load in either environment:
 
 | Module | Global | Role |
 |---|---|---|
+| `i18n/i18n.js`, `i18n/<lang>/<area>.js` | `BG.i18n` | translations (English, Danish), plurals, number / money / length formatting, the `languagechange` event (see [I18N.md](I18N.md)) |
 | `core/materials.js` | `BG.Materials`, `BG.MaterialOrder`, `BG.Costs`, `BG.LandPylon` | material properties (cost, mass, stiffness, strength, max length), pier costs |
 | `core/vehicles.js` | `BG.Vehicles` | road vehicles from a 1.2 t car to a 60 t heavy hauler |
 | `core/trains.js` | `BG.RailCars`, `BG.Trains`, `BG.RailRules` | rolling stock, train presets, derailment limits |
@@ -162,7 +166,7 @@ A **design** is plain data: user joints, beams referencing joint ids (`a0`, `a1`
 
 ## Storage
 
-Everything is stored in `localStorage` under the `span.v1.` prefix: settings, progress (stars, completion, best cost per level), the last design per level, badges, run history, daily records and the autosave. Every access is wrapped in try/catch, so the game runs (without saving) when storage is blocked. **Settings → Save data** exports and imports all of it as one JSON file.
+Everything is stored in `localStorage` under the `span.v1.` prefix: settings (including the chosen language, `lang`), progress (stars, completion, best cost per level), the last design per level, badges, run history, daily records and the autosave. Every access is wrapped in try/catch, so the game runs (without saving) when storage is blocked. **Settings → Save data** exports and imports all of it as one JSON file.
 
 ## The PWA shell
 

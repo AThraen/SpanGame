@@ -42,6 +42,7 @@ npm run test:all       # both; run this before a pull request
 | `node tools/test-daily.js --node-only` | daily and endless records, streaks, practice runs, the share text |
 | `node tools/test-famous.js --node-only` | Famous Bridges data: history cards complete, illustrations exist, stubs stay locked, no template earns ★★★ |
 | `node tools/test-history.js --node-only` | run history, personal bests, retention, save export / import, storage failures |
+| `node tools/test-i18n.js --node-only --report-only` | translations: every key in English and Danish with the same params and plural forms, formatting in both languages (with and without `Intl`), and the hard-coded string lint, which reports user-visible English not routed through `t()` per file (`--verbose` lists them; without `--report-only` any left fails). See [I18N.md](I18N.md) |
 
 ### Headless Chrome
 
@@ -56,6 +57,7 @@ npm run test:all       # both; run this before a pull request
 | `node tools/test-history.js` | autosave and resume across a reload on desktop, phones and tablets; the history screen; loading a design |
 | `node tools/test-mobile.js [outDir] [--no-shots]` | phones and tablets in both orientations: no HUD overflow, 44 px touch targets, a level built with real touch input, the magnifier, the long-press menu, pinch zoom, and every feature screen |
 | `node tools/test-pwa.js [outDir]` | the service worker installs and precaches everything, the game reloads offline, the update toast works, the install button and the iOS hint appear where they should |
+| `node tools/test-i18n.js --browser-only` | switching the language re-renders the title screen, level select and the open settings panel without a reload; the choice persists; a Danish browser starts in Danish; no missing-key warnings |
 | `node tools/test-offline-tour.js [outDir] [--no-shots]` | installs once, goes offline, and tours every screen and campaign on desktop and a phone; fails on any request the service worker does not serve, any console error or any broken image |
 
 ## Other tools

@@ -16,9 +16,19 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
   function money(n) {
+    if (I()) return I().money(n);
     n = Math.round(+n || 0);
     return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US');
   }
+  // i18n (js/i18n/i18n.js, loaded first; docs/I18N.md). Static markup carries data-i18n="key" (data-i18n-title, -aria,
+  // -tip, -html) and is filled by tr(el) = BG.i18n.apply(el), which also re-translates it when the language changes;
+  // text built in code uses t(key, params) and is rebuilt in the 'languagechange' handler (Hud._onLanguage).
+  function I() { return BG.i18n || null; }
+  function t(key, params) { return I() ? I().t(key, params) : key; }
+  function tr(el) { if (I()) I().apply(el); return el; }
+  function lvName(level) { return level ? (I() ? I().levelText(level, 'name') : level.name) : ''; }
+  // data tables (chapters, campaign looks): fields that read their text from the dictionary on every access
+  function lazyText(obj, map) { return I() ? I().lazy(obj, map) : obj; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function sfx(name, o) { try { BG.Audio && BG.Audio.play(name, o); } catch (e) { /* */ } }
   function game() { return BG.Game || {}; }
@@ -68,6 +78,7 @@
     train: '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13" r=".6" fill="currentColor"/><circle cx="15" cy="13" r=".6" fill="currentColor"/><path d="M8 16l-3 5M16 16l3 5M6.5 19h11"/>',
     track: '<path d="M3 18h18"/><path d="M3 14l4-3 4 2 4-6 6 4"/><path d="M6 18v2M12 18v2M18 18v2"/>',
     arch: '<path d="M2 6h20"/><path d="M3 20Q12-1 21 20"/><path d="M7.5 6v6M16.5 6v6M12 6v3.5"/>', // arch-tool
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>',
     follow: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/><circle cx="12" cy="12" r="7.5"/>',
   };
   function icon(name, cls) {
@@ -241,21 +252,23 @@
   function theme(name) { return THEMES[name] || THEMES.meadow; }
 
   const SHORT_MAT = { reinforced_road: 'Reinf. Road', cable: 'Cable', rail: 'Rail Track', girder: 'Box Girder' };
+  // a chapter's name / desc are getters that read hud.chapter.<key>.name / .desc in the current language
+  function chapterText(ch) { return lazyText(ch, { name: 'hud.chapter.' + ch.key + '.name', desc: 'hud.chapter.' + ch.key + '.desc' }); }
   const RAIL_CHAPTERS = [
-    { n: 1, name: 'Branch Lines', from: 101, to: 105, desc: 'Handcars, trams & light steam · short spans · learn the derail limits', theme: 'meadow', campaign: 'rail' },
-    { n: 2, name: 'Stone & Steam', from: 106, to: 110, desc: 'Steam & coaches · masonry viaducts over valleys', theme: 'autumn', campaign: 'rail' },
-    { n: 3, name: 'Freight Corridor', from: 111, to: 115, desc: 'Commuters, long freight & ore · whole span loaded · deep trusses', theme: 'canyon', campaign: 'rail' },
-    { n: 4, name: 'High Speed', from: 116, to: 120, desc: 'High-speed trains · speed impact · double-deck road & rail finale', theme: 'city', campaign: 'rail' },
-  ];
+    { n: 1, key: 'rail1', from: 101, to: 105, theme: 'meadow', campaign: 'rail' },
+    { n: 2, key: 'rail2', from: 106, to: 110, theme: 'autumn', campaign: 'rail' },
+    { n: 3, key: 'rail3', from: 111, to: 115, theme: 'canyon', campaign: 'rail' },
+    { n: 4, key: 'rail4', from: 116, to: 120, theme: 'city', campaign: 'rail' },
+  ].map(chapterText);
   // ------------------------------------------------------------------ campaigns
   // The level select shows one tab per campaign. The RULES (id ranges, unlock level, finale ids, which levels
   // are playable) live in BG.Storage.CAMPAIGNS; this table holds how each campaign LOOKS: tab icon, subtitle,
   // chapters (or a custom panel renderer), labels and finale text. Feature modules add campaigns with
   // BG.Hud.registerCampaign(id, ui) (js/features/famous.js registers 'famous').
   const CAMPAIGN_UI = {
-    road: {
-      id: 'road', name: 'Roads', sub: 'Six regions · fifty bridges', icon: () => icon('road'), cls: '', levelK: 'LEVEL',
-      chapters: () => CHAPTERS, allLabel: 'All levels', maxDefault: 150,
+    road: lazyText({
+      id: 'road', icon: () => icon('road'), cls: '', levelK: 'LEVEL',
+      chapters: () => CHAPTERS, maxDefault: 150,
       finale: {
         banner: 'All crossings complete', title: 'You spanned them all!',
         text: (starLine, res) => 'Fifty bridges, from a wobbly plank to a 150 m suspension span. ' + starLine +
@@ -273,20 +286,20 @@
           text: starLine => 'Deadmen, guy lines, a lone pylon and a grand suspension span - every pull carried safely back into the ground. ' + starLine,
         },
       },
-    },
-    rail: {
-      id: 'rail', name: 'Iron Road', sub: 'Four lines · twenty railway bridges', icon: () => icon('train'), cls: 'is-rail', levelK: 'RAIL',
-      chapters: () => RAIL_CHAPTERS, allLabel: 'All lines', maxDefault: 60,
+    }, { name: 'hud.camp.road.name', sub: 'hud.camp.road.sub', allLabel: 'hud.camp.road.all' }),
+    rail: lazyText({
+      id: 'rail', icon: () => icon('train'), cls: 'is-rail', levelK: 'RAIL',
+      chapters: () => RAIL_CHAPTERS, maxDefault: 60,
       finale: {
         banner: 'Iron Road complete', title: 'End of the line!',
         text: starLine => 'Twenty railway bridges, from a handcar over a creek to high-speed expresses on a double-deck span. ' + starLine,
       },
       locked: () => `<div class="camp-locked glass">
             <div class="cl-art">${trainSvg('steam')}</div>
-            <div class="cl-text"><h3>${icon('lock')}The Iron Road is closed</h3>
-            <p>Complete level 10 to open the Iron Road: twenty railway bridges, from handcars and trams to 2000-tonne ore trains and high-speed expresses.</p></div>
+            <div class="cl-text"><h3>${icon('lock')}${esc(t('hud.camp.rail.closed'))}</h3>
+            <p>${esc(t('hud.camp.rail.closedText', { n: (stor() && stor().CAMPAIGNS && stor().CAMPAIGNS.rail.unlockAfter) || 10 }))}</p></div>
           </div>`,
-    },
+    }, { name: 'hud.camp.rail.name', sub: 'hud.camp.rail.sub', allLabel: 'hud.camp.rail.all' }),
   };
   const CAMPAIGN_ORDER = ['road', 'rail'];
   function campaignOf(level) {
@@ -301,7 +314,7 @@
     if (campaign !== 'road') return sub;
     const hidden = hiddenLevelIds();
     const bonus = sortChapters(CHAPTERS).filter(ch => ch.hidden && !hidden.includes(ch.from) && levelsList().some(l => l && l.id >= ch.from && l.id <= ch.to));
-    return bonus.length ? sub + ' · bonus: ' + bonus.map(ch => ch.name).join(', ') : sub;
+    return bonus.length ? t('hud.levels.subBonus', { sub, chapters: bonus.map(ch => ch.name).join(', ') }) : sub;
   }
   // chapters in level order (bonus chapters are registered by different modules: Anchorages here, Forces of Nature
   // by forces-fx.js)
@@ -335,7 +348,7 @@
     const id = levelId(level);
     return id == null ? '?' : id;
   }
-  function levelLabel(level) { return 'Level ' + displayNum(level); }
+  function levelLabel(level) { return t('core.level', { n: displayNum(level) }); }
   // the short name a campaign uses for one of its levels (title Continue / Resume, history): famous bridges by name
   function shortLabel(level) {
     const cu = campaignUi(campaignOf(level));
@@ -357,16 +370,16 @@
       level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
   }
   const CHAPTERS = [
-    { n: 1, name: 'First Crossings', from: 1, to: 5, desc: '10–20 m gaps · cars & vans · road, wood and triangles', theme: 'meadow' },
-    { n: 2, name: 'Timber & Steel', from: 6, to: 10, desc: '20–28 m · cars, vans & buses · trusses, then steel', theme: 'autumn' },
-    { n: 3, name: 'Piers & Cables', from: 11, to: 20, desc: '28–45 m · vans & buses · piers, rope & cable, arches, ship channels', theme: 'desert' },
-    { n: 4, name: 'Shipping Lanes', from: 21, to: 30, desc: '46–70 m · buses & trucks · reinforced road, towers, clearances', theme: 'tropical' },
-    { n: 5, name: 'Heavy Haul', from: 31, to: 40, desc: '70–100 m · trucks & semis · convoys, deep canyons, few piers', theme: 'canyon' },
-    { n: 6, name: 'Grand Spans', from: 41, to: 50, desc: '100–150 m · semis, tankers & heavies · the finale', theme: 'volcanic' },
+    { n: 1, key: 'road1', from: 1, to: 5, theme: 'meadow' },
+    { n: 2, key: 'road2', from: 6, to: 10, theme: 'autumn' },
+    { n: 3, key: 'road3', from: 11, to: 20, theme: 'desert' },
+    { n: 4, key: 'road4', from: 21, to: 30, theme: 'tropical' },
+    { n: 5, key: 'road5', from: 31, to: 40, theme: 'canyon' },
+    { n: 6, key: 'road6', from: 41, to: 50, theme: 'volcanic' },
     // hidden bonus chapter that branches off after level 40 (rules: BG.Storage.CAMPAIGNS.road.bonus); Forces of Nature
     // (n 7, 51-53) is added by js/features/forces-fx.js
-    { n: 8, name: 'Anchorages', from: 54, to: 58, desc: 'Bonus · land pylons, deadman anchors and backstays', theme: 'autumn', hidden: true },
-  ];
+    { n: 8, key: 'anchorages', from: 54, to: 58, theme: 'autumn', hidden: true },
+  ].map(chapterText);
 
   function levelsList() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
   function levelForSlot(n) {
@@ -397,7 +410,7 @@
   function unlockRuleText(campaign) {
     const S = stor();
     try { if (S && S.unlockRuleText) return S.unlockRuleText(campaign); } catch (e) { /* */ }
-    return 'A level opens when either of the two levels before it is complete.';
+    return t('hud.unlock.rule.road');
   }
   function lockTextFor(id) {
     const S = stor();
@@ -406,8 +419,8 @@
   }
   // the small (i) button on chapter headers: hover / focus shows the rule (desktop), a tap toasts it (touch)
   function unlockInfoBtn(campaign) {
-    const t = esc(unlockRuleText(campaign));
-    return '<button class="ch-info" type="button" data-act="unlockInfo" data-camp-info="' + esc(campaign) + '" aria-label="How levels unlock: ' + t + '" data-tip="' + t + '">' + icon('info') + '</button>';
+    const rule = unlockRuleText(campaign);
+    return '<button class="ch-info" type="button" data-act="unlockInfo" data-camp-info="' + esc(campaign) + '" aria-label="' + esc(t('hud.levels.unlockInfo', { rule })) + '" data-tip="' + esc(rule) + '">' + icon('info') + '</button>';
   }
   // forces: ids of levels in hidden bonus chapters ({hidden: true}) that are not revealed yet (none of their
   // levels unlocked); they stay out of the level select and out of the star / badge totals until then
@@ -471,6 +484,7 @@
     _resultTimers: [],
 
     init(g) {
+      if (I()) I().init();
       const ui = document.getElementById('ui') || document.body.appendChild(h('<div id="ui"></div>'));
       this.root = ui;
       ui.innerHTML = '';
@@ -494,6 +508,15 @@
       const loader = document.getElementById('boot');
       if (loader) { loader.classList.add('gone'); setTimeout(() => loader.remove(), 700); }
       this.applySettings();
+      if (I() && !this._i18nBound) { this._i18nBound = true; I().on('languagechange', ev => this._onLanguage(ev)); }
+    },
+    // the language changed: BG.i18n.apply has already re-translated every [data-i18n] element; rebuild the text
+    // that is built in code. Feature modules that wrap these methods (Resume, Daily, badge chips) re-render with them.
+    _onLanguage() {
+      this.refreshTitle();
+      if (this.el.levels && this.screen === 'levelSelect') this.buildLevelSelect();
+      this.applySettings();
+      this._sig = {};
     },
 
     // ---------------------------------------------------------------- title
@@ -512,18 +535,19 @@
               <path class="la deck" d="M0 128H600"/>
             </svg>
             <h1 class="logo" aria-label="SPAN"><span>S</span><span>P</span><span>A</span><span>N</span></h1>
-            <p class="tagline">Bridge the gap. Mind the budget. <em>Don't drop the bus.</em></p>
+            <p class="tagline" data-i18n-html="hud.title.tagline"></p>
             <div class="title-buttons">
-              <button class="btn btn-primary btn-xl" data-act="play">${icon('play')}<span>Play</span></button>
-              <button class="btn btn-glass btn-xl" data-act="continue" hidden>${icon('next')}<span class="lbl">Continue</span></button>
+              <button class="btn btn-primary btn-xl" data-act="play">${icon('play')}<span data-i18n="hud.title.play"></span></button>
+              <button class="btn btn-glass btn-xl" data-act="continue" hidden>${icon('next')}<span class="lbl" data-i18n="hud.title.continue"></span></button>
             </div>
             <div class="title-meta">
-              <span class="chip" data-ref="titleStars">${starSvg('on')}<b>0</b> / 150</span>
-              <button class="btn btn-icon btn-glass" data-act="settings" title="Settings">${icon('gear')}</button>
+              <span class="chip" data-ref="titleStars" data-i18n-title="hud.title.starsTip">${starSvg('on')}<b>0</b> / 150</span>
+              <button class="btn btn-icon btn-glass" data-act="settings" data-i18n-title="core.settings">${icon('gear')}</button>
             </div>
           </div>
-          <div class="title-foot">Drag to build · Space to test · Enter to play</div>
+          <div class="title-foot" data-i18n="hud.title.foot"></div>
         </section>`);
+      tr(el);
       el.addEventListener('click', e => {
         const b = e.target.closest('[data-act]');
         if (!b) return;
@@ -553,7 +577,7 @@
       if (has && target) {
         cont.hidden = false;
         const camp = campaignOf(target);
-        $('.lbl', cont).textContent = 'Continue · ' + shortLabel(target);
+        $('.lbl', cont).textContent = t('hud.title.continueLevel', { level: shortLabel(target) });
         CAMPAIGN_ORDER.forEach(c => { const k = campaignUi(c).cls; if (k) cont.classList.toggle(k, c === camp); });
       } else cont.hidden = true;
     },
@@ -563,16 +587,17 @@
       const el = h(`
         <section id="screen-levels" class="screen">
           <header class="ls-head glass">
-            <button class="btn btn-icon btn-ghost" data-act="back" title="Back (Esc)">${icon('back')}</button>
-            <div class="ls-title"><h2>Select a crossing</h2><p data-ref="lsSub">Six regions · fifty bridges</p></div>
-            <div class="camp-tabs" role="tablist" aria-label="Campaign"></div>
+            <button class="btn btn-icon btn-ghost" data-act="back" data-i18n-title="hud.levels.back">${icon('back')}</button>
+            <div class="ls-title"><h2 data-i18n="hud.levels.heading"></h2><p data-ref="lsSub"></p></div>
+            <div class="camp-tabs" role="tablist" data-i18n-aria="hud.levels.campaigns"></div>
             <div class="ls-right">
-              <span class="chip chip-lg" data-ref="lsStars">${starSvg('on')}<b>0</b> / 150</span>
-              <button class="btn btn-icon btn-ghost" data-act="settings" title="Settings">${icon('gear')}</button>
+              <span class="chip chip-lg" data-ref="lsStars" data-i18n-title="hud.levels.starsTip">${starSvg('on')}<b>0</b> / 150</span>
+              <button class="btn btn-icon btn-ghost" data-act="settings" data-i18n-title="core.settings">${icon('gear')}</button>
             </div>
           </header>
           <div class="ls-scroll"><div class="chapters"></div></div>
         </section>`);
+      tr(el);
       el.addEventListener('click', e => {
         const tab = e.target.closest('[data-camp]');
         if (tab) {
@@ -589,15 +614,15 @@
           else if (b.dataset.act === 'unlockInfo') this.toast(unlockRuleText(b.dataset.campInfo || this.tab), 'info', 6500);
           return;
         }
-        const t = e.target.closest('.tile');
-        if (!t) return;
-        if (t.classList.contains('open')) { sfx('click'); call('openLevel', +t.dataset.id); }
+        const tile = e.target.closest('.tile');
+        if (!tile) return;
+        if (tile.classList.contains('open')) { sfx('click'); call('openLevel', +tile.dataset.id); }
         else {
           sfx('error');
-          t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope');
-          const shut = campaignLockText(this.tab) || lockTextFor(+t.dataset.id);
-          this.toast(t.classList.contains('soon') ? 'This crossing is still being surveyed — coming soon.'
-            : shut || 'Complete one of the two levels before this one to unlock it.', 'info', 3600);
+          tile.classList.remove('nope'); void tile.offsetWidth; tile.classList.add('nope');
+          const shut = campaignLockText(this.tab) || lockTextFor(+tile.dataset.id);
+          this.toast(tile.classList.contains('soon') ? t('hud.levels.surveyed')
+            : shut || t('hud.levels.lockedDefault'), 'info', 3600);
         }
       });
       this.el.levels = el;
@@ -620,8 +645,13 @@
     // cls (tab / tile class), levelK (top-bar badge word), allLabel (results button after the last level),
     // modeClass (#screen-levels class while active), panelClass + render(panel, info) (own tile panel instead of
     // chapters), continueLabel(level), finale: { banner, title, text(starLine) } }
+    // Text fields may be getters (BG.i18n.lazy) or given as keys: nameKey / subKey / allLabelKey (translated on read).
     registerCampaign(id, ui) {
-      CAMPAIGN_UI[id] = Object.assign({ id, name: id, sub: '', icon: () => icon('road'), cls: 'is-' + id, levelK: 'LEVEL', allLabel: 'All levels' }, ui || {});
+      const u = lazyText({ id, icon: () => icon('road'), cls: 'is-' + id, levelK: 'LEVEL', sub: '' }, { name: () => id, allLabel: 'hud.camp.road.all' });
+      Object.defineProperties(u, Object.getOwnPropertyDescriptors(ui || {}));
+      const keys = {};
+      ['name', 'sub', 'allLabel'].forEach(k => { if (u[k + 'Key']) keys[k] = u[k + 'Key']; });
+      CAMPAIGN_UI[id] = lazyText(u, keys);
       if (!CAMPAIGN_ORDER.includes(id)) CAMPAIGN_ORDER.push(id);
       if (this.el.levels && this.screen === 'levelSelect') this.buildLevelSelect();
     },
@@ -635,7 +665,7 @@
       bar.innerHTML = campaignTabs().map(c => {
         const u = campaignUi(c), open = campaignOpen(c), st = campaignStarsOf(c);
         const gate = S && S.CAMPAIGNS && S.CAMPAIGNS[c] ? S.CAMPAIGNS[c].unlockAfter : null;
-        const small = open ? st.got + ' / ' + (st.max || u.maxDefault || 0) + ' ★' : 'Complete level ' + gate;
+        const small = open ? st.got + ' / ' + (st.max || u.maxDefault || 0) + ' ★' : esc(t('hud.levels.tabLocked', { n: gate }));
         return '<button class="camp-tab ' + (u.cls || '') + (c === camp ? ' active' : '') + (open ? '' : ' locked') + '" role="tab" data-camp="' + c + '" aria-selected="' + (c === camp) + '" title="' + esc(open ? campaignSub(c) : campaignLockText(c) || '') + '">' +
           u.icon() + '<span class="ct-txt"><b>' + esc(u.name) + '</b><small data-ref="ct' + c.charAt(0).toUpperCase() + c.slice(1) + '">' + small + '</small></span><span class="ct-lock">' + icon('lock') + '</span></button>';
       }).join('');
@@ -683,7 +713,7 @@
           const lv = levelForSlot(n);
           const num = n;
           if (!lv) {
-            tiles.push(`<div class="tile soon ${cu.cls || ''}" data-id="${n}" style="--acc:${th.accent}"><div class="tile-art soon-art"><span>${num}</span></div><div class="tile-body"><div class="tile-name">Coming soon</div><div class="tile-stars dim">${starSvg()}${starSvg()}${starSvg()}</div></div></div>`);
+            tiles.push(`<div class="tile soon ${cu.cls || ''}" data-id="${n}" style="--acc:${th.accent}"><div class="tile-art soon-art"><span>${num}</span></div><div class="tile-body"><div class="tile-name">${esc(t('core.comingSoon'))}</div><div class="tile-stars dim">${starSvg()}${starSvg()}${starSvg()}</div></div></div>`);
             continue;
           }
           const id = levelId(lv);
@@ -696,19 +726,18 @@
           const rail = campaignOf(lv) === 'rail';
           const skip = isOpen && !done && skipped(id);
           const gate = isGateLevel(lv);
-          const gateTip = (rail ? 'Line' : 'Chapter') + ' finale: complete it to go on (it can\'t be skipped)';
+          const gateTip = esc(t(rail ? 'hud.levels.gateTipRail' : 'hud.levels.gateTipRoad'));
           tiles.push(`<button class="tile ${isOpen ? 'open' : 'locked'} ${done ? 'done' : ''} ${rail ? 'is-rail' : ''} ${skip ? 'skipped' : ''} ${gate ? 'gate' : ''}" data-id="${id}" style="--acc:${lth.accent}" ${isOpen ? '' : 'aria-disabled="true"'}>
-              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${gate ? '<span class="tile-gate" title="' + gateTip + '">' + icon('flag') + '</span>' : ''}${skip ? '<span class="tile-skip">Skipped — come back later</span>' : ''}${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${isOpen ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
-              <div class="tile-body"><div class="tile-name">${esc(lv.name || levelLabel(lv))}</div>
+              <div class="tile-art">${thumbSvg(lv)}<span class="tile-num">${displayNum(lv)}</span>${gate ? '<span class="tile-gate" title="' + gateTip + '">' + icon('flag') + '</span>' : ''}${skip ? '<span class="tile-skip">' + esc(t('hud.levels.skipped')) + '</span>' : ''}${rail ? '<span class="tile-train">' + trafficIcon(lv) + '</span>' : ''}${isOpen ? '' : '<span class="tile-lock">' + icon('lock') + '</span>'}</div>
+              <div class="tile-body"><div class="tile-name">${esc(lvName(lv) || levelLabel(lv))}</div>
               <div class="tile-stars">${[0, 1, 2].map(i => starSvg(i < st ? 'on' : '')).join('')}</div></div>
             </button>`);
         }
-        const range = ch.from + '–' + ch.to;
         const sec = h(`<section class="chapter ${anyOpen ? '' : 'ch-locked'} ${camp === 'rail' ? 'ch-rail' : ''}" style="--acc:${th.accent};--sky0:${th.sky[0]};--sky1:${th.sky[1]}">
             <div class="ch-head">
               <div class="ch-num">${ch.n}</div>
-              <div class="ch-text"><h3>${esc(ch.name)}</h3><p>Levels ${range} · ${esc(ch.desc)}</p></div>
-              <div class="ch-stars">${chMax ? starSvg('on') + '<b>' + chStars + '</b>/' + chMax : '<span class="soon-tag">Coming soon</span>'}</div>
+              <div class="ch-text"><h3>${esc(ch.name)}</h3><p>${esc(t('hud.levels.chapterLine', { from: ch.from, to: ch.to, desc: ch.desc }))}</p></div>
+              <div class="ch-stars">${chMax ? starSvg('on') + '<b>' + chStars + '</b>/' + chMax : '<span class="soon-tag">' + esc(t('core.comingSoon')) + '</span>'}</div>
               ${unlockInfoBtn(camp)}
             </div>
             <div class="tiles">${tiles.join('')}</div>
@@ -1351,25 +1380,31 @@
       const el = h(`
         <div id="settings" class="modal">
           <div class="modal-card glass">
-            <div class="modal-head"><h3>${icon('gear')}Settings</h3><button class="btn btn-icon btn-ghost" data-act="close" title="Close">${icon('close')}</button></div>
-            <label class="set-row"><span>${icon('volume')}Sound volume</span><input type="range" min="0" max="100" step="1" data-set="volume"><output data-ref="volOut">70%</output></label>
-            <label class="set-row"><span>${icon('stress')}Stress overlay</span><input type="checkbox" class="switch" data-set="showStress"></label>
-            <label class="set-row"><span>${icon('grid')}Build grid</span><input type="checkbox" class="switch" data-set="showGrid"></label>
-            <div class="set-row keys"><span>Shortcuts</span><div class="kb">
-              <span><kbd>1</kbd>–<kbd>6</kbd> material</span><span><kbd>B</kbd> build</span><span><kbd>E</kbd> erase</span><span><kbd>P</kbd> pier</span><span><kbd>S</kbd> select</span><span><kbd>M</kbd> mirror</span>
-              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> undo / redo</span><span><kbd>Shift</kbd> fine snap</span><span><kbd>Ctrl</kbd>+drag move joint</span><span><kbd>Del</kbd> delete selection</span><span><kbd>Space</kbd> test / stop</span><span><kbd>R</kbd> restart test</span><span><kbd>P</kbd> pause (test)</span><span><kbd>Wheel</kbd> zoom · <kbd>F</kbd> fit (build)</span><span><kbd>F</kbd> follow traffic (test)</span><span><kbd>T</kbd> track recording (rail test)</span><span>Right-drag pan</span><span><kbd>Esc</kbd> back</span></div></div>
-            <div class="modal-foot"><button class="btn btn-ghost danger" data-act="reset">Reset progress</button><button class="btn btn-primary" data-act="close">Done</button></div>
+            <div class="modal-head"><h3 data-i18n="core.settings">${icon('gear')}</h3><button class="btn btn-icon btn-ghost" data-act="close" data-i18n-title="core.close">${icon('close')}</button></div>
+            <div class="set-row set-lang"><span data-i18n="hud.settings.language">${icon('globe')}</span>
+              <div class="seg lang-seg" role="radiogroup" data-i18n-aria="hud.settings.language">${(I() ? I().languages() : []).map(l =>
+                '<button type="button" role="radio" data-lang="' + esc(l.id) + '" lang="' + esc(l.id) + '">' + esc(l.name) + '</button>').join('')}</div></div>
+            <label class="set-row"><span data-i18n="hud.settings.volume">${icon('volume')}</span><input type="range" min="0" max="100" step="1" data-set="volume" data-i18n-aria="hud.settings.volume"><output data-ref="volOut">70%</output></label>
+            <label class="set-row"><span data-i18n="hud.settings.stress">${icon('stress')}</span><input type="checkbox" class="switch" data-set="showStress"></label>
+            <label class="set-row"><span data-i18n="hud.settings.grid">${icon('grid')}</span><input type="checkbox" class="switch" data-set="showGrid"></label>
+            <div class="set-row keys"><span data-i18n="hud.settings.shortcuts"></span><div class="kb">
+              <span><kbd>1</kbd>–<kbd>6</kbd> <i data-i18n="hud.keys.material"></i></span><span><kbd>B</kbd> <i data-i18n="hud.keys.build"></i></span><span><kbd>E</kbd> <i data-i18n="hud.keys.erase"></i></span><span><kbd>P</kbd> <i data-i18n="hud.keys.pier"></i></span><span><kbd>S</kbd> <i data-i18n="hud.keys.select"></i></span><span><kbd>M</kbd> <i data-i18n="hud.keys.mirror"></i></span>
+              <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> <i data-i18n="hud.keys.undoRedo"></i></span><span><kbd>Shift</kbd> <i data-i18n="hud.keys.fineSnap"></i></span><span><kbd>Ctrl</kbd>+<i data-i18n="hud.keys.moveJoint"></i></span><span><kbd>Del</kbd> <i data-i18n="hud.keys.deleteSel"></i></span><span><kbd data-i18n="hud.keys.space"></kbd> <i data-i18n="hud.keys.test"></i></span><span><kbd>R</kbd> <i data-i18n="hud.keys.restart"></i></span><span><kbd>P</kbd> <i data-i18n="hud.keys.pause"></i></span><span><kbd data-i18n="hud.keys.wheel"></kbd> <i data-i18n="hud.keys.zoom"></i> · <kbd>F</kbd> <i data-i18n="hud.keys.fit"></i></span><span><kbd>F</kbd> <i data-i18n="hud.keys.follow"></i></span><span><kbd>T</kbd> <i data-i18n="hud.keys.track"></i></span><span data-i18n="hud.keys.pan"></span><span><kbd>Esc</kbd> <i data-i18n="hud.keys.back"></i></span></div></div>
+            <div class="modal-foot"><button class="btn btn-ghost danger" data-act="reset" data-i18n="hud.settings.reset"></button><button class="btn btn-primary" data-act="close" data-i18n="core.done"></button></div>
           </div>
         </div>`);
+      tr(el);
       el.addEventListener('click', e => {
         if (e.target === el) { this.closeSettings(); return; }
-        const b = e.target.closest('[data-act]');
+        const b = e.target.closest('[data-act], [data-lang]');
         if (!b) return;
+        if (b.dataset.lang) { sfx('click'); if (I()) I().setLanguage(b.dataset.lang); return; }
         if (b.dataset.act === 'close') { sfx('click'); this.closeSettings(); }
         if (b.dataset.act === 'reset') {
-          if (!b.classList.contains('confirm')) { sfx('error'); b.classList.add('confirm'); b.textContent = 'Click again to erase all progress'; setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'Reset progress'; }, 3500); return; }
-          sfx('erase'); call('resetProgress'); b.classList.remove('confirm'); b.textContent = 'Reset progress';
-          this.toast('Progress reset.', 'info');
+          const label = key => { b.dataset.i18n = key; b.textContent = t(key); };
+          if (!b.classList.contains('confirm')) { sfx('error'); b.classList.add('confirm'); label('hud.settings.resetConfirm'); setTimeout(() => { b.classList.remove('confirm'); label('hud.settings.reset'); }, 3500); return; }
+          sfx('erase'); call('resetProgress'); b.classList.remove('confirm'); label('hud.settings.reset');
+          this.toast(t('hud.settings.resetDone'), 'info');
         }
       });
       el.addEventListener('input', e => {
@@ -1378,7 +1413,7 @@
         const key = inp.dataset.set;
         if (key === 'volume') {
           const v = (+inp.value) / 100;
-          $('[data-ref=volOut]', el).textContent = Math.round(v * 100) + '%';
+          $('[data-ref=volOut]', el).textContent = I() ? I().percent(v) : Math.round(v * 100) + '%';
           call('setSetting', 'volume', v);
         }
       });
@@ -1396,7 +1431,10 @@
       const el = this.el.settings;
       if (!el) return;
       $('[data-set=volume]', el).value = Math.round((s.volume != null ? s.volume : 0.7) * 100);
-      $('[data-ref=volOut]', el).textContent = Math.round((s.volume != null ? s.volume : 0.7) * 100) + '%';
+      const vol = s.volume != null ? s.volume : 0.7;
+      $('[data-ref=volOut]', el).textContent = I() ? I().percent(vol) : Math.round(vol * 100) + '%';
+      const cur = I() ? I().lang() : 'en';
+      $$('[data-lang]', el).forEach(b => { const on = b.dataset.lang === cur; b.classList.toggle('active', on); b.setAttribute('aria-checked', String(on)); });
       $('[data-set=showStress]', el).checked = !!s.showStress;
       $('[data-set=showGrid]', el).checked = !!s.showGrid;
       this._sig.sim = null;

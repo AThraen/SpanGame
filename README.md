@@ -223,6 +223,7 @@ The screenshots in this README are generated headlessly too: `node tools/screens
 ```
 index.html            page shell; loads the classic scripts in order (no modules, so file:// works)
 css/                  HUD and menus, one stylesheet per feature, mobile.css last
+js/i18n/              BG.i18n (translations, number formatting) and the en / da dictionaries, one file per area
 js/core/              simulation core: runs in the browser AND in Node, no DOM
                       materials, vehicles, trains, model (cost / validation), physics (XPBD),
                       events (wind / quake), levels (generated), templates, generator (daily / endless)
@@ -248,6 +249,7 @@ Everything hangs off one global, `window.BG`. See [docs/ARCHITECTURE.md](docs/AR
 - [docs/LEVEL-AUTHORING.md](docs/LEVEL-AUTHORING.md): the level JSON reference, solutions, budget rules, the verify pipeline, badges, adding a campaign
 - [docs/TESTING.md](docs/TESTING.md): every test suite, what it proves, and how to run it
 - [docs/GAMEPLAY.md](docs/GAMEPLAY.md): the full rules, badges, daily challenge, history, and every level by name
+- [docs/I18N.md](docs/I18N.md): translations (English and Danish): adding a string, level text, plurals, number formatting, a new language
 - [SPEC.md](SPEC.md): data contracts between modules
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 

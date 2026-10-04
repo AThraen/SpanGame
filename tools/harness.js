@@ -6,9 +6,17 @@ const path = require('path');
 const vm = require('vm');
 
 const CORE = path.resolve(__dirname, '..', 'js', 'core');
+// i18n: BG.i18n and every dictionary load first, as in index.html (language 'en' in Node unless set)
+const I18N = path.resolve(__dirname, '..', 'js', 'i18n');
+const I18N_AREAS = ['core', 'hud', 'editor', 'results', 'levels', 'famous', 'features', 'vehicles'];
+const I18N_FILES = ['i18n.js'].concat(...['en', 'da'].map(l => I18N_AREAS.map(a => l + '/' + a + '.js')));
 const ORDER = ['materials.js', 'vehicles.js', 'trains.js', 'model.js', 'physics.js', 'events.js', 'levels.js', 'templates.js', 'curves.js']; // arch-tool: curves.js = BG.Curves // forces: events.js = BG.Forces
 
 function load() {
+  for (const f of I18N_FILES) {
+    const file = path.join(I18N, f);
+    if (fs.existsSync(file)) vm.runInThisContext(fs.readFileSync(file, 'utf8'), { filename: file });
+  }
   for (const f of ORDER) {
     const file = path.join(CORE, f);
     if (!fs.existsSync(file)) continue;
@@ -58,4 +66,4 @@ function runHeadless(level, design, opts) {
   return out;
 }
 
-module.exports = { BG, runHeadless, load };
+module.exports = { BG, runHeadless, load, I18N_AREAS, I18N_FILES };

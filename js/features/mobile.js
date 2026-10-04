@@ -32,6 +32,7 @@
   function canvasEl() { const g = game(); return (g && g.canvas) || doc.getElementById('game-canvas'); }
   function $(s, el) { return (el || doc).querySelector(s); }
   function icon(n) { return BG.Hud && BG.Hud.icon ? BG.Hud.icon(n) : ''; }
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
   function h(markup) { const t = doc.createElement('template'); t.innerHTML = markup.trim(); return t.content.firstElementChild; }
   function wrap(obj, name, fn) {
     if (!obj || typeof obj[name] !== 'function' || obj[name].__mobile) return false;
@@ -233,12 +234,12 @@
     doc.querySelectorAll('.m-fs-btn').forEach((b) => {
       b.classList.toggle('m-fs-ok', ok);
       b.classList.toggle('on', on);
-      b.title = on ? 'Exit fullscreen' : 'Fullscreen';
+      b.title = t(on ? 'core.exitFullscreen' : 'core.fullscreen');
       const i = b.querySelector('.fs-in'), o = b.querySelector('.fs-out');
       if (i) i.style.display = on ? 'none' : '';
       if (o) o.style.display = on ? '' : 'none';
     });
-    doc.querySelectorAll('.m-fs-toggle').forEach((b) => { b.textContent = on ? 'Exit' : 'Enter'; });
+    doc.querySelectorAll('.m-fs-toggle').forEach((b) => { b.dataset.i18n = on ? 'hud.settings.fsExit' : 'hud.settings.fsEnter'; b.textContent = t(b.dataset.i18n); });
     doc.querySelectorAll('.m-fs-row').forEach((r) => { r.hidden = !ok; });
   }
 
@@ -271,37 +272,31 @@
 
     // fullscreen buttons: title screen + in-level top bar
     const tm = $('#screen-title .title-meta');
-    if (tm) tm.insertBefore(h('<button class="btn btn-icon btn-glass m-fs-btn" data-mact="fullscreen" title="Fullscreen">' + FS_ICON + '</button>'), tm.lastElementChild);
+    if (tm) tm.insertBefore(h('<button class="btn btn-icon btn-glass m-fs-btn" data-mact="fullscreen">' + FS_ICON + '</button>'), tm.lastElementChild);
     const tb = $('.topbar', lvl), tbSet = tb && $('[data-act=settings]', tb);
-    if (tb && tbSet) tb.insertBefore(h('<button class="btn btn-icon btn-ghost m-fs-btn" data-mact="fullscreen" title="Fullscreen">' + FS_ICON + '</button>'), tbSet);
+    if (tb && tbSet) tb.insertBefore(h('<button class="btn btn-icon btn-ghost m-fs-btn" data-mact="fullscreen">' + FS_ICON + '</button>'), tbSet);
 
-    // title foot text for touch
-    const foot = $('#screen-title .title-foot');
-    if (foot) { UI.footDesk = foot.textContent; }
+    // title foot text for touch: applyTouchText switches its i18n key
 
     // settings rows
     const card = $('#settings .modal-card'), foot2 = card && $('.modal-foot', card), keys = card && $('.set-row.keys', card);
     if (card && foot2) {
       const vib = root.navigator && typeof root.navigator.vibrate === 'function';
       const rows = [
-        `<label class="set-row m-set-row m-touch-only"><span>${icon('eye')}Magnifier while dragging</span><input type="checkbox" class="switch" data-mset="loupe"></label>`,
-        `<label class="set-row m-set-row m-touch-only"><span>${icon('select')}Offset cursor (aim above finger)</span><input type="checkbox" class="switch" data-mset="offsetCursor"></label>`,
-        vib ? `<label class="set-row m-set-row m-touch-only"><span>${VIB_ICON}Vibration</span><input type="checkbox" class="switch" data-mset="haptics"></label>` : '',
-        `<div class="set-row m-set-row m-touch-only"><span>${icon('stress')}Performance mode</span><select data-mset="perfMode" aria-label="Performance mode"><option value="auto">Auto</option><option value="on">On · smoother</option><option value="off">Off · prettier</option></select></div>`,
-        `<div class="set-row m-set-row m-touch-only m-fs-row"><span>${FS_ICON}Fullscreen</span><button class="btn btn-glass m-fs-toggle" data-mact="fullscreen">Enter</button></div>`,
+        `<label class="set-row m-set-row m-touch-only"><span data-i18n="hud.settings.loupe">${icon('eye')}</span><input type="checkbox" class="switch" data-mset="loupe"></label>`,
+        `<label class="set-row m-set-row m-touch-only"><span data-i18n="hud.settings.offsetCursor">${icon('select')}</span><input type="checkbox" class="switch" data-mset="offsetCursor"></label>`,
+        vib ? `<label class="set-row m-set-row m-touch-only"><span data-i18n="hud.settings.vibration">${VIB_ICON}</span><input type="checkbox" class="switch" data-mset="haptics"></label>` : '',
+        `<div class="set-row m-set-row m-touch-only"><span data-i18n="hud.settings.perfMode">${icon('stress')}</span><select data-mset="perfMode" data-i18n-aria="hud.settings.perfMode"><option value="auto" data-i18n="hud.settings.perfAuto"></option><option value="on" data-i18n="hud.settings.perfOn"></option><option value="off" data-i18n="hud.settings.perfOff"></option></select></div>`,
+        `<div class="set-row m-set-row m-touch-only m-fs-row"><span data-i18n="core.fullscreen">${FS_ICON}</span><button class="btn btn-glass m-fs-toggle" data-mact="fullscreen" data-i18n="hud.settings.fsEnter"></button></div>`,
       ].join('');
       const frag = doc.createElement('div');
       frag.innerHTML = rows;
+      if (BG.i18n) BG.i18n.apply(frag);
       const anchor = keys || foot2;
       while (frag.firstElementChild) card.insertBefore(frag.firstElementChild, anchor);
-      const gest = h(`<div class="set-row m-gestures"><span>Touch</span><div class="m-gest-list">
-          <b>Drag from a joint</b><span>build a beam (it keeps building from its end)</span>
-          <b>Tap a joint</b><span>start / stop building from it</span>
-          <b>Hold, then drag</b><span>move a joint</span>
-          <b>Hold and lift</b><span>delete, stop, undo… menu</span>
-          <b>Arch tool</b><span>drag start to end, drag for the rise, tap to place; two-finger tap cancels</span>
-          <b>Drag empty space</b><span>pan the view</span>
-          <b>Pinch / two fingers</b><span>zoom and pan</span></div></div>`);
+      const gest = h(`<div class="set-row m-gestures"><span data-i18n="hud.settings.touch"></span><div class="m-gest-list">${[1, 2, 3, 4, 5, 6, 7].map(i =>
+        '<b data-i18n="hud.settings.g' + i + '"></b><span data-i18n="hud.settings.g' + i + 't"></span>').join('')}</div></div>`);
+      if (BG.i18n) BG.i18n.apply(gest);
       card.insertBefore(gest, keys ? keys.nextSibling : foot2);
       card.addEventListener('change', (e) => {
         const inp = e.target.closest && e.target.closest('[data-mset]');
@@ -335,12 +330,14 @@
     syncFsButtons();
     applyTouchText();
     syncSettingsUi();
+    // i18n: the fullscreen titles and the title foot are set in code; re-set them in the new language
+    if (BG.i18n) BG.i18n.on('languagechange', () => { syncFsButtons(); applyTouchText(); });
   }
   function sfx(n) { safe(() => { if (BG.Audio && BG.Audio.play) BG.Audio.play(n); }); }
   function onFsChange() { syncFsButtons(); setTimeout(onResize, 60); }
   function applyTouchText() {
     const foot = $('#screen-title .title-foot');
-    if (foot && UI.footDesk != null) foot.textContent = Env.touch ? 'Drag to build · Pinch to zoom · Tap Test to run' : UI.footDesk;
+    if (foot) { foot.dataset.i18n = Env.touch ? 'hud.title.footTouch' : 'hud.title.foot'; foot.textContent = t(foot.dataset.i18n); }
   }
   function syncSettingsUi() {
     const card = $('#settings .modal-card');

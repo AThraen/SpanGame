@@ -519,7 +519,8 @@
     Hud._forcesWrapped = true;
     // the hidden bonus chapter (shown in level select once one of its levels is unlocked; see hud.js)
     if (Array.isArray(Hud.CHAPTERS) && !Hud.CHAPTERS.some(c => c.from === 51)) {
-      Hud.CHAPTERS.push({ n: 7, name: 'Forces of Nature', from: 51, to: 53, desc: 'Bonus · hurricane winds, earthquakes and resonance', theme: 'tropical', hidden: true });
+      const ch = { n: 7, key: 'forces', from: 51, to: 53, theme: 'tropical', hidden: true };
+      Hud.CHAPTERS.push(BG.i18n ? BG.i18n.lazy(ch, { name: 'hud.chapter.forces.name', desc: 'hud.chapter.forces.desc' }) : ch);
     }
     const oEnter = Hud.enterLevel, oUpdate = Hud.update;
     if (oEnter) Hud.enterLevel = function (level) { const r = oEnter.apply(this, arguments); safe(() => hudEnter(level)); return r; };

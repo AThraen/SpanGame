@@ -52,7 +52,13 @@
     return progCache.v;
   }
 
+  // lang: 'en' | 'da', written by BG.i18n.setLanguage (no entry = follow the browser language)
   const DEFAULT_SETTINGS = { volume: 0.7, muted: false, showStress: true, showGrid: true, music: true };
+
+  // texts come from the dictionaries (hud.unlock.*, js/i18n/<lang>/hud.js); without BG.i18n (a bare Node test) the key
+  function t(key, params) { return BG.i18n ? BG.i18n.t(key, params) : key; }
+  function has(key) { return !!(BG.i18n && BG.i18n.has(key)); }
+  function lazyName(obj, key) { return BG.i18n ? BG.i18n.lazy(obj, { name: key }) : obj; }
 
   const Storage = {
     available: hasLS,
@@ -103,11 +109,13 @@
     // their levels unlock in their own list (the first once `unlockAfter` is complete, then the usual either-of-two rule),
     // they are never gates and never block the main line, Next stays inside the chapter, and finishing `last` shows the
     // chapter's own finale (finaleOf -> the chapter id). The Forces of Nature (51-53) stay on the main line after 50.
+    // `name` reads hud.camp.<id>.name (bonus chapters: hud.chapter.<id>.name) in the current language. Lock texts
+    // use hud.unlock.gate.<id> / hud.unlock.campaign.<id> when the dictionary has them, else the generic forms.
     CAMPAIGNS: {
-      road: { id: 'road', name: 'Roads', first: 1, last: 50, bonusLast: 53, unlockAfter: null, gates: [5, 10, 20, 30, 40, 50], gateWord: 'chapter finale',
-        bonus: [{ id: 'anchorages', name: 'Anchorages', first: 54, last: 58, unlockAfter: 40 }] },
-      rail: { id: 'rail', name: 'Iron Road', first: 101, last: 120, unlockAfter: 10, gates: [105, 110, 115, 120], gateWord: 'line finale' },
-      famous: { id: 'famous', name: 'Famous Bridges', first: 201, last: 212, unlockAfter: 15, gates: [], gateWord: 'finale' },
+      road: lazyName({ id: 'road', first: 1, last: 50, bonusLast: 53, unlockAfter: null, gates: [5, 10, 20, 30, 40, 50],
+        bonus: [lazyName({ id: 'anchorages', first: 54, last: 58, unlockAfter: 40 }, 'hud.chapter.anchorages.name')] }, 'hud.camp.road.name'),
+      rail: lazyName({ id: 'rail', first: 101, last: 120, unlockAfter: 10, gates: [105, 110, 115, 120] }, 'hud.camp.rail.name'),
+      famous: lazyName({ id: 'famous', first: 201, last: 212, unlockAfter: 15, gates: [] }, 'famous.tab.name'),
     },
     CAMPAIGN_ORDER: ['road', 'rail', 'famous'],
     RAIL_UNLOCK_LEVEL: 10,
@@ -169,7 +177,8 @@
     campaignLockText(campaign) {
       const c = Storage.CAMPAIGNS[campaign];
       if (!c || Storage.isCampaignUnlocked(campaign)) return null;
-      return 'Complete level ' + c.unlockAfter + ' to open ' + (campaign === 'famous' ? c.name : 'the ' + c.name) + '.';
+      const k = 'hud.unlock.campaign.' + campaign;
+      return t(has(k) ? k : 'hud.unlock.campaign', { n: c.unlockAfter, name: c.name });
     },
     campaignStars(levels, campaign) {
       let got = 0, max = 0;
@@ -226,28 +235,24 @@
     lockText(id, levels) {
       if (Storage.isUnlocked(id, levels)) return null;
       const { lv, campaign, list, idx } = Storage._campaignListOf(id, levels);
-      if (lv && !Storage.isPlayable(lv)) return 'This crossing is not available yet.';
+      if (lv && !Storage.isPlayable(lv)) return t('hud.unlock.unavailable');
       const shut = Storage.campaignLockText(campaign);
       if (shut) return shut;
       const b = Storage.bonusChapterOf(lv);
-      if (b && b.unlockAfter != null && !Storage.isCompleted(b.unlockAfter)) return 'Complete level ' + b.unlockAfter + ' to open the ' + b.name + '.';
-      const c = Storage.CAMPAIGNS[campaign] || {};
-      const name = l => (campaign === 'famous' && l.name ? l.name : 'level ' + l.id);
+      if (b && b.unlockAfter != null && !Storage.isCompleted(b.unlockAfter)) return t('hud.unlock.bonus', { n: b.unlockAfter, name: b.name });
+      const levelName = l => (BG.i18n ? BG.i18n.levelText(l, 'name') : l.name);
+      const name = l => (campaign === 'famous' && l.name ? levelName(l) : t('hud.unlock.levelRef', { n: l.id }));
+      const gk = 'hud.unlock.gate.' + campaign;
       for (let k = 0; k < idx; k++) {
-        if (Storage.isGate(list[k]) && !Storage.isCompleted(list[k].id))
-          return 'Complete ' + name(list[k]) + ' first - ' + (c.gateWord || 'chapter finale') + "s can't be skipped.";
+        if (Storage.isGate(list[k]) && !Storage.isCompleted(list[k].id)) return t(has(gk) ? gk : 'hud.unlock.gate', { name: name(list[k]) });
       }
       const prev = list.slice(Math.max(0, idx - 2), idx).map(name);
-      return prev.length ? 'Complete ' + prev.join(' or ') + ' to unlock this one.' : 'Complete the previous level first.';
+      return prev.length ? t('hud.unlock.prev', { levels: prev.join(' ' + t('core.or') + ' ') }) : t('hud.unlock.prevOne');
     },
     // the rule in one sentence, for the level-select info tooltips
     unlockRuleText(campaign) {
-      const unit = campaign === 'famous' ? 'bridge' : 'level';
-      const fin = campaign === 'famous' ? "The finale can't be skipped."
-        : (campaign === 'rail' ? 'Line finales (the last level of each line)' : 'Chapter finales (the last level of each chapter)') +
-          " can't be skipped: finish one to go on.";
-      return 'A ' + unit + ' opens when either of the two ' + unit + 's before it is complete, so you can skip one ' + unit +
-        ' and come back later. ' + fin;
+      const k = 'hud.unlock.rule.' + campaign;
+      return t(has(k) ? k : 'hud.unlock.rule.road');
     },
     // the levels kept open by the unlock migration (players who had levels open past an unfinished gate keep them)
     keptUnlocks() {

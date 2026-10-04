@@ -375,6 +375,7 @@
   function money(n) { return Hud.money ? Hud.money(n) : '$' + Math.round(n); }
   function icon(n) { return Hud.icon ? Hud.icon(n) : ''; }
   function sfx(n, o) { try { BG.Audio && BG.Audio.play(n, o); } catch (e) { /* */ } }
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
   function toast(m, k, ms) { safe(() => Hud.toast && Hud.toast(m, k, ms)); }
   function levels() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
   function findLevel(id) { return safe(() => Game.findLevel(id), null); }
@@ -539,20 +540,20 @@
   Hud.refreshTitle = function () { // history: Resume button
     const out = origRefreshTitle ? origRefreshTitle.apply(this, arguments) : undefined;
     safe(() => {
-      const t = this.el.title;
-      const btn = t && t.querySelector('[data-hist=resume]');
+      const ti = this.el.title;
+      const btn = ti && ti.querySelector('[data-hist=resume]');
       if (!btn) return;
       const r = resumeTarget();
       btn.hidden = !r;
       if (r) {
-        btn.querySelector('.lbl').textContent = 'Resume · ' + lvLabel(r.levelId);
+        btn.querySelector('.lbl').textContent = t('hud.title.resumeLevel', { level: lvLabel(r.levelId) });
         // same level as Continue: one button, labelled Resume (Game.continueGame resumes it, camera included)
-        const cont = t.querySelector('[data-act=continue]');
+        const cont = ti.querySelector('[data-act=continue]');
         const ct = safe(() => Game.continueTarget(), null);
         if (cont && !cont.hidden && ct && ct.id === r.levelId) {
           btn.hidden = true;
           const l = cont.querySelector('.lbl');
-          if (l) l.textContent = 'Resume · ' + lvLabel(r.levelId);
+          if (l) l.textContent = t('hud.title.resumeLevel', { level: lvLabel(r.levelId) });
         }
       }
     });
@@ -744,7 +745,7 @@
     // title: Resume + History
     const tb = hud.el.title && hud.el.title.querySelector('.title-buttons');
     if (tb) {
-      const b = el('<button class="btn btn-glass btn-xl hist-resume" data-hist="resume" hidden>' + icon('restart') + '<span class="lbl">Resume</span></button>');
+      const b = el('<button class="btn btn-glass btn-xl hist-resume" data-hist="resume" hidden>' + icon('restart') + '<span class="lbl">' + esc(t('hud.title.resume')) + '</span></button>');
       b.addEventListener('click', e => { e.stopPropagation(); sfx('click'); Game.resumeSession(); });
       tb.insertBefore(b, tb.firstChild ? tb.firstChild.nextSibling : null);
     }
@@ -793,12 +794,13 @@
     const card = hud.el.settings && hud.el.settings.querySelector('.modal-card');
     const foot = card && card.querySelector('.modal-foot');
     if (card) {
-      const row = el(`<div class="set-row hist-save"><span>${icon('save')}Save data</span>
+      const row = el(`<div class="set-row hist-save"><span data-i18n="hud.settings.saveData">${icon('save')}</span>
           <div class="hist-save-btns">
-            <button class="btn btn-glass sm" data-hsave="export" title="Download your progress as a file">Export</button>
-            <button class="btn btn-glass sm" data-hsave="import" title="Load progress from a file">Import</button>
+            <button class="btn btn-glass sm" data-hsave="export" data-i18n="hud.settings.export" data-i18n-title="hud.settings.exportTip"></button>
+            <button class="btn btn-glass sm" data-hsave="import" data-i18n="hud.settings.import" data-i18n-title="hud.settings.importTip"></button>
             <input type="file" accept=".json,application/json" data-hsave="file" hidden>
           </div></div>`);
+      if (BG.i18n) BG.i18n.apply(row);
       card.insertBefore(row, foot || null);
       const file = row.querySelector('[data-hsave=file]');
       row.addEventListener('click', e => {
@@ -818,7 +820,7 @@
     safe(() => hud.refreshTitle && hud.refreshTitle());
   }
   function histButton(cls) {
-    const b = el('<button class="btn btn-icon ' + cls + ' hist-open" data-hist="open" title="History & stats">' + icon('clock') + '</button>');
+    const b = el('<button class="btn btn-icon ' + cls + ' hist-open" data-hist="open" data-i18n-title="hud.title.history" title="' + esc(t('hud.title.history')) + '">' + icon('clock') + '</button>');
     b.addEventListener('click', e => { e.stopPropagation(); sfx('click'); openHistory(); });
     return b;
   }

@@ -414,6 +414,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; border-r
 .kb { flex: 3; display: grid; grid-template-columns: auto auto; gap: 7px 14px; font-size: 12px; color: var(--muted); }
 .kb > span { white-space: nowrap; }
 .set-row.keys > span:first-child { flex: 0 0 auto; }
+.kb i { font-style: normal; }
+/* i18n: language picker (touch-sized on every device) */
+.set-row.set-lang { cursor: default; }
+.lang-seg button { min-height: 44px; min-width: 88px; padding: 0 14px; font-size: 14px; }
+.lang-seg button.active { color: #fff; }
 .modal-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .07); }
 input[type=range] { -webkit-appearance: none; appearance: none; width: 160px; height: 6px; border-radius: 6px; background: rgba(255, 255, 255, .14); outline: none; cursor: pointer; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .4), 0 0 0 4px rgba(255, 181, 71, .35); }

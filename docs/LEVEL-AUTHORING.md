@@ -186,16 +186,17 @@ A campaign is a range of level ids with its own tab on the level select, its own
 
 1. **Rules:** add an entry to `BG.Storage.CAMPAIGNS` in `js/ui/storage.js` and its id to `CAMPAIGN_ORDER`:
    ```js
-   bridges2: { id: 'bridges2', name: 'My Campaign', first: 301, last: 320, unlockAfter: 20,
-               gates: [305, 310, 315, 320], gateWord: 'chapter finale' },
+   bridges2: lazyName({ id: 'bridges2', first: 301, last: 320, unlockAfter: 20,
+               gates: [305, 310, 315, 320] }, 'hud.camp.bridges2.name'),
    ```
+   The name comes from the dictionaries (`hud.camp.bridges2.name` in `js/i18n/en/hud.js` and `js/i18n/da/hud.js`). Lock texts use `hud.unlock.campaign.bridges2`, `hud.unlock.gate.bridges2` and `hud.unlock.rule.bridges2` when they exist, else the generic wording (see [I18N.md](I18N.md)).
    `unlockAfter` is the road level that opens it; `gates` are the chapter finales that can't be skipped (the campaign's `last` is always one). Inside a campaign a level opens when either of the two playable levels before it is complete.
 2. **Levels:** write `tools/levels/level-301.json` … with `"campaign": "bridges2"`, plus reference and best solutions, as above.
 3. **Look:** register the tab, either with chapters like the Roads and the Iron Road (`CHAPTERS` / `RAIL_CHAPTERS` in `js/ui/hud.js`), or from a feature module:
    ```js
    BG.Hud.registerCampaign('bridges2', {
-     name: 'My Campaign', sub: 'Twenty new crossings', icon: () => '<svg>...</svg>',
-     levelK: 'LEVEL', allLabel: 'All crossings',
+     nameKey: 'hud.camp.bridges2.name', subKey: 'hud.camp.bridges2.sub', allLabelKey: 'hud.camp.bridges2.all',
+     icon: () => '<svg>...</svg>', levelK: 'LEVEL',
      finale: { banner: 'Campaign complete', title: 'Well built!', text: starLine => starLine },
    });
    ```

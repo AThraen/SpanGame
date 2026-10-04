@@ -23,6 +23,7 @@ const NODE = [
   ['test-daily.js', '--node-only'],
   ['test-famous.js', '--node-only'],
   ['test-history.js', '--node-only'],
+  ['test-i18n.js', '--node-only', '--report-only'], // i18n: the hard-coded string lint reports until the extraction is done
 ];
 const BROWSER = [
   ['e2e.js'],
@@ -35,6 +36,7 @@ const BROWSER = [
   ['test-mobile.js'],
   ['test-pwa.js'],
   ['test-offline-tour.js', '--no-shots'],
+  ['test-i18n.js', '--browser-only'],
 ];
 
 const which = process.argv[2] || 'node';

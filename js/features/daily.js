@@ -20,6 +20,7 @@
   function sget(k, d) { const S = stor(); try { return S ? S.get(k, d) : d; } catch (e) { return d; } }
   function sset(k, v) { const S = stor(); try { if (S) S.set(k, v); } catch (e) { /* ignore */ } }
   function safe(fn, fb) { try { return fn(); } catch (e) { if (root.console) console.error(e); return fb; } }
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function money(n) { return BG.Hud && BG.Hud.money ? BG.Hud.money(n) : '$' + Math.round(n); }
   function sfx(name, o) { try { BG.Audio && BG.Audio.play(name, o); } catch (e) { /* */ } }
@@ -338,7 +339,7 @@
         const b = doc.createElement('button');
         b.className = 'btn btn-glass btn-xl dly-title-btn';
         b.dataset.dly = 'open';
-        b.innerHTML = CAL_ICON + '<span class="dly-btn-txt"><b>Daily Challenge</b><small data-dref="titleSub"></small></span>';
+        b.innerHTML = CAL_ICON + '<span class="dly-btn-txt"><b data-i18n="hud.title.daily">' + esc(t('hud.title.daily')) + '</b><small data-dref="titleSub"></small></span>';
         b.addEventListener('click', e => { e.stopPropagation(); sfx('click'); this.openPanel(); setTimeout(() => b.blur(), 0); });
         wrap.appendChild(b);
         this._titleBtn = b;
@@ -348,7 +349,7 @@
         const b = doc.createElement('button');
         b.className = 'btn btn-glass btn-xl dly-endless-btn';
         b.dataset.dly = 'endless';
-        b.innerHTML = INF_ICON + '<span class="dly-btn-txt"><b>Endless</b><small data-dref="endlessSub"></small></span>';
+        b.innerHTML = INF_ICON + '<span class="dly-btn-txt"><b data-i18n="hud.title.endless">' + esc(t('hud.title.endless')) + '</b><small data-dref="endlessSub"></small></span>';
         b.addEventListener('click', e => { e.stopPropagation(); sfx('click'); this.startEndless(false); setTimeout(() => b.blur(), 0); });
         wrap.appendChild(b);
         this._endlessBtn = b;
@@ -478,7 +479,7 @@
       if (!b || !gen()) return;
       const today = todaySeed(), G = gen();
       const all = loadDays(), st = streakInfo(all, today), e = all.days[today];
-      const parts = [G.dateLabel(today).replace(/ \d{4}$/, '')];
+      const parts = [BG.i18n ? BG.i18n.date(today, { weekday: 'short', day: 'numeric', month: 'short' }) : G.dateLabel(today).replace(/ \d{4}$/, '')];
       if (e && e.passed) parts.push('★'.repeat(e.stars));
       if (st.current) parts.push('🔥 ' + st.current);
       const sub = b.querySelector('[data-dref=titleSub]');
@@ -486,8 +487,8 @@
       b.classList.toggle('done', !!(e && e.passed));
       const eb = this._endlessBtn, en = loadEndless();
       const esub = eb && eb.querySelector('[data-dref=endlessSub]');
-      if (esub) esub.textContent = en.run ? 'Crossing ' + ((en.run.index | 0) + 1) + ' · ' + (en.run.cleared | 0) + ' cleared'
-        : (en.best.cleared | 0) ? 'Best run: ' + (en.best.cleared | 0) + ' cleared' : 'Ever-harder crossings';
+      if (esub) esub.textContent = en.run ? t('hud.title.endlessRun', { n: (en.run.index | 0) + 1, cleared: en.run.cleared | 0 })
+        : (en.best.cleared | 0) ? t('hud.title.endlessBest', { cleared: en.best.cleared | 0 }) : t('hud.title.endlessNew');
     },
 
     _decorateLevelHud(level) {

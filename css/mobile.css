@@ -166,6 +166,7 @@ html, body { overscroll-behavior: none; }
 .m-phone .simbar .sb-btn span { display: none; }
 .m-phone .seg { padding: 2px; }
 .m-phone .seg button { min-width: 44px; height: 44px; font-size: 12.5px; padding: 0 2px; }
+.m-phone .lang-seg button { min-width: 80px; min-height: 44px; padding: 0 10px; font-size: 14px; }
 .m-phone .sb-stat { padding: 0 5px; }
 .m-phone .sb-stat span { display: none; }
 .m-phone .sb-stat b { font-size: 15px; min-width: 0; }

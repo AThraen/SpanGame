@@ -1,0 +1,8 @@
+{
+  "_doc": "Exceptions for the hard-coded string lint in tools/test-i18n.js. 'global' texts are allowed in every scanned file, 'files' only in that file. An entry is an exact text (as the lint prints it) or a /regex/flags. Keep it short: a text a player reads belongs in the dictionaries (docs/I18N.md).",
+  "global": [
+    "SPAN"
+  ],
+  "files": {
+  }
+}

@@ -184,7 +184,8 @@
   function totalChip(cls) {
     const c = doc.createElement('span');
     c.className = 'chip ' + cls + ' badge-chip';
-    c.title = 'Challenge badges earned';
+    c.setAttribute('data-i18n-title', 'hud.title.badgesTip');
+    c.title = BG.i18n ? BG.i18n.t('hud.title.badgesTip') : '';
     c.innerHTML = img('penny', 'gb-chip') + '<b>0</b> / 0';
     return c;
   }

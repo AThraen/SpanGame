@@ -27,11 +27,29 @@
   <link rel="stylesheet" href="css/mobile.css"><!-- mobile: responsive touch HUD, loupe, bottom sheet -->
 </head>
 <body data-screen="boot">
-  <canvas id="game-canvas" aria-label="Bridge construction view"></canvas>
+  <canvas id="game-canvas" aria-label="Bridge construction view" data-i18n-aria="core.canvasAria"></canvas>
   <div id="ui"></div>
   <div id="boot" class="boot"><div class="boot-logo">SPAN</div><div class="boot-bar"><span></span></div></div>
   <noscript><div class="noscript">SPAN needs JavaScript to run.</div></noscript>
 
+  <!-- i18n: BG.i18n first (no dependencies), then one dictionary per language and area (docs/I18N.md) -->
+  <script src="js/i18n/i18n.js"></script>
+  <script src="js/i18n/en/core.js"></script>
+  <script src="js/i18n/en/hud.js"></script>
+  <script src="js/i18n/en/editor.js"></script>
+  <script src="js/i18n/en/results.js"></script>
+  <script src="js/i18n/en/levels.js"></script>
+  <script src="js/i18n/en/famous.js"></script>
+  <script src="js/i18n/en/features.js"></script>
+  <script src="js/i18n/en/vehicles.js"></script>
+  <script src="js/i18n/da/core.js"></script>
+  <script src="js/i18n/da/hud.js"></script>
+  <script src="js/i18n/da/editor.js"></script>
+  <script src="js/i18n/da/results.js"></script>
+  <script src="js/i18n/da/levels.js"></script>
+  <script src="js/i18n/da/famous.js"></script>
+  <script src="js/i18n/da/features.js"></script>
+  <script src="js/i18n/da/vehicles.js"></script>
   <!-- core (browser + node) -->
   <script src="js/core/materials.js"></script>
   <script src="js/core/vehicles.js"></script>

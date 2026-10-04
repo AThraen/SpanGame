@@ -163,7 +163,7 @@
 
   // ------------------------------------------------------------------ settings rows
   const ICON_INSTALL = '<svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3v11m0 0-4.5-4.5M12 14l4.5-4.5M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_SHARE = '<svg class="pwa-share" viewBox="0 0 24 24" width="16" height="16" aria-label="Share"><path d="M12 15V3m0 0L8 7m4-4 4 4M7 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_SHARE = '<svg class="pwa-share" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="{label}"><path d="M12 15V3m0 0L8 7m4-4 4 4M7 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_OFFLINE = '<svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   let rowsEl = null;
@@ -175,11 +175,12 @@
     rowsEl = doc.createElement('div');
     rowsEl.className = 'pwa-rows';
     rowsEl.innerHTML =
-      '<div class="set-row pwa-row" data-pwa="install" hidden><span>' + ICON_INSTALL + 'Install SPAN</span>' +
-        '<button type="button" class="btn btn-primary pwa-btn" data-pwa-act="install">Install</button></div>' +
-      '<div class="set-row pwa-row pwa-ios" data-pwa="ios" hidden><span>' + ICON_INSTALL + 'Add to Home Screen</span>' +
-        '<small>Tap ' + ICON_SHARE + ' <b>Share</b>, then <b>Add to Home Screen</b> to play full-screen and offline.</small></div>' +
-      '<div class="set-row pwa-row" data-pwa="offline" hidden><span>' + ICON_OFFLINE + 'Offline play</span><small class="pwa-ok">Ready</small></div>';
+      '<div class="set-row pwa-row" data-pwa="install" hidden><span data-i18n="hud.settings.install">' + ICON_INSTALL + '</span>' +
+        '<button type="button" class="btn btn-primary pwa-btn" data-pwa-act="install" data-i18n="hud.settings.installBtn"></button></div>' +
+      '<div class="set-row pwa-row pwa-ios" data-pwa="ios" hidden><span data-i18n="hud.settings.ios">' + ICON_INSTALL + '</span>' +
+        '<small data-pwa-ref="iosHint"></small></div>' +
+      '<div class="set-row pwa-row" data-pwa="offline" hidden><span data-i18n="hud.settings.offline">' + ICON_OFFLINE + '</span><small class="pwa-ok" data-i18n="hud.settings.offlineReady"></small></div>';
+    translateRows();
     rowsEl.addEventListener('click', e => {
       const b = e.target.closest('[data-pwa-act]');
       if (!b) return;
@@ -191,6 +192,16 @@
     else card.insertBefore(rowsEl, card.querySelector('.modal-foot'));
     refreshRows();
   }
+
+  // i18n: the rows carry data-i18n keys (BG.i18n.apply re-translates them); the iOS hint has an icon inside its text
+  function tr(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; }
+  function translateRows() {
+    if (!rowsEl) return;
+    if (BG.i18n) BG.i18n.apply(rowsEl);
+    const hint = rowsEl.querySelector('[data-pwa-ref=iosHint]');
+    if (hint) hint.innerHTML = tr('hud.settings.iosHint', { share: ICON_SHARE.replace('{label}', tr('hud.settings.share')) });
+  }
+  if (BG.i18n) BG.i18n.on('languagechange', () => { try { translateRows(); } catch (e) { /* */ } });
 
   function refreshRows() {
     if (!rowsEl) return;

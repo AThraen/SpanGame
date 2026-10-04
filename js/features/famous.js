@@ -24,6 +24,8 @@
   function safe(fn, d) { try { return fn(); } catch (e) { console.error('[famous]', e); return d; } }
   function sfx(n) { try { BG.Audio && BG.Audio.play(n); } catch (e) { /* */ } }
   function toast(msg) { if (BG.Hud && BG.Hud.toast) BG.Hud.toast(msg, 'info'); }
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
+  function lvName(lv) { return BG.i18n ? BG.i18n.levelText(lv, 'name') : lv.name; }
   function S() { return BG.Storage || null; }
   function money(n) { return BG.Hud && BG.Hud.money ? BG.Hud.money(n) : '$' + Math.round(n); }
   function icon(n) { return BG.Hud && BG.Hud.icon ? BG.Hud.icon(n) : ''; }
@@ -191,21 +193,21 @@
         const done = st && safe(() => st.isCompleted(lv.id), false);
         // open, unfinished, and a later bridge is done: "Skipped - come back later" (BG.Storage.isSkipped)
         const skip = unlocked && !done && !!(st && st.isSkipped && safe(() => st.isSkipped(lv.id, BG.Levels), false));
-        const badge = miss.length ? '<span class="fb-need">Needs ' + esc(miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ')) + '</span>'
-          : blocked ? '<span class="fb-need">Coming soon</span>' : '';
+        const badge = miss.length ? '<span class="fb-need">' + esc(t('famous.panel.needs', { list: miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ') })) + '</span>'
+          : blocked ? '<span class="fb-need">' + esc(t('core.comingSoon')) + '</span>' : '';
         return `<button class="fb-tile ${unlocked ? 'open' : 'locked'} ${done ? 'done' : ''} ${blocked ? 'stub' : ''} ${skip ? 'skipped' : ''}" data-fbid="${lv.id}" data-id="${lv.id}" ${unlocked ? '' : 'aria-disabled="true"'} style="animation-delay:${Math.min(i, 20) * 22}ms">
-            <span class="fb-tile-art"><img src="${esc(H.art || '')}" alt="" draggable="false" loading="lazy" onerror="this.style.display='none'"><span class="fb-tile-year">${esc(H.year || '')}</span>${unlocked ? '' : '<span class="fb-tile-lock">' + icon('lock') + '</span>'}${badge}${skip ? '<span class="tile-skip">Skipped — come back later</span>' : ''}</span>
-            <span class="fb-tile-body"><span class="fb-tile-num">${i + 1}</span><span class="fb-tile-txt"><b>${esc(lv.name)}</b><small>${esc(H.location || '')}</small></span>
+            <span class="fb-tile-art"><img src="${esc(H.art || '')}" alt="" draggable="false" loading="lazy" onerror="this.style.display='none'"><span class="fb-tile-year">${esc(H.year || '')}</span>${unlocked ? '' : '<span class="fb-tile-lock">' + icon('lock') + '</span>'}${badge}${skip ? '<span class="tile-skip">' + esc(t('hud.levels.skipped')) + '</span>' : ''}</span>
+            <span class="fb-tile-body"><span class="fb-tile-num">${i + 1}</span><span class="fb-tile-txt"><b>${esc(lvName(lv))}</b><small>${esc(H.location || '')}</small></span>
             <span class="fb-tile-stars">${blocked ? '' : [0, 1, 2].map(k => starSvg(k < stars)).join('')}</span></span>
           </button>`;
       }).join('');
       panel.innerHTML = `
         <div class="fb-intro glass">
-          <div><h3>Build the bridges that made history</h3><p>Each crossing is a scaled-down version of a real bridge - its gap, its piers, its shipping channel. Read the story, then find out why the engineers chose the shape they did.</p></div>
+          <div><h3>${esc(t('famous.panel.title'))}</h3><p>${esc(t('famous.panel.text'))}</p></div>
           <span class="chip chip-lg">${starSvg(true)}<b>${Famous.stars()}</b> / ${max}</span>
           ${BG.Hud && BG.Hud.unlockInfoBtn ? BG.Hud.unlockInfoBtn(CAMPAIGN) : ''}
         </div>
-        ${open ? '' : '<p class="fb-gate">' + icon('lock') + '<span>Complete road level ' + Famous.UNLOCK_AFTER + ' to open Famous Bridges.</span></p>'}
+        ${open ? '' : '<p class="fb-gate">' + icon('lock') + '<span>' + esc(t('famous.panel.gate', { n: Famous.UNLOCK_AFTER })) + '</span></p>'}
         <div class="fb-grid">${tiles}</div>`;
     },
   };
@@ -247,10 +249,10 @@
   // the third campaign tab: looks, labels and finale (rules: BG.Storage.CAMPAIGNS.famous)
   if (Hud && Hud.registerCampaign) {
     Hud.registerCampaign(CAMPAIGN, {
-      name: 'Famous Bridges', sub: 'Real crossings · Roman arches to record spans', icon: fbIcon, cls: 'is-famous',
-      allLabel: 'All bridges', maxDefault: 36, modeClass: 'fb-mode', panelClass: 'fb-panel',
+      nameKey: 'famous.tab.name', subKey: 'famous.tab.sub', allLabelKey: 'famous.tab.all', icon: fbIcon, cls: 'is-famous',
+      maxDefault: 36, modeClass: 'fb-mode', panelClass: 'fb-panel',
       render: (panel, info) => Tab.render(panel, info),
-      continueLabel: lv => lv.name,
+      continueLabel: lv => lvName(lv),
       levelNum: lv => Famous.index(lv),
       levelK: 'BRIDGE',
       // the place is on the history card; the bar keeps to what fits: year, gap, piers
