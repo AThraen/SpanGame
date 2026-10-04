@@ -64,9 +64,10 @@
     try {
       const n = root.navigator;
       if (!n || !hasDoc()) return null;   // Node has a navigator too: the tools stay English whatever the OS locale
-      const list = (n.languages && n.languages.length ? Array.from(n.languages) : []).concat(n.language ? [n.language] : []);
-      // only the first preference decides (a Danish browser with English as a fallback is Danish, not the reverse)
-      return list.length && /^da\b/i.test(list[0]) ? 'da' : null;
+      // navigator.language (the first preference) decides: a Danish browser with English as a fallback is Danish,
+      // an English one with Danish as a fallback stays English
+      const first = n.language || (n.languages && n.languages[0]) || '';
+      return /^da\b/i.test(first) ? 'da' : null;
     } catch (e) { return null; }
   }
   // ?lang=da (this page only) > saved setting > navigator.language 'da*' > English
