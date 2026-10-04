@@ -908,7 +908,15 @@
 
     _onLevelClick(e) {
       const tool = e.target.closest('[data-tool]');
-      if (tool) { if (!tool.disabled) { sfx('click'); call('setTool', tool.dataset.tool); } return; }
+      if (tool) {
+        if (!tool.disabled) {
+          sfx('click');
+          // clicking the active Arch tool again switches back to Build (same as pressing A)
+          const t = tool.dataset.tool === 'arch' && tool.classList.contains('active') ? 'build' : tool.dataset.tool;
+          call('setTool', t);
+        }
+        return;
+      }
       const mat = e.target.closest('[data-mat]');
       if (mat) {
         if (mat.classList.contains('disabled')) { sfx('error'); this.toast(t('editor.toast.matUnavailable', { name: matName(mat.dataset.mat) }), 'info'); return; }

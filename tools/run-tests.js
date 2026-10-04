@@ -40,6 +40,7 @@ const BROWSER = [
   ['test-pwa.js'],
   ['test-offline-tour.js', '--no-shots'],
   ['test-i18n.js', '--browser-only'],
+  ['test-prefs.js'], // speed + follow remembered across levels/reloads; arch button toggles back to build
   ['test-i18n-ui.js'], // i18n: the in-level HUD, results card, ride card and derail callout switch language in place
 ];
 

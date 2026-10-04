@@ -318,10 +318,10 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await shot('25-rail108-results');
   await page.click('[data-act=resEdit]').catch(() => {}); await page.waitForTimeout(300);
 
-  // ---- 120: follow camera on by default; the scenery cache is not rebuilt every frame; finale
+  // ---- 120: follow camera (a remembered preference, switched on here); the scenery cache is not rebuilt every frame; finale
   await page.evaluate(() => { BG.Game.openLevel(120, { force: true }); });
   await page.waitForTimeout(900);
-  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(120));
+  await page.evaluate((d) => { BG.Hud.hideHint(); BG.Game.setFollow(true); BG.Game.editor.design = d; BG.Game._lastToggle = -1e9; BG.Game.startSim(); }, sol(120));
   const fol = await page.evaluate(() => new Promise(res => {
     const g = BG.Game, R = g.renderer;
     let frames = 0, rebuilds = 0, last = null;

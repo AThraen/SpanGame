@@ -150,7 +150,7 @@ More detail on the rules, the badges, the daily challenge and every level is in 
 | `R` | Restart the test |
 | `P` / `.` | Pause / single step while paused |
 | `-` / `=` | Slower / faster (¼×, 1×, 2×, 4×, 8×) |
-| `F` | Camera follows the traffic (on by default for gaps over 60 m) |
+| `F` | Camera follows the traffic (remembers your choice across levels, like the test speed) |
 | `T` | Track recording strip (railway levels) |
 | `Enter` (results) | Next level if passed, otherwise back to editing |
 

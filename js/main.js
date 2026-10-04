@@ -555,10 +555,10 @@
       }
       this.sim = null;
       this.paused = false;
-      this.speed = 1;
-      // camera follow: on by default for long gaps, where vehicles are tiny; the player's toggle
-      // sticks for the rest of this level
-      this.followOn = gapOf(lv) > 60;
+      // sim speed and camera follow are player preferences: the last choice carries over to every
+      // level (and across sessions); follow is off until the player turns it on
+      this.speed = this._pref('simSpeed', 1);
+      this.followOn = !!this._pref('follow', false);
       // track recording strip: on by default on railway levels (key T)
       this.trackOn = isRailLevel(lv);
       this._applyFollow(false);
@@ -746,6 +746,7 @@
     toggleFollow() {
       if (!this.level) return;
       this.followOn = !this.followOn;
+      this._savePref('follow', this.followOn);
       if (this.state === 'sim' || this.state === 'results') this._applyFollow(this.followOn);
       sfx('toggle', { on: this.followOn });
       hudCall('toast', t(this.followOn ? 'editor.toast.followOn' : 'editor.toast.followOff'), 'info', 1400);
@@ -835,7 +836,15 @@
     setSpeed(s) {
       const allowed = [0.25, 1, 2, 4, 8];
       this.speed = allowed.indexOf(+s) >= 0 ? +s : 1;
+      this._savePref('simSpeed', this.speed);
     },
+    _pref(key, dflt) {
+      let v;
+      safe(() => { v = BG.Storage && BG.Storage.get('pref.' + key, dflt); });
+      if (key === 'simSpeed') return [0.25, 1, 2, 4, 8].indexOf(+v) >= 0 ? +v : dflt;
+      return v == null ? dflt : v;
+    },
+    _savePref(key, v) { safe(() => { if (BG.Storage) BG.Storage.set('pref.' + key, v); }); },
     _stepSim() {
       const sim = this.sim;
       if (!sim) return;
