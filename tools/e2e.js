@@ -553,7 +553,7 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   await shot('45-anchorages-chapter');
   await page.click('.tile[data-id="54"]'); await page.waitForTimeout(1000);
   const bar = await page.evaluate(() => ({ id: BG.Game.level.id, sub: document.querySelector('#screen-level').textContent }));
-  ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && /Anchorages · 36 m gap/.test(bar.sub), bar.id);
+  ok('level 54 opens from its tile; the top bar names the Anchorages chapter', bar.id === 54 && /Anchorages · 36\sm gap/.test(bar.sub), bar.id);
   // the "KEEP CLEAR" labels (drawn over the structure): on screen, clear of the HUD side panels, of every built
   // land pylon and of the hillsides; at least one per level on a desktop screen
   const labels = [];

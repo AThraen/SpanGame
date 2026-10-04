@@ -428,7 +428,32 @@
     quake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-6 3 12 3-9 2 5 2-2h4"/></svg>',
   };
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  function fmtT(s) { return (Math.round(s * 10) / 10).toString().replace(/\.0$/, '') + ' s'; }
+  function fmtT(s) { return num(Math.round(s * 10) / 10) + ' s'; }
+  // i18n (docs/I18N.md): event names come from the features dictionary, worded from the event itself (BG.Forces.label is
+  // the English data label; a level's own label is kept, except the Tacoma preset's, which has a key)
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; }
+  function num(v, d) { return BG.i18n ? BG.i18n.num(v, d) : (d == null ? String(v) : (+v).toFixed(d)); }
+  const BEAUFORT = [10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];   // the same steps as BG.Forces.windName
+  function windIdx(speed) { let i = 0; while (i < BEAUFORT.length && !(speed < BEAUFORT[i])) i++; return i; }
+  function custom(ev) { const l = ev && ev.label; return typeof l === 'string' && l && !/^Tacoma wind\b/.test(l) ? l : null; }
+  // name without the speed ("Resonant gale", "Earthquake M7.0")
+  function evName(e, short) {
+    const ev = e.ev || {};
+    if (e.type === 'wind') {
+      if (!short && ev.label) return custom(ev) ? ev.label.replace(/\s\d+ m\/s$/, '') : t('features.forces.tacoma');
+      const i = windIdx(ev.speed || 0);
+      const name = t((short ? 'features.forces.windShort.' : 'features.forces.wind.') + i);
+      return ev.period ? t('features.forces.resonant', { name: name.toLocaleLowerCase(BG.i18n ? BG.i18n.locale() : undefined) }) : name;
+    }
+    if (e.type === 'quake') return short ? t('features.forces.quakeShort') : t('features.forces.quake', { m: num(ev.magnitude || 0, 1) });
+    return short ? e.short : e.label;
+  }
+  function evLabel(e) {
+    const ev = e.ev || {};
+    if (custom(ev)) return ev.label;
+    return e.type === 'wind' ? evName(e) + ' ' + Math.round(ev.speed || 0) + ' m/s' : evName(e);
+  }
+  const tr = t;   // hudTick's `t` is the sim time
   const Hx = { level: null, built: false, el: {} };
   function hudBuild() {
     const H = BG.Hud;
@@ -463,10 +488,10 @@
     E.banner.classList.remove('show');
     if (!pl) { E.fc.hidden = true; E.tlw.hidden = true; return; }
     E.fc.hidden = false; E.tlw.hidden = false;
-    E.fc.innerHTML = '<span class="fx-k">Forecast</span>' + pl.tl.map(e => '<span class="fx-item fx-' + e.type + '" title="' + esc(e.label) + ' from ' + fmtT(e.start) + ' for ' + fmtT(e.end - e.start) + '">' + ICON[e.type] + '<b>' + esc(e.short) + '</b><em>' + fmtT(e.start) + '</em></span>').join('');
-    E.fc.title = pl.tl.map(e => e.label + ' at ' + fmtT(e.start)).join(' · ');
+    E.fc.innerHTML = '<span class="fx-k">' + esc(t('features.forces.forecast')) + '</span>' + pl.tl.map(e => '<span class="fx-item fx-' + e.type + '" title="' + esc(t('features.forces.itemTip', { label: evLabel(e), start: fmtT(e.start), dur: fmtT(e.end - e.start) })) + '">' + ICON[e.type] + '<b>' + esc(evName(e, true)) + '</b><em>' + fmtT(e.start) + '</em></span>').join('');
+    E.fc.title = pl.tl.map(e => t('features.forces.at', { label: evLabel(e), start: fmtT(e.start) })).join(' · ');
     const tl = level.timeLimit || 60;
-    E.track.innerHTML = pl.tl.map(e => '<span class="fx-seg fx-' + e.type + '" style="left:' + (clamp(e.start / tl, 0, 1) * 100).toFixed(2) + '%;width:' + (clamp((e.end - e.start) / tl, 0, 1 - e.start / tl) * 100).toFixed(2) + '%" title="' + esc(e.label) + '"></span>').join('');
+    E.track.innerHTML = pl.tl.map(e => '<span class="fx-seg fx-' + e.type + '" style="left:' + (clamp(e.start / tl, 0, 1) * 100).toFixed(2) + '%;width:' + (clamp((e.end - e.start) / tl, 0, 1 - e.start / tl) * 100).toFixed(2) + '%" title="' + esc(evLabel(e)) + '"></span>').join('');
   }
   function hudTick() {
     if (!Hx.built || !Hx.level) return;
@@ -482,18 +507,19 @@
     const t = sim ? +sim.time || 0 : 0;
     E.now.style.left = (clamp(t / tl, 0, 1) * 100).toFixed(2) + '%';
     // banner: warning before, live readout during an event
-    let show = false, cls = '', title = '', sub = '', meter = 0;
+    let show = false, cls = '', title = '', sub = '', meter = 0, warnKey = '';
     if (F && H.mode === 'sim') {
       let cur = null, next = null;
       for (const e of pl.tl) { if (t >= e.start && t < e.end) { if (!cur) cur = e; } else if (t < e.start && t >= e.warnAt && !next) next = e; }
       if (cur) {
         show = true; cls = cur.type + ' live';
-        if (cur.type === 'wind') { title = cur.label.replace(/\s\d+ m\/s$/, ''); sub = Math.round(F.wind.speed) + ' m/s ' + (F.wind.v < 0 ? '← headwind' : 'tailwind →') + (cur.ev.period ? ' · pulsing' : ' · gusting'); meter = clamp(F.wind.speed / 50, 0, 1); }
-        else { title = cur.label; sub = 'Ground shaking · ' + (F.quake.ax || 0).toFixed(2) + ' g'; meter = clamp(F.quake.intensity, 0, 1); }
+        if (cur.type === 'wind') { title = evName(cur); sub = Math.round(F.wind.speed) + ' m/s ' + tr(F.wind.v < 0 ? 'features.forces.headwind' : 'features.forces.tailwind') + ' · ' + tr(cur.ev.period ? 'features.forces.pulsing' : 'features.forces.gusting'); meter = clamp(F.wind.speed / 50, 0, 1); }
+        else { title = evLabel(cur); sub = tr('features.forces.shaking', { g: num(F.quake.ax || 0, 2) }); meter = clamp(F.quake.intensity, 0, 1); }
       } else if (next) {
         show = true; cls = next.type + ' warn';
-        title = next.short + ' incoming in ' + Math.max(1, Math.ceil(next.start - t)) + ' s';
-        sub = next.label;
+        title = tr('features.forces.incoming', { name: evName(next, true), s: Math.max(1, Math.ceil(next.start - t)) });
+        sub = evLabel(next);
+        warnKey = next.type + '@' + next.start;
         meter = clamp(1 - (next.start - t) / 3, 0, 1);
       }
     }
@@ -504,7 +530,7 @@
         E.banner.className = 'fx-banner show fx-' + cls.split(' ').join(' fx-');
         E.bIco.innerHTML = ICON[cls.split(' ')[0]] || '';
         E.bT.textContent = title; E.bS.textContent = sub;
-        if (cls.indexOf('warn') >= 0 && E.banner._warned !== title.split(' in ')[0] + Hx.level.id) { E.banner._warned = title.split(' in ')[0] + Hx.level.id; safe(() => FxAudio.alert()); }
+        if (cls.indexOf('warn') >= 0 && E.banner._warned !== warnKey + Hx.level.id) { E.banner._warned = warnKey + Hx.level.id; safe(() => FxAudio.alert()); }
       }
       E.bM.style.width = (meter * 100).toFixed(1) + '%';
     } else if (E.banner.classList.contains('show')) { E.banner.classList.remove('show'); E.banner._k = ''; }
@@ -525,6 +551,8 @@
     const oEnter = Hud.enterLevel, oUpdate = Hud.update;
     if (oEnter) Hud.enterLevel = function (level) { const r = oEnter.apply(this, arguments); safe(() => hudEnter(level)); return r; };
     if (oUpdate) Hud.update = function () { const r = oUpdate.apply(this, arguments); safe(hudTick); return r; };
+    // i18n: the forecast chip and timeline titles are built on enterLevel; rebuild them in the new language
+    if (BG.i18n) BG.i18n.on('languagechange', () => { if (Hx.level) { safe(() => hudEnter(Hx.level)); if (Hx.el.banner) Hx.el.banner._k = ''; } });
   }
   const Game = BG.Game;
   if (Game && Game._onSimEvent && !Game._forcesWrapped) {

@@ -60,5 +60,8 @@
     }),
   };
 
+  // i18n (docs/I18N.md): `name` reads vehicles.road.<type> in the current language
+  if (BG.i18n && BG.i18n.lazy) Object.keys(BG.Vehicles).forEach(k => BG.i18n.lazy(BG.Vehicles[k], { name: 'vehicles.road.' + k }));
+
   BG.VehicleOrder = ['car', 'van', 'bus', 'truck', 'semi', 'tanker', 'heavy'];
 })(typeof window !== 'undefined' ? window : globalThis);

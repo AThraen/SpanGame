@@ -1,0 +1,121 @@
+// Dansk: genereret indhold: navne og tip til dagens og de endeløse overgange (BG.Generator.localize, ud fra
+// level.i18n) og navnene på broskabelonerne (BG.Templates). Nøglerne starter med "content.". Se docs/I18N.md.
+//
+// Grammatik for de genererede navne:
+//   dagens udfordring: ugedag + "s" + navneordet i bestemt form, skrevet sammen: "Mandagskløften", "Fredagsstrædet"
+//                      (content.gen.dailyName = '{weekday}s{noun}', noun = .day-formen, små bogstaver)
+//   endeløs:           "Den/Det" (efter navneordets køn) + tillægsord i bestemt form + navneordet i ubestemt form:
+//                      "Den blæsende kløft", "Det tågede stræde" (.adj-formen; tillægsordene står i bestemt form)
+(function (root) {
+  'use strict';
+  root.BG.i18n.add('da', 'content', {
+    // ---- genererede navne
+    'content.gen.dailyName': '{weekday}s{noun}',
+    'content.gen.weekday.0': 'Mandag',
+    'content.gen.weekday.1': 'Tirsdag',
+    'content.gen.weekday.2': 'Onsdag',
+    'content.gen.weekday.3': 'Torsdag',
+    'content.gen.weekday.4': 'Fredag',
+    'content.gen.weekday.5': 'Lørdag',
+    'content.gen.weekday.6': 'Søndag',
+    'content.gen.adj.windy': 'blæsende',
+    'content.gen.adj.quiet': 'stille',
+    'content.gen.adj.rusty': 'rustne',
+    'content.gen.adj.misty': 'tågede',
+    'content.gen.adj.golden': 'gyldne',
+    'content.gen.adj.crooked': 'krogede',
+    'content.gen.adj.lonely': 'ensomme',
+    'content.gen.adj.stormy': 'stormfulde',
+    'content.gen.adj.hidden': 'skjulte',
+    'content.gen.adj.silver': 'sølvblanke',
+    'content.gen.adj.broken': 'knækkede',
+    'content.gen.adj.sunny': 'solbeskinnede',
+    // sejlrender
+    'content.gen.noun.channel.day': 'kanalen',
+    'content.gen.noun.channel.adj': 'Den {adj} kanal',
+    'content.gen.noun.strait.day': 'strædet',
+    'content.gen.noun.strait.adj': 'Det {adj} stræde',
+    'content.gen.noun.harbour.day': 'havnen',
+    'content.gen.noun.harbour.adj': 'Den {adj} havn',
+    'content.gen.noun.sound.day': 'sundet',
+    'content.gen.noun.sound.adj': 'Det {adj} sund',
+    'content.gen.noun.shipway.day': 'sejlrenden',
+    'content.gen.noun.shipway.adj': 'Den {adj} sejlrende',
+    // overgange med pillezone
+    'content.gen.noun.viaduct.day': 'viadukten',
+    'content.gen.noun.viaduct.adj': 'Den {adj} viadukt',
+    'content.gen.noun.valley.day': 'dalen',
+    'content.gen.noun.valley.adj': 'Den {adj} dal',
+    'content.gen.noun.narrows.day': 'snævringen',
+    'content.gen.noun.narrows.adj': 'Den {adj} snævring',
+    'content.gen.noun.causeway.day': 'dæmningen',
+    'content.gen.noun.causeway.adj': 'Den {adj} dæmning',
+    'content.gen.noun.reach.day': 'løbet',
+    'content.gen.noun.reach.adj': 'Det {adj} løb',
+    // dybe kløfter
+    'content.gen.noun.gorge.day': 'kløften',
+    'content.gen.noun.gorge.adj': 'Den {adj} kløft',
+    'content.gen.noun.canyon.day': 'canyonen',
+    'content.gen.noun.canyon.adj': 'Den {adj} canyon',
+    'content.gen.noun.ravine.day': 'slugten',
+    'content.gen.noun.ravine.adj': 'Den {adj} slugt',
+    'content.gen.noun.chasm.day': 'afgrunden',
+    'content.gen.noun.chasm.adj': 'Den {adj} afgrund',
+    'content.gen.noun.abyss.day': 'dybet',
+    'content.gen.noun.abyss.adj': 'Det {adj} dyb',
+    // vand
+    'content.gen.noun.creek.day': 'åen',
+    'content.gen.noun.creek.adj': 'Den {adj} å',
+    'content.gen.noun.river.day': 'floden',
+    'content.gen.noun.river.adj': 'Den {adj} flod',
+    'content.gen.noun.ford.day': 'vadestedet',
+    'content.gen.noun.ford.adj': 'Det {adj} vadested',
+    'content.gen.noun.brook.day': 'bækken',
+    'content.gen.noun.brook.adj': 'Den {adj} bæk',
+    'content.gen.noun.rapids.day': 'strømfaldet',
+    'content.gen.noun.rapids.adj': 'Det {adj} strømfald',
+    // tørre kløfter
+    'content.gen.noun.crossing.day': 'overgangen',
+    'content.gen.noun.crossing.adj': 'Den {adj} overgang',
+    'content.gen.noun.gap.day': 'skåret',
+    'content.gen.noun.gap.adj': 'Det {adj} skår',
+    'content.gen.noun.pass.day': 'passet',
+    'content.gen.noun.pass.adj': 'Det {adj} pas',
+    'content.gen.noun.hollow.day': 'lavningen',
+    'content.gen.noun.hollow.adj': 'Den {adj} lavning',
+    'content.gen.noun.notch.day': 'hakket',
+    'content.gen.noun.notch.adj': 'Det {adj} hak',
+
+    // ---- tip til genererede overgange
+    'content.gen.hint.channel': 'Skibene skal have sejlrenden under kørebanen fri: bær vejen oppefra.',
+    'content.gen.hint.piers': 'Et spænd på {gap} er langt at klare uden støtte. Én pillezone i dalbunden kan dele det.',
+    'content.gen.hint.lowroof': 'Ingen frihøjde over vejen. Byg gitterdrageren nedenunder, og bind den til klippeafsatserne.',
+    'content.gen.hint.noledge': 'Intet at skubbe imod under kørebanen. Hæng vejen op i en gitterdrager ovenover.',
+    'content.gen.hint.default': 'Trekanter holder formen. Højere gitterdragere bærer mere, men hver meter koster.',
+    'content.gen.hint.addPier': 'Tung trafik på et langt spænd: pillezonen i dalbunden kan bære midten af kørebanen.',
+
+    // ---- broskabeloner
+    'content.template.beam.name': 'Bjælkebro',
+    'content.template.beam.desc': 'Lige kørebane på en lav drager, der hviler på piller, hvor banen tillader det.',
+    'content.template.warren.name': 'Warren-gitter',
+    'content.template.warren.desc': 'Ligesidet zigzag af diagonaler. Let, enkel og jævnt belastet.',
+    'content.template.pratt.name': 'Pratt-gitter',
+    'content.template.pratt.desc': 'Lodrette stænger med diagonaler, der hælder ind mod midten: diagonalerne arbejder i træk.',
+    'content.template.howe.name': 'Howe-gitter',
+    'content.template.howe.desc': 'Lodrette stænger med diagonaler, der hælder ud mod bredderne: diagonalerne arbejder i tryk.',
+    'content.template.deck_arch.name': 'Bue under kørebanen',
+    'content.template.deck_arch.desc': 'En bue under vejen skubber op gennem søjler. Spænder fra lave ankerpunkter, hvis der er nogen.',
+    'content.template.through_arch.name': 'Bue over kørebanen',
+    'content.template.through_arch.desc': 'En bundet bue, der rejser sig over vejen, med kørebanen hængt op under sig.',
+    'content.template.suspension.name': 'Hængebro',
+    'content.template.suspension.desc': 'Bærekabler hængt over to tårne bærer kørebanen i hængestænger.',
+    'content.template.cable_stayed.name': 'Skråstagsbro',
+    'content.template.cable_stayed.desc': 'Lige skråstag spreder sig fra høje tårne direkte ned til kørebanen.',
+    'content.template.viaduct.name': 'Viadukt',
+    'content.template.viaduct.desc': 'En række murede buer på piller bærer kørebanen på stensøjler. Sten elsker tryk.',
+    'content.template.reason.cable': 'kræver reb eller kabel',
+    'content.template.reason.masonry': 'kræver murværk',
+    'content.template.reason.supports': 'kræver piller eller lave ankerpunkter i klippen',
+    'content.template.reason.fit': 'passer ikke til denne overgang',
+  });
+})(typeof window !== 'undefined' ? window : globalThis);

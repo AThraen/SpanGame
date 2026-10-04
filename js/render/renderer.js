@@ -87,10 +87,16 @@
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  // i18n (docs/I18N.md): the canvas labels read the dictionary every frame, so a language change shows at once
+  function I18() { return BG.i18n || null; }
+  function i18t(key, params) { return I18() ? I18().t(key, params) : key; }
+  function fmtM(m) { return I18() ? I18().meters(m, 1) : (Math.round(m * 10) / 10).toFixed(1) + ' m'; }
+  function fmtMoney(n) { return I18() ? I18().money(n) : '$' + Math.round(n); }
+  // why a ghost beam is red: editor.reason.<code> (terrain-fix: underwater, §17: roadway), else the code itself
   function humanize(r) {
     if (!r) return null;
-    if (r === 'underwater') return (BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water"; // terrain-fix
-    if (r === 'roadway') return (BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear'; // §17
+    const k = 'editor.reason.' + r;
+    if (I18() && I18().has(k, 'en')) return i18t(k);
     r = String(r).replace(/_/g, ' ');
     return r.charAt(0).toUpperCase() + r.slice(1);
   }
@@ -801,7 +807,7 @@
     this._railDecor = {
       heritage: decor.heritage !== undefined ? !!decor.heritage : presets.some(function (p) { return /^(handcar|steam)/.test(p); }) || (!hs && !presets.length),
       catenary: cat, wire: hs || !tram ? 4.65 : 3.95,
-      station: String(decor.station || level.name || 'SPAN').toUpperCase()
+      station: String(decor.station || (I18() ? I18().levelText(level, 'name') : level.name) || 'SPAN').toUpperCase()
     };
   };
 
@@ -2803,7 +2809,7 @@
     }
   };
 
-  R._roadwayText = function (land) { return 'ROAD · KEEP CLEAR ' + land.env.height.toFixed(1) + ' m'; };
+  R._roadwayText = function (land) { return i18t('editor.label.keepClear', { h: fmtM(land.env.height) }); };
   /** Screen x for the "KEEP CLEAR" label over one bank road (band sx0..sx1 on screen), or null when it does not fit:
    *  the widest stretch of the visible band clear of the HUD side panels, of the hillsides where they rise to the
    *  label (the band's top) and of the built land pylons - and, when there is room, of the empty land pier zones.
@@ -3875,7 +3881,7 @@
       ctx.strokeStyle = 'rgba(255,100,80,0.85)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
       ctx.strokeRect(Math.round(p0.x) + 0.5, Math.round(p0.y) + 0.5, Math.round(w), Math.round(h));
       ctx.setLineDash([]);
-      if (w > 60 && h > 30) this._label(ctx, p0.x + w / 2, p0.y + 14, 'NO BUILD', 'rgba(90,20,14,0.75)', '#ffb4a8', 10);
+      if (w > 60 && h > 30) this._label(ctx, p0.x + w / 2, p0.y + 14, i18t('editor.label.noBuild'), 'rgba(90,20,14,0.75)', '#ffb4a8', 10);
     }
   };
 
@@ -4025,7 +4031,7 @@
       const len = typeof gh.len === 'number' ? gh.len : Math.hypot(gh.x2 - gh.x1, gh.y2 - gh.y1);
       let cost = gh.cost;
       if (typeof cost !== 'number' && def && def.costPerMeter) cost = Math.round(len * def.costPerMeter);
-      label = { x: (gh.x1 + gh.x2) / 2, y: (gh.y1 + gh.y2) / 2, text: len.toFixed(1) + ' m' + (typeof cost === 'number' ? '  ·  $' + Math.round(cost).toLocaleString('en-US') : ''), bad: gh.valid === false, reason: humanize(gh.reason || gh.error) };
+      label = { x: (gh.x1 + gh.x2) / 2, y: (gh.y1 + gh.y2) / 2, text: fmtM(len) + (typeof cost === 'number' ? '  ·  ' + fmtMoney(cost) : ''), bad: gh.valid === false, reason: humanize(gh.reason || gh.error) };
     }
     // ghost pier
     const gp = es.pierGhost || es.ghostPier || (gh && (gh.pier || gh.kind === 'pier') ? { x: gh.x2 !== undefined ? gh.x2 : gh.x, topY: gh.y2 !== undefined ? gh.y2 : gh.topY, valid: gh.valid } : null);
@@ -4035,7 +4041,7 @@
       this._drawPierItem(ctx, { x: gp.x, baseY: gby, topY: gp.topY, ground: gnd }, true, gp.valid === false);
       let cost = gp.cost;
       if (typeof cost !== 'number' && BG.Costs) cost = Math.round((BG.Costs.pierBase || 0) + (BG.Costs.pierPerMeter || 0) * (gp.topY - gby));
-      label = { x: gp.x, y: gp.topY + 1.2, text: (gp.topY - gby).toFixed(1) + ' m ' + (gnd ? 'pylon' : 'pier') + (typeof cost === 'number' ? '  ·  $' + cost.toLocaleString('en-US') : ''), bad: gp.valid === false };
+      label = { x: gp.x, y: gp.topY + 1.2, text: i18t(gnd ? 'editor.label.pylonHeight' : 'editor.label.pierHeight', { h: fmtM(gp.topY - gby) }) + (typeof cost === 'number' ? '  ·  ' + fmtMoney(cost) : ''), bad: gp.valid === false };
     }
     // hovered pier
     if (typeof es.hoverPier === 'number' && state.design && state.design.piers && state.design.piers[es.hoverPier]) {
@@ -4090,7 +4096,7 @@
       seen[it.i] = 1;
       const p = this.worldToScreen((it.ax + it.bx) / 2, (it.ay + it.by) / 2);
       const broke = it.cracked || it.broken;
-      const txt = broke ? 'BROKE' : Math.round(it.s * 100) + '%';
+      const txt = broke ? i18t('results.label.broke') : (I18() ? I18().percent(it.s) : Math.round(it.s * 100) + '%');
       const w = txt.length * 6.6 + 12, hgt = 18, x = p.x - w / 2, y = p.y - 14 - hgt / 2;
       // skip labels that would collide with one already drawn
       if (boxes.some(function (b) { return x < b[2] && x + w > b[0] && y < b[3] && y + hgt > b[1]; })) continue;
@@ -4242,7 +4248,7 @@
       if (BG.ArchTool && BG.ArchTool.drawOverlay) BG.ArchTool.drawOverlay(this, ctx, state, sh); // arch-tool: curve preview
       if (this._pierLabels && this._pierLabels.length) {
         this._screenXf(ctx);
-        for (const pl of this._pierLabels) this._label(ctx, pl[0], pl[1], pl[2] > 70 ? 'PIER ZONE' : 'PIER', 'rgba(40,32,10,0.8)', '#ffd860', 10);
+        for (const pl of this._pierLabels) this._label(ctx, pl[0], pl[1], i18t(pl[2] > 70 ? 'editor.label.pierZone' : 'editor.label.pier'), 'rgba(40,32,10,0.8)', '#ffd860', 10);
       }
       if (this._roadLabels && this._roadLabels.length) {
         this._screenXf(ctx);

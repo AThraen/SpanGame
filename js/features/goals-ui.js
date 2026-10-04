@@ -15,6 +15,7 @@
   function safe(fn, dflt) { try { return fn(); } catch (e) { console.error('[goals]', e); return dflt; } }
   function img(icon, cls) { return '<img class="gb-img ' + (cls || '') + '" src="' + ICON_DIR + icon + '.svg" alt="" draggable="false">'; }
   function sfx(name, o) { if (BG.Audio) safe(() => BG.Audio.play(name, o)); }
+  function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
 
   // ---------------------------------------------------------------- storage (keyed by level id; campaigns 101-120 work too)
   const KEY = 'badges';
@@ -77,13 +78,15 @@
     btn = doc.createElement('button');
     btn.className = 'btn btn-glass goals-btn';
     btn.type = 'button';
-    btn.title = 'Goals — optional challenge badges';
+    btn.setAttribute('data-i18n-title', 'features.goalsUi.btnTip');   // data-i18n-*: BG.i18n.apply re-translates them
+    btn.title = t('features.goalsUi.btnTip');
     btn.innerHTML = img('minimalist', 'gb-mini') + '<span class="goals-count"><b>0</b>/0</span>';
     const gear = top.querySelector('[data-act=settings]');
     top.insertBefore(btn, gear);
     panel = doc.createElement('aside');
     panel.className = 'goals-panel glass';
-    panel.setAttribute('aria-label', 'Level goals');
+    panel.setAttribute('data-i18n-aria', 'features.goalsUi.panelAria');
+    panel.setAttribute('aria-label', t('features.goalsUi.panelAria'));
     screen.appendChild(panel);
     btn.addEventListener('click', () => { sfx('click'); setPanel(!panelOpen); });
     panel.addEventListener('click', e => { if (e.target.closest('[data-goals-close]')) { sfx('click'); setPanel(false); } });
@@ -119,17 +122,17 @@
     btn.querySelector('.goals-count').innerHTML = '<b>' + got + '</b>/' + ev.goals.length;
     btn.classList.toggle('all', got === ev.goals.length);
     if (!panelOpen) return;
-    panel.innerHTML = '<div class="gp-head"><b>Goals</b><span>' + got + ' / ' + ev.goals.length + ' badges</span>' +
-      '<button class="btn btn-icon btn-ghost sm" data-goals-close title="Close (G)" aria-label="Close goals">&times;</button></div>' +
-      '<p class="gp-sub">Optional challenges. Pass the level and meet the condition to earn the badge.</p>' +
+    panel.innerHTML = '<div class="gp-head"><b>' + esc(t('features.goalsUi.title')) + '</b><span>' + esc(t('features.goalsUi.count', { got, n: ev.goals.length })) + '</span>' +
+      '<button class="btn btn-icon btn-ghost sm" data-goals-close title="' + esc(t('features.goalsUi.closeTip')) + '" aria-label="' + esc(t('features.goalsUi.closeAria')) + '">&times;</button></div>' +
+      '<p class="gp-sub">' + esc(t('features.goalsUi.sub')) + '</p>' +
       ev.goals.map(g => {
         const have = stored.has(g.id);
         const cls = have ? 'have' : g.candidate ? 'ontrack' : '';
         const pct = Math.round((g.frac == null ? 0 : g.frac) * 100);
         return '<div class="gp-row ' + cls + '" data-goal="' + esc(g.id) + '">' + img(g.icon, have ? '' : 'locked') +
-          '<div class="gp-txt"><b>' + esc(g.name) + (have ? ' <i>earned</i>' : '') + '</b><span>' + esc(g.desc) + '</span>' +
+          '<div class="gp-txt"><b>' + esc(g.name) + (have ? ' <i>' + esc(t('features.goalsUi.earned')) + '</i>' : '') + '</b><span>' + esc(g.desc) + '</span>' +
           '<div class="gp-bar"><em style="width:' + (have ? 100 : pct) + '%"></em></div>' +
-          '<small>' + esc(have && !g.candidate ? 'earned on an earlier run' : g.text) + '</small></div></div>';
+          '<small>' + esc(have && !g.candidate ? t('features.goalsUi.earnedEarlier') : g.text) + '</small></div></div>';
       }).join('');
   }
 
@@ -156,11 +159,11 @@
     const stored = new Set(S.getBadges(lv.id));
     res.badges = { earned: ev.earned, fresh: fresh };
     box.hidden = false;
-    box.innerHTML = '<div class="rb-title"><span>Challenge badges</span><b>' + stored.size + ' / ' + goals.length + '</b></div><div class="rb-row">' +
+    box.innerHTML = '<div class="rb-title"><span>' + esc(t('features.goalsUi.resTitle')) + '</span><b>' + stored.size + ' / ' + goals.length + '</b></div><div class="rb-row">' +
       ev.goals.map(x => {
         const have = stored.has(x.id), isNew = fresh.indexOf(x.id) >= 0, now = x.met;
         const cls = (have ? 'have ' : 'miss ') + (isNew ? 'new ' : '') + (now ? 'now' : '');
-        const note = isNew ? 'NEW' : now ? 'earned' : have ? 'earned before' : (res.passed ? esc(x.text) : 'pass to earn');
+        const note = esc(isNew ? t('features.goalsUi.new') : now ? t('features.goalsUi.earned') : have ? t('features.goalsUi.earnedBefore') : (res.passed ? x.text : t('features.goalsUi.passToEarn')));
         return '<div class="rb ' + cls + '" data-goal="' + esc(x.id) + '" title="' + esc(x.desc) + '">' + img(x.icon, have ? '' : 'locked') +
           '<b>' + esc(x.name) + '</b><span>' + note + '</span></div>';
       }).join('') + '</div>';
@@ -207,15 +210,15 @@
     const ls = Hud.el.levels;
     if (!ls) return;
     // every campaign's tiles: chapter tiles (Roads, Iron Road) and the Famous Bridges picture tiles
-    ls.querySelectorAll('.tile[data-id]:not(.soon), .fb-tile[data-id]:not(.stub)').forEach(t => {
-      const id = +t.dataset.id, goals = G.forLevel(id);
+    ls.querySelectorAll('.tile[data-id]:not(.soon), .fb-tile[data-id]:not(.stub)').forEach(tile => {
+      const id = +tile.dataset.id, goals = G.forLevel(id);
       if (!goals.length) return;
       const have = S.getBadges(id).filter(x => goals.some(g => g.type === x)).length;
-      const row = t.querySelector('.tile-stars, .fb-tile-stars');
+      const row = tile.querySelector('.tile-stars, .fb-tile-stars');
       if (!row || row.querySelector('.tile-badges')) return;
       const b = doc.createElement('span');
       b.className = 'tile-badges' + (have === goals.length ? ' all' : have ? ' some' : '');
-      b.title = have + ' of ' + goals.length + ' challenge badges';
+      b.title = t('features.goalsUi.tileTip', { have, n: goals.length });
       b.innerHTML = img('minimalist', 'gb-tile') + '<b>' + have + '</b>/' + goals.length;
       row.appendChild(b);
     });
@@ -274,6 +277,8 @@
   });
   wrap('buildLevelSelect', decorateTiles);
   wrap('refreshTitle', refreshChips);
+  // i18n: the panel text is built in code (the button and panel labels carry data-i18n-* and follow by themselves)
+  if (BG.i18n) BG.i18n.on('languagechange', () => safe(() => { lastSig = ''; refreshPanel(true); }));
 
   BG.GoalsUI = { refresh: () => { refreshPanel(true); refreshChips(); }, evaluateCurrent: currentEval,
     isOpen: () => panelOpen, setOpen: (open, noSave) => setPanel(!!open, noSave) }; // mobile: setOpen(false, true) closes without saving the preference

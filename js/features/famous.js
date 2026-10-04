@@ -25,11 +25,13 @@
   function sfx(n) { try { BG.Audio && BG.Audio.play(n); } catch (e) { /* */ } }
   function toast(msg) { if (BG.Hud && BG.Hud.toast) BG.Hud.toast(msg, 'info'); }
   function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
+  const tr = t;   // where a local `t` shadows it
   function lvName(lv) { return BG.i18n ? BG.i18n.levelText(lv, 'name') : lv.name; }
   function S() { return BG.Storage || null; }
   function money(n) { return BG.Hud && BG.Hud.money ? BG.Hud.money(n) : '$' + Math.round(n); }
   function icon(n) { return BG.Hud && BG.Hud.icon ? BG.Hud.icon(n) : ''; }
   function starSvg(on) { return '<svg class="star ' + (on ? 'on' : '') + '" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.3 6.1 20.5l1.3-6.5L2.5 9.4l6.6-.8z"/></svg>'; }
+  function num(n) { return BG.i18n ? BG.i18n.num(n) : String(n); }
   function vehName(t) { const V = BG.Vehicles && BG.Vehicles[t]; return (V && V.name) || t; }
 
   // ------------------------------------------------------------------ campaign model
@@ -58,11 +60,11 @@
     },
     lockReason(lv) {
       const miss = Famous.missing(lv);
-      if (miss.length) return 'Needs the ' + miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ') + ' module - coming with a later update.';
-      if (Famous.isStub(lv)) return 'This crossing is still being surveyed - it opens with a later update.';
-      if (!Famous.campaignOpen()) return 'Famous Bridges opens after road level ' + Famous.UNLOCK_AFTER + '.';
+      if (miss.length) return t('features.famous.lock.needs', { list: miss.map(r => BG.Requirements ? BG.Requirements.label(r) : r).join(' + ') });
+      if (Famous.isStub(lv)) return t('features.famous.lock.stub');
+      if (!Famous.campaignOpen()) return t('features.famous.lock.campaign', { n: Famous.UNLOCK_AFTER });
       const st = S(), why = st && st.lockText ? safe(() => st.lockText(lv.id, BG.Levels), null) : null;
-      return why || 'Complete one of the two famous bridges before this one to unlock it.';
+      return why || t('features.famous.lock.prev');
     },
     nextAfter(lv) {
       const list = Famous.playableLevels();
@@ -95,43 +97,45 @@
       return el;
     },
     // mode: 'intro' (before building: Back / Build it) or 'info' (reopened in the level: Close)
-    show(level, opts) {
+    show(level, opts, again) {
       opts = opts || {};
+      this._args = [level, opts];   // i18n: re-rendered in the new language while open (see languagechange below)
       const el = this._build();
       const H = level.history || {};
-      const t = level.terrain || {};
-      const gap = Math.round((t.rightEdge || 0) - (t.leftEdge || 0));
-      const traffic = (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? ((BG.Trains && BG.Trains[g.train] && BG.Trains[g.train].name) || g.train || 'train') : vehName(g.type))).join(', ');
+      const ter = level.terrain || {};
+      const gap = Math.round((ter.rightEdge || 0) - (ter.leftEdge || 0));
+      const traffic = (level.traffic || []).map(g => (g.count || 1) + ' × ' + esc(g.type === 'train' ? ((BG.Trains && BG.Trains[g.train] && BG.Trains[g.train].name) || g.train || t('features.famous.card.train')) : vehName(g.type))).join(', ');
       const miss = Famous.playable(level) ? [] : [Famous.lockReason(level)]; // whatever keeps it from being built
       const st = S();
       const stars = st ? safe(() => st.getStars(level.id), 0) : 0;
       const intro = opts.mode !== 'info';
-      const rows = [['Built', H.built || H.year], ['Where', [H.location, H.crosses].filter(Boolean).join(' · ')], ['Engineers', H.engineer], ['Span', H.span], ['Type', H.type]]
-        .filter(r => r[1]).map(r => '<div class="fb-row"><span>' + r[0] + '</span><b>' + esc(r[1]) + '</b></div>').join('');
+      const rows = [['built', H.built || H.year], ['where', [H.location, H.crosses].filter(Boolean).join(' · ')], ['engineers', H.engineer], ['span', H.span], ['type', H.type]]
+        .filter(r => r[1]).map(r => '<div class="fb-row"><span>' + esc(t('features.famous.card.' + r[0])) + '</span><b>' + esc(r[1]) + '</b></div>').join('');
       $('.fb-card', el).innerHTML = `
-        <div class="fb-art"><img class="fb-art-bg" src="${esc(H.art || '')}" alt="" draggable="false" onerror="this.style.display='none'"><img class="fb-art-fg" src="${esc(H.art || '')}" alt="${esc((H.name || level.name) + ' illustration')}" draggable="false" onerror="this.style.display='none'"><span class="fb-year">${esc(H.year || '')}</span></div>
+        <div class="fb-art"><img class="fb-art-bg" src="${esc(H.art || '')}" alt="" draggable="false" onerror="this.style.display='none'"><img class="fb-art-fg" src="${esc(H.art || '')}" alt="${esc(t('features.famous.card.artAlt', { name: H.name || level.name }))}" draggable="false" onerror="this.style.display='none'"><span class="fb-year">${esc(H.year || '')}</span></div>
         <div class="fb-body">
-          <div class="fb-kicker">Famous Bridges · ${Famous.index(level)} of ${Famous.levels().length}</div>
+          <div class="fb-kicker">${esc(t('features.famous.card.kicker', { i: Famous.index(level), n: Famous.levels().length }))}</div>
           <h2 id="fb-card-title">${esc(H.name || level.name)}</h2>
           <div class="fb-rows">${rows}</div>
           <ul class="fb-facts">${(H.facts || []).map(f => '<li>' + esc(f) + '</li>').join('')}</ul>
-          ${H.why ? '<div class="fb-why"><span>Why it matters</span><p>' + esc(H.why) + '</p></div>' : ''}
+          ${H.why ? '<div class="fb-why"><span>' + esc(t('features.famous.card.why')) + '</span><p>' + esc(H.why) + '</p></div>' : ''}
           ${H.note ? '<p class="fb-note">' + esc(H.note) + '</p>' : ''}
-          <div class="fb-challenge"><span class="fb-ch-k">Your challenge</span>
-            <span class="chip">${gap} m gap</span><span class="chip">${esc(traffic || 'no traffic')}</span><span class="chip">Budget <b>${money(level.budget || 0)}</b></span>
+          <div class="fb-challenge"><span class="fb-ch-k">${esc(t('features.famous.card.challenge'))}</span>
+            <span class="chip">${esc(t('features.famous.gap', { n: num(gap) }))}</span><span class="chip">${traffic || esc(t('features.famous.card.noTraffic'))}</span><span class="chip">${esc(t('features.famous.card.budget'))} <b>${money(level.budget || 0)}</b></span>
             ${stars ? '<span class="fb-stars">' + [0, 1, 2].map(i => starSvg(i < stars)).join('') + '</span>' : ''}
           </div>
           ${miss.length ? '<p class="fb-locked">' + esc(Famous.lockReason(level)) + '</p>' : ''}
           <div class="fb-actions">
-            ${intro ? '<button class="btn btn-glass" data-fb="back">' + icon('back') + '<span>Back</span></button>' : ''}
-            ${intro && !miss.length ? '<button class="btn btn-primary" data-fb="build">' + icon('play') + '<span>Build it</span></button>' : ''}
-            ${!intro ? '<button class="btn btn-primary" data-fb="close">' + icon('close') + '<span>Close</span></button>' : ''}
+            ${intro ? '<button class="btn btn-glass" data-fb="back">' + icon('back') + '<span>' + esc(t('core.back')) + '</span></button>' : ''}
+            ${intro && !miss.length ? '<button class="btn btn-primary" data-fb="build">' + icon('play') + '<span>' + esc(t('features.famous.card.build')) + '</span></button>' : ''}
+            ${!intro ? '<button class="btn btn-primary" data-fb="close">' + icon('close') + '<span>' + esc(t('core.close')) + '</span></button>' : ''}
           </div>
         </div>`;
       this.onBuild = intro && !miss.length ? (opts.onBuild || null) : null;
       el.classList.add('show');
       this.open = true;
       document.body.classList.add('fb-card-open');
+      if (again) return;
       sfx('whoosh');
       const primary = $('.fb-actions .btn-primary', el);
       if (primary && primary.focus) setTimeout(() => { try { primary.focus({ preventScroll: true }); } catch (e) { /* */ } }, 30);
@@ -229,7 +233,7 @@
   wrap(BG.Templates, 'available', orig => function (level) {
     const list = orig.apply(this, arguments);
     if (!level || !Array.isArray(level.templates) || !Array.isArray(list)) return list;
-    return list.map(t => (level.templates.indexOf(t.id) >= 0 ? t : Object.assign({}, t, { ok: false, reason: 'not used on this crossing' })));
+    return list.map(t => (level.templates.indexOf(t.id) >= 0 ? t : Object.assign({}, t, { ok: false, reason: tr('features.famous.tplReason') })));
   });
 
   const G = BG.Game;
@@ -254,12 +258,13 @@
       render: (panel, info) => Tab.render(panel, info),
       continueLabel: lv => lvName(lv),
       levelNum: lv => Famous.index(lv),
-      levelK: 'BRIDGE',
+      get levelK() { return t('features.famous.levelK'); },
       // the place is on the history card; the bar keeps to what fits: year, gap, piers
-      levelSub: (lv, gap) => { const H = lv.history || {}, p = lv.maxPiers | 0; return ['Famous Bridges', H.year, gap ? gap + ' m gap' : null, p ? p + (p === 1 ? ' pier' : ' piers') : null].filter(Boolean).join(' · '); },
+      levelSub: (lv, gap) => { const H = lv.history || {}, p = lv.maxPiers | 0; return [t('famous.tab.name'), H.year, gap ? t('features.famous.gap', { n: num(gap) }) : null, p ? t('features.famous.piers', { n: p }) : null].filter(Boolean).join(' · '); },
       finale: {
-        banner: 'Famous Bridges complete', title: 'A builder for the ages!',
-        text: starLine => 'From Roman arches to the Millau Viaduct - ' + Famous.playableLevels().length + ' famous crossings rebuilt. ' + starLine,
+        get banner() { return t('features.famous.finale.banner'); },
+        get title() { return t('features.famous.finale.title'); },
+        text: starLine => t('features.famous.finale.text', { n: Famous.playableLevels().length }) + ' ' + starLine,
       },
     });
   }
@@ -270,7 +275,7 @@
       const bar = this.el.level && this.el.level.querySelector('.topbar');
       let btn = bar && bar.querySelector('[data-fb-history]');
       if (bar && !btn) {
-        btn = h('<button class="btn btn-icon btn-ghost fb-history-btn" data-fb-history title="Bridge history">' + fbIcon() + '</button>');
+        btn = h('<button class="btn btn-icon btn-ghost fb-history-btn" data-fb-history data-i18n-title="features.famous.historyBtn" title="' + esc(t('features.famous.historyBtn')) + '">' + fbIcon() + '</button>');
         btn.addEventListener('click', e => { e.stopPropagation(); sfx('click'); if (G.level) Card.show(G.level, { mode: 'info' }); });
         const hint = bar.querySelector('[data-act=hint]');
         bar.insertBefore(btn, hint || null);
@@ -281,6 +286,9 @@
     });
     return out;
   });
+
+  // i18n: an open history card is rebuilt in the new language (the tab and tiles are rebuilt by BG.Hud)
+  if (BG.i18n) BG.i18n.on('languagechange', () => { if (Card.open && Card._args) safe(() => Card.show(Card._args[0], Card._args[1], true)); });
 
   function fbIcon() {
     return '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18"/><path d="M4 18c2-6 14-6 16 0"/><path d="M8 18v-3.2M12 18v-4.4M16 18v-3.2"/><path d="M12 3.5v4M10 5.5h4"/></svg>';

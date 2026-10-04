@@ -11,12 +11,12 @@
   const BG = (root.BG = root.BG || {});
 
   const FALLBACK_MATS = {
-    road: { id: 'road', name: 'Road', maxLength: 6, costPerMeter: 100, isRoad: true },
-    reinforced_road: { id: 'reinforced_road', name: 'Reinforced Road', maxLength: 6, costPerMeter: 180, isRoad: true },
-    wood: { id: 'wood', name: 'Wood', maxLength: 6, costPerMeter: 50 },
-    steel: { id: 'steel', name: 'Steel', maxLength: 10, costPerMeter: 120 },
-    rope: { id: 'rope', name: 'Rope', maxLength: 20, costPerMeter: 20, tensionOnly: true },
-    cable: { id: 'cable', name: 'Steel Cable', maxLength: 40, costPerMeter: 60, tensionOnly: true },
+    road: { id: 'road', maxLength: 6, costPerMeter: 100, isRoad: true },
+    reinforced_road: { id: 'reinforced_road', maxLength: 6, costPerMeter: 180, isRoad: true },
+    wood: { id: 'wood', maxLength: 6, costPerMeter: 50 },
+    steel: { id: 'steel', maxLength: 10, costPerMeter: 120 },
+    rope: { id: 'rope', maxLength: 20, costPerMeter: 20, tensionOnly: true },
+    cable: { id: 'cable', maxLength: 40, costPerMeter: 60, tensionOnly: true },
   };
   const ORDER = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable'];
   const TOOLS = ['build', 'erase', 'pier', 'select', 'arch']; // arch-tool: 'arch' = Arch & Curve tool (js/ui/arch-tool.js)
@@ -36,6 +36,13 @@
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function hyp(dx, dy) { return Math.sqrt(dx * dx + dy * dy); }
   function matDef(id) { const M = BG.Materials; return (M && M[id]) || FALLBACK_MATS[id] || null; }
+  // i18n (docs/I18N.md): toasts go through say(); a material's name is vehicles.material.<id> when the dictionary has
+  // it, else the name in BG.Materials (the data tables are the English source)
+  function say(key, params) { return BG.i18n ? BG.i18n.t(key, params) : key; }
+  function matName(id) {
+    const I = BG.i18n, k = 'vehicles.material.' + id, d = matDef(id);
+    return I && (I.has(k) || I.has(k, 'en')) ? I.t(k) : (d && d.name) || String(id);
+  }
   function maxLenOf(id) { const d = matDef(id); return d && d.maxLength > 0 ? d.maxLength : 6; }
   function costOf(id) { const d = matDef(id); return d ? num(d.costPerMeter, 0) : 0; }
   function key(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
@@ -170,7 +177,7 @@
 
     setTool(t) {
       if (TOOLS.indexOf(t) < 0) return false;
-      if (t === 'pier' && !this._hasPierZones()) { this._toast('No pier zones on this level.'); this._sfx('error'); return false; }
+      if (t === 'pier' && !this._hasPierZones()) { this._toast(say('editor.toast.noPierZones')); this._sfx('error'); return false; }
       if (t !== this._tool) {
         this._cancelAct();
         this.chainFrom = null;
@@ -183,7 +190,7 @@
     }
     setMaterial(m) {
       if (!matDef(m)) return false;
-      if (!this._allowed(m)) { this._sfx('error'); this._toast((matDef(m).name || m) + ' is not available on this level.'); return false; }
+      if (!this._allowed(m)) { this._sfx('error'); this._toast(say('editor.toast.matUnavailable', { name: matName(m) })); return false; }
       this._material = m;
       if (this._tool === 'erase' || this._tool === 'pier') this.setTool('build');
       this._refresh();
@@ -626,8 +633,8 @@
     _placeBeam(fromId, g) {
       if (!g || !g.valid) {
         this._sfx('error');
-        if (g && g.reason === 'underwater') this._toast((BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water - use a pier"); // terrain-fix
-        if (g && g.reason === 'roadway') this._toast((BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear'); // §17
+        if (g && g.reason === 'underwater') this._toast(say('editor.reason.underwater')); // terrain-fix
+        if (g && g.reason === 'roadway') this._toast(say('editor.reason.roadway')); // §17
         return null;
       }
       this._begin();
@@ -793,7 +800,7 @@
       if (!lv || !T || typeof T.generate !== 'function') { this._sfx('error'); return false; }
       let frag = null;
       try { frag = T.generate(id, lv, Object.assign({ design: cloneDesign(this._design) }, opts || {})); } catch (e) { frag = null; }
-      if (!frag || !Array.isArray(frag.beams) || !frag.beams.length) { this._sfx('error'); this._toast('That template does not fit this crossing.'); return false; }
+      if (!frag || !Array.isArray(frag.beams) || !frag.beams.length) { this._sfx('error'); this._toast(say('editor.toast.tplNoFit')); return false; }
       this._cancelAct();
       this._begin();
       const c = cloneDesign(normalize(frag));
@@ -1003,13 +1010,13 @@
         return 'handled';
       }
       const px = this._pierX(x, o);
-      if (px == null) { this._sfx('error'); this._toast('Piers can only stand in the marked pier zones.'); return 'handled'; }
+      if (px == null) { this._sfx('error'); this._toast(say('editor.toast.pierZone')); return 'handled'; }
       const maxP = num(lv.maxPiers, 99);
-      if (this._design.piers.length >= maxP) { this._sfx('error'); this._toast('Pier limit reached (' + maxP + ').'); return 'handled'; }
-      if (this._pierNear(px, [])) { this._sfx('error'); this._toast('Too close to another pier.'); return 'handled'; }
+      if (this._design.piers.length >= maxP) { this._sfx('error'); this._toast(say('editor.toast.pierLimit', { n: maxP })); return 'handled'; }
+      if (this._pierNear(px, [])) { this._sfx('error'); this._toast(say('editor.toast.pierNear')); return 'handled'; }
       const topY = this._pierTop(px, y, o);
       if (lv.noBuild && lv.noBuild.some((r) => segHitsRect(px, this._pierBase(px), px, topY, r))) {
-        this._sfx('error'); this._toast('Piers may not enter the no-build zone.'); return 'handled';
+        this._sfx('error'); this._toast(say('editor.toast.pierNoBuild')); return 'handled';
       }
       this._begin();
       this._design.piers.push({ x: px, topY });
@@ -1199,7 +1206,7 @@
             if (g && g.valid) {
               const end = this._placeBeam(this.chainFrom, g);
               if (end) this.chainFrom = this._chainNext(end);
-              if (g.clamped) this._toast((matDef(g.m) || {}).name + ' reaches at most ' + g.maxLength + ' m - the beam stops short of that joint.');
+              if (g.clamped) this._toast(say('editor.toast.clamped', { name: matName(g.m), max: BG.i18n ? BG.i18n.meters(g.maxLength) : g.maxLength + ' m' }));
             } else {
               this.chainFrom = a.node; this._sfx('click');
             }
@@ -1676,6 +1683,7 @@
 
   Editor.MAGNET = MAGNET;
   Editor.MIN_LEN = MIN_LEN;
+  Editor.matName = matName; // a material's name in the current language (arch-tool, HUD)
   Editor.LONG_PRESS_MS = LONG_PRESS_MS;
   BG.Editor = Editor;
 })(typeof window !== 'undefined' ? window : globalThis);

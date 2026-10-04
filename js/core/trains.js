@@ -185,6 +185,8 @@
       color: '#e9edf2',
     }),
   };
+  // i18n (docs/I18N.md): `name` reads vehicles.car.<type> in the current language
+  if (BG.i18n && BG.i18n.lazy) Object.keys(BG.RailCars).forEach(k => BG.i18n.lazy(BG.RailCars[k], { name: 'vehicles.car.' + k }));
   BG.RailCarOrder = ['handcar', 'tram', 'loco_steam', 'tender', 'coach', 'loco_diesel', 'boxcar', 'tank_wagon', 'ore_wagon', 'hs_power', 'hs_coach'];
 
   /** gap between two coupled car bodies (m); the couplers have +/- COUPLER_SLACK of free play */
@@ -218,6 +220,8 @@
     highspeed: train({ id: 'highspeed', name: 'High-Speed', cars: ['hs_power'].concat(rep('hs_coach', 6), ['hs_power']), speed: 42, accel: 0.8 }),
     highspeed_long: train({ id: 'highspeed_long', name: 'High-Speed (long)', cars: ['hs_power'].concat(rep('hs_coach', 12), ['hs_power']), speed: 42, accel: 0.6 }),
   };
+  // i18n (docs/I18N.md): `name` reads vehicles.train.<id> in the current language
+  if (BG.i18n && BG.i18n.lazy) Object.keys(BG.Trains).forEach(k => BG.i18n.lazy(BG.Trains[k], { name: 'vehicles.train.' + k }));
   BG.TrainOrder = ['handcar', 'tram', 'steam_local', 'steam_express', 'commuter', 'freight_short', 'freight_long', 'ore', 'highspeed', 'highspeed_long'];
 
   /** Derailment defaults (a level's `rail: {maxGrade, maxKinkDeg}` overrides them). */

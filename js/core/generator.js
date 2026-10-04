@@ -270,9 +270,13 @@
       timeLimit: 0,
       templates: false,
     };
-    level.name = opts.name || makeName(seed, level, arch, opts, R);
-    level.hint = makeHint(level, arch);
-    if (adj.addPier && pierZones.length && arch !== 'piers') level.hint = 'Heavy traffic on a long span: the pier zone on the valley floor can carry the middle of the deck.';
+    const nm = opts.name ? null : makeName(seed, level, arch, opts, R);
+    level.name = opts.name || nm.text;
+    let hk = makeHint(level, arch);
+    if (adj.addPier && pierZones.length && arch !== 'piers') hk = { text: 'Heavy traffic on a long span: the pier zone on the valley floor can carry the middle of the deck.', key: { id: 'addPier' } };
+    level.hint = hk.text;
+    // i18n: what the name and hint are made of, so they can be told in the player's language (localize below)
+    level.i18n = { name: nm ? nm.key : null, hint: hk.key };
     return { level, arch };
   }
 
@@ -289,20 +293,52 @@
     const depth = Math.min(t.leftY, t.rightY) - t.floorY;
     const key = arch === 'channel' ? 'channel' : arch === 'piers' ? 'piers' : depth >= 14 ? 'deep' : t.waterY != null ? 'water' : 'dry';
     const noun = R.pick(NOUNS[key]);
-    if (opts.mode === 'daily' && isDateSeed(seed)) return WEEKDAYS[weekdayOf(seed)] + "'s " + noun;
+    const nounId = noun.toLowerCase();
+    if (opts.mode === 'daily' && isDateSeed(seed)) return { text: WEEKDAYS[weekdayOf(seed)] + "'s " + noun, key: { weekday: weekdayOf(seed), noun: nounId } };
     const adj = R.pick(ADJ);
-    if (opts.mode === 'endless') return adj + ' ' + noun;
-    return adj + ' ' + noun;
+    return { text: adj + ' ' + noun, key: { adj: adj.toLowerCase(), noun: nounId } };
   }
   function makeHint(level, arch) {
     const gap = level.terrain.rightEdge - level.terrain.leftEdge;
+    const H = (text, id, extra) => ({ text, key: Object.assign({ id }, extra) });
     switch (arch) {
-      case 'channel': return 'Ships need the channel under the deck kept clear: carry the road from above.';
-      case 'piers': return 'A ' + gap + ' m span is a long way to go unsupported. One pier zone on the valley floor can split it.';
-      case 'lowroof': return 'No headroom above the road. Build the truss underneath and tie it to the cliff ledges.';
-      case 'noledge': return 'Nothing to push against below the deck. Hang the road from a truss above it.';
-      default: return 'Triangles keep their shape. Deeper trusses carry more, but every metre costs.';
+      case 'channel': return H('Ships need the channel under the deck kept clear: carry the road from above.', 'channel');
+      case 'piers': return H('A ' + gap + ' m span is a long way to go unsupported. One pier zone on the valley floor can split it.', 'piers', { gap });
+      case 'lowroof': return H('No headroom above the road. Build the truss underneath and tie it to the cliff ledges.', 'lowroof');
+      case 'noledge': return H('Nothing to push against below the deck. Hang the road from a truss above it.', 'noledge');
+      default: return H('Triangles keep their shape. Deeper trusses carry more, but every metre costs.', 'default');
     }
+  }
+
+  // ------------------------------------------------------------------ i18n
+  // A generated level's name and hint in the player's language, from level.i18n (docs/I18N.md: content.gen.*).
+  // The English text in level.name / level.hint is the fallback (custom names, levels from before level.i18n).
+  function localText(level, field) {
+    const I = BG.i18n, k = level && level.i18n && level.i18n[field];
+    if (!I || !k) return null;
+    const has = key => I.has(key, 'en');
+    if (field === 'hint') {
+      const key = 'content.gen.hint.' + k.id;
+      return has(key) ? I.t(key, { gap: I.meters ? I.meters(k.gap, 0) : k.gap + ' m' }) : null;
+    }
+    const noun = 'content.gen.noun.' + k.noun;
+    if (k.weekday != null) {
+      const wd = 'content.gen.weekday.' + k.weekday;
+      return has(noun + '.day') && has(wd) ? I.t('content.gen.dailyName', { weekday: I.t(wd), noun: I.t(noun + '.day') }) : null;
+    }
+    const adj = 'content.gen.adj.' + k.adj;
+    return has(noun + '.adj') && has(adj) ? I.t(noun + '.adj', { adj: I.t(adj) }) : null;
+  }
+  /** Makes level.name / level.hint getters that follow the player's language (also for levels restored from a
+   *  cache, which are plain JSON). Returns the level. Without BG.i18n or level.i18n it changes nothing. */
+  function localize(level) {
+    if (!level || !level.i18n || !BG.i18n || !BG.i18n.lazy) return level;
+    const raw = { name: level.name, hint: level.hint };
+    BG.i18n.lazy(level, {
+      name: () => { const v = localText(level, 'name'); return v == null ? raw.name : v; },
+      hint: () => { const v = localText(level, 'hint'); return v == null ? raw.hint : v; },
+    });
+    return level;
   }
 
   // ------------------------------------------------------------------ parametric bridge builder
@@ -601,7 +637,7 @@
       };
       if (o.mode === 'daily' && isDateSeed(seed)) level.generator.date = isoDate(seed);
       if (o.index != null) level.generator.index = o.index;
-      return level;
+      return localize(level);
     }
     throw new Error('generator: no solvable level for seed ' + seed);
   }
@@ -680,6 +716,7 @@
     VERSION, PEAK_MAX, TARGET_RATIO, WEEKDAYS, WEEKDAY_CURVE,
     generate, createJob, generateAsync, daily, dailyOpts, endlessOpts, endlessSeed,
     dailySeed, dailyDifficulty, weekdayOf, dateLabel, isoDate, isDateSeed, addDays, dayNumber,
+    localize, localText,
     // exposed for tests / tooling
     _skeleton: skeleton, _buildTruss: buildTruss, _families: candidateFamilies, _describe: describe, _hash: hash32, _rng: Rng,
   };

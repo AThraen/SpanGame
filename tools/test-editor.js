@@ -5,6 +5,8 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 global.BG = global.BG || {};
 function load(rel) { const f = path.join(ROOT, rel); if (fs.existsSync(f)) { try { require(f); return true; } catch (e) { console.warn('  (could not load ' + rel + ': ' + e.message + ')'); } } return false; }
+// i18n: BG.i18n and every dictionary first, as in index.html (the editor's toasts go through it; language 'en')
+['js/i18n/i18n.js'].concat(...['en', 'da'].map(l => fs.readdirSync(path.join(ROOT, 'js/i18n', l)).filter(f => /\.js$/.test(f)).map(f => 'js/i18n/' + l + '/' + f))).forEach(load);
 ['js/core/materials.js', 'js/core/vehicles.js', 'js/core/trains.js', 'js/core/model.js', 'js/core/templates.js'].forEach(load);
 if (!load('js/ui/editor.js')) { console.error('editor.js missing'); process.exit(1); }
 const BG = global.BG;
@@ -491,7 +493,7 @@ section('chain: ends at anchors, out-of-reach click builds toward the joint');
   click(ed, 12, 0);
   const nEnd = ed.design.nodes.find((n) => near(n.x, gx) && near(n.y, gy));
   ok(nEnd && hasBeam(ed, 'a2', nEnd.id), 'out-of-reach click places the previewed (clamped) beam');
-  ok(ed.chainFrom === (nEnd && nEnd.id) && /reaches at most 6 m/.test(game.lastToast || ''), 'chain continues from the clamped end + toast');
+  ok(ed.chainFrom === (nEnd && nEnd.id) && /reaches at most 6\sm/.test(game.lastToast || ''), 'chain continues from the clamped end + toast');
 }
 
 section('auto-split: a new joint landing on a beam joins it');

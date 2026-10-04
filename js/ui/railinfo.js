@@ -37,13 +37,26 @@
     v = Math.abs(v || 0);
     return v > R.kinkRefSpeed ? R.kinkMax * R.kinkRefSpeed / v : R.kinkMax;
   }
-  function fmt(v, d) { const k = Math.pow(10, d == null ? 1 : d); return String(Math.round(v * k) / k); }
+  // i18n (docs/I18N.md): texts come from the dictionary (results.derail.*, results.strip.*), numbers from BG.i18n
+  function I() { return BG.i18n || null; }
+  function t(key, params) { return I() ? I().t(key, params) : key; }
+  function fmt(v, d) { const k = Math.pow(10, d == null ? 1 : d); const r = Math.round(v * k) / k; return I() ? I().num(r) : String(r); }
+  function fixed1(v) { return I() ? I().num(v, 1) : v.toFixed(1); }
   // measured values keep one decimal ("3.0°"); limits read cleaner trimmed ("4°", "1.4°")
-  function pct(g, fixed) { return fixed ? (g * 100).toFixed(1) : fmt(g * 100, 1); }
-  function deg(rad, fixed) { return fixed ? (rad * DEG).toFixed(1) : fmt(rad * DEG, 1); }
+  function pct(g, fixed) { return fixed ? fixed1(g * 100) : fmt(g * 100, 1); }
+  function deg(rad, fixed) { return fixed ? fixed1(rad * DEG) : fmt(rad * DEG, 1); }
+  // a name from the data tables in the current language: vehicles.<kind>.<id> when the dictionary has it
+  function dictName(kind, id, fallback) {
+    const k = 'vehicles.' + kind + '.' + id;
+    return I() && (I().has(k) || I().has(k, 'en')) ? I().t(k) : fallback;
+  }
   function carName(type) {
     const c = BG.RailCars && BG.RailCars[type];
-    return (c && c.name) || 'train';
+    return dictName('car', type, (c && c.name) || t('results.derail.train'));
+  }
+  function matName(id) {
+    const m = BG.Materials && BG.Materials[id];
+    return dictName('material', id, (m && m.name) || String(id));
   }
 
   // ------------------------------------------------------------------ live track geometry
@@ -193,14 +206,21 @@
   function explain(detail, sim, lv, design, car) {
     const D = detail || {};
     const R = rules(sim);
-    const name = carName(car && car.type);
-    const out = { reason: D.reason || 'derail', car: name, title: 'Derailed!', cause: '', advice: '', x: D.wx, y: D.wy, seg: D.seg, segPrev: D.segPrev, speed: D.speed || 0 };
+    const ctype = car && car.type;
+    const name = () => carName(ctype).toLowerCase();
+    const out = { reason: D.reason || 'derail', car: '', title: '', cause: '', advice: '', x: D.wx, y: D.wy, seg: D.seg, segPrev: D.segPrev, speed: D.speed || 0 };
+    // the texts are kept as dictionary keys + params (functions are read when the text is built), so retext(out)
+    // can rebuild them in another language; title / cause / advice / car are plain strings for the HUD
+    const parts = { title: [['results.derail.title']], cause: [], advice: [], car: ctype };
+    const say = (field, key, params) => { if (field === 'title') parts.title = []; parts[field].push([key, params || null]); };
+    Object.defineProperty(out, '_parts', { value: parts, enumerable: false });
     const sp = Math.round(D.speed || 0);
+    const ms = () => (I() ? I().num(sp) : String(sp));
     const N = sim && sim.nodes;
     const segOf = j => { const b = j != null && j >= 0 && sim.beams[j]; if (!b) return null; let A = N[b.a], B = N[b.b]; if (!A || !B) return null; if (B.x < A.x) { const t = A; A = B; B = t; } return { A, B, dx: B.x - A.x, dy: B.y - A.y, b }; };
     switch (D.reason) {
       case 'kink': {
-        out.title = 'Derailed on a kink';
+        say('title', 'results.derail.kink.title');
         const s0 = segOf(D.segPrev), s1 = segOf(D.seg);
         // where: at the bank joint, in a dip (track bends up again) or over a crest
         let at = 'joint';
@@ -211,71 +231,82 @@
           at = sl(second) > sl(first) ? 'dip' : 'crest';
         }
         out.at = at;
-        out.cause = 'Kink ' + deg(D.value, true) + '° at ' + sp + ' m/s — limit here is ' + deg(D.limit) + '°.';
-        if (at === 'bank') out.advice = 'The track bends too sharply where it meets the bank. Ease it on: keep the end panels level and stiff.';
-        else if (at === 'dip') out.advice = 'Stiffen the deck so it can\'t dip: support the track joints with a truss, posts or hangers.';
-        else out.advice = 'The track humps over a crest. Lay it flatter and stiffen the deck so it can\'t spring up.';
-        if ((D.speed || 0) > R.kinkRefSpeed + 0.5) out.advice += ' Fast trains need smoother track — the limit shrinks above ' + R.kinkRefSpeed + ' m/s.';
+        say('cause', 'results.derail.kink.cause', { v: () => deg(D.value, true), speed: ms, limit: () => deg(D.limit) });
+        say('advice', at === 'bank' ? 'results.derail.kink.bank' : at === 'dip' ? 'results.derail.kink.dip' : 'results.derail.kink.crest');
+        if ((D.speed || 0) > R.kinkRefSpeed + 0.5) say('advice', 'results.derail.kink.fast', { speed: () => fmt(R.kinkRefSpeed) });
         break;
       }
       case 'grade': {
-        out.title = 'Derailed on a slope';
-        out.cause = 'Grade ' + pct(D.value, true) + '% — trains can\'t climb more than ' + pct(D.limit) + '%.';
+        say('title', 'results.derail.grade.title');
+        say('cause', 'results.derail.grade.cause', { v: () => pct(D.value, true), limit: () => pct(D.limit) });
         // as built or sagged under the train?
         let built = null;
         const b = D.seg >= 0 && sim.beams[D.seg];
         if (b) { const at = builtNodes(sim, lv, design); const A = at(b.a), B = at(b.b); if (A && B) built = Math.abs(B.y - A.y) / Math.max(1e-6, Math.abs(B.x - A.x)); }
-        if (built != null && built > R.maxGrade - 1e-6) out.advice = 'This stretch of track is built too steep (' + pct(built, true) + '%). Lay it flatter, or spread the climb over more of the span.';
-        else out.advice = 'The deck sagged into a slope under the load' + (built != null ? ' (built at ' + pct(built, true) + '%)' : '') + '. Stiffen it so the end panels stay level.';
+        if (built != null && built > R.maxGrade - 1e-6) say('advice', 'results.derail.grade.steep', { v: () => pct(built, true) });
+        else if (built != null) say('advice', 'results.derail.grade.saggedBuilt', { v: () => pct(built, true) });
+        else say('advice', 'results.derail.grade.sagged');
         break;
       }
       case 'missing': {
         const wx = D.wx != null ? D.wx : (car ? car.x : 0);
         const br = brokenRailNear(sim, wx);
         if (br != null) {
-          out.title = 'The rail broke';
-          out.cause = 'Rail broke under the wheel.';
+          say('title', 'results.derail.broken.title');
+          say('cause', 'results.derail.broken.cause');
           out.seg = br;
           const fb = sim.firstBreak;
           const fbm = fb && BG.Materials && BG.Materials[fb.m];
-          if (fb && !(fbm ? fbm.isRail : fb.m === 'rail')) out.advice = 'The structure under the track gave way first (' + ((fbm && fbm.name) || fb.m).toLowerCase() + ', ' + fb.mode + ') and took the rail with it. Strengthen the members marked red.';
-          else out.advice = 'Track is a weak beam on its own. Carry it on a truss, arch or posts so it is never the member doing the work.';
+          if (fb && !(fbm ? fbm.isRail : fb.m === 'rail')) say('advice', 'results.derail.broken.under', { name: () => matName(fb.m).toLowerCase(), mode: () => t('results.mode.' + fb.mode) });
+          else say('advice', 'results.derail.broken.track');
           out.at = 'broken';
         } else if (roadUnder(sim, wx) && !railCovers(sim, wx)) {
-          out.title = 'No track here';
-          out.cause = 'The wheels ran onto a road deck — trains only run on Rail Track.';
-          out.advice = 'Lay Rail Track all the way from bank to bank.';
+          say('title', 'results.derail.road.title');
+          say('cause', 'results.derail.road.cause', { rail: () => matName('rail') });
+          say('advice', 'results.derail.layTrack', { rail: () => matName('rail') });
           out.at = 'road';
         } else if (!railCovers(sim, wx) || deadEndNear(sim, wx, 2.5)) {
-          out.title = 'Gap in the track';
-          out.cause = 'The wheel ran out of rail — there is a gap in the track.';
-          out.advice = 'Lay Rail Track all the way from bank to bank.';
+          say('title', 'results.derail.gap.title');
+          say('cause', 'results.derail.gap.cause');
+          say('advice', 'results.derail.layTrack', { rail: () => matName('rail') });
           out.at = 'gap';
         } else {
-          out.title = 'Lost the rail';
-          out.cause = 'The wheel lost the rail at a sharp bend.';
-          out.advice = 'The track bends too sharply for the wheels to follow. Smooth it out and stiffen the deck.';
+          say('title', 'results.derail.sharp.title');
+          say('cause', 'results.derail.sharp.cause');
+          say('advice', 'results.derail.sharp.advice');
           out.at = 'sharp';
         }
         break;
       }
       case 'lift': {
-        out.title = 'Lifted off the rails';
-        out.cause = 'Bogie lifted off a crest' + (sp ? ' at ' + sp + ' m/s' : '') + '.';
-        out.advice = 'The track threw the wheels upward. Flatten the hump and stiffen the deck so it can\'t spring back under the train.';
+        say('title', 'results.derail.lift.title');
+        say('cause', sp ? 'results.derail.lift.causeAt' : 'results.derail.lift.cause', { speed: ms });
+        say('advice', 'results.derail.lift.advice');
         break;
       }
       case 'fell': {
-        out.title = 'Off the bridge';
-        out.cause = 'The ' + name.toLowerCase() + ' fell with the bridge.';
-        out.advice = 'Check the red members on the stress map — the structure gave way under the train.';
+        say('title', 'results.derail.fell.title');
+        say('cause', 'results.derail.fell.cause', { car: name });
+        say('advice', 'results.derail.fell.advice');
         break;
       }
       default:
-        out.cause = 'The ' + name.toLowerCase() + ' came off the rails.';
-        out.advice = 'Keep the track grade under ' + pct(R.maxGrade) + '% and the bend between rail segments under ' + fmt(R.maxKinkDeg) + '°.';
+        say('cause', 'results.derail.other.cause', { car: name });
+        say('advice', 'results.derail.other.advice', { grade: () => pct(R.maxGrade), kink: () => fmt(R.maxKinkDeg) });
     }
-    return out;
+    return retext(out);
+  }
+  /** (re)builds an explain() result's title / cause / advice / car in the current language */
+  function retext(info) {
+    const parts = info && info._parts;
+    if (!parts) return info;
+    const val = (p) => { if (!p) return p; const o = {}; for (const k in p) o[k] = typeof p[k] === 'function' ? p[k]() : p[k]; return o; };
+    const join = (list) => list.map((q) => t(q[0], val(q[1]))).join(' ');
+    info.title = join(parts.title);
+    info.cause = join(parts.cause);
+    info.advice = join(parts.advice);
+    info.car = carName(parts.car);
+    return info;
   }
 
   // ------------------------------------------------------------------ results score card
@@ -325,8 +356,8 @@
     const xa = T.leftEdge - Math.max(3, span * 0.06), xb = T.rightEdge + Math.max(3, span * 0.06);
     const X = x => padL + (x - xa) / (xb - xa) * cw;
     const lanes = [
-      { key: 'grade', y0: padT, label: 'GRADE', color: COL.grade, max: R.maxGrade * 1.6, limit: R.maxGrade },
-      { key: 'kink', y0: padT + laneH + laneGap, label: 'KINK', color: COL.kink, max: R.kinkMax * 1.6, limit: opts.limitKink != null ? opts.limitKink : R.kinkMax },
+      { key: 'grade', y0: padT, label: t('results.strip.grade'), color: COL.grade, max: R.maxGrade * 1.6, limit: R.maxGrade },
+      { key: 'kink', y0: padT + laneH + laneGap, label: t('results.strip.kink'), color: COL.kink, max: R.kinkMax * 1.6, limit: opts.limitKink != null ? opts.limitKink : R.kinkMax },
     ];
     ctx.font = '700 9.5px ui-sans-serif, "Segoe UI", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
@@ -374,7 +405,7 @@
       ctx.textAlign = 'left'; ctx.fillStyle = ln.color;
       ctx.fillText(ln.label, 8, ln.y0 + laneH * 0.32);
       ctx.fillStyle = COL.muted; ctx.font = '600 9px ui-sans-serif, "Segoe UI", system-ui, sans-serif';
-      const limTxt = ln.key === 'grade' ? 'limit ' + pct(ln.limit) + '%' : 'limit ' + deg(ln.limit) + '°';
+      const limTxt = ln.key === 'grade' ? t('results.strip.limitPct', { v: pct(ln.limit) }) : t('results.strip.limitDeg', { v: deg(ln.limit) });
       ctx.fillText(limTxt, 8, ln.y0 + laneH * 0.74);
       ctx.font = '700 9.5px ui-sans-serif, "Segoe UI", system-ui, sans-serif';
     }
@@ -407,11 +438,11 @@
       ctx.fillStyle = COL.muted; ctx.font = '600 9px ui-sans-serif, "Segoe UI", system-ui, sans-serif'; ctx.fillText(label, rx, y - 7);
       ctx.fillStyle = bad ? '#ff8b97' : COL.text; ctx.font = '800 13px ui-sans-serif, "Segoe UI", system-ui, sans-serif'; ctx.fillText(val, rx, y + 6);
     };
-    row(lanes[0].y0 + laneH / 2, 'WORST GRADE', pct(r.grade || 0, true) + '%', (r.gradeRatio || 0) > 1);
+    row(lanes[0].y0 + laneH / 2, t('results.strip.worstGrade'), t('results.strip.pct', { v: pct(r.grade || 0, true) }), (r.gradeRatio || 0) > 1);
     // the speed the worst kink was judged at (its limit depends on it), else the train's speed now
     const spd = r.kinkRatio > 0 && r.kinkSpeed > 0 ? r.kinkSpeed : opts.speed != null ? opts.speed : (spans[0] ? spans[0].speed : 0);
-    row(lanes[1].y0 + laneH / 2, 'WORST KINK', deg(r.kink || 0, true) + '°' + (spd > 0.5 ? '  ' + Math.round(spd) + ' m/s' : ''), (r.kinkRatio || 0) > 1);
+    row(lanes[1].y0 + laneH / 2, t('results.strip.worstKink'), deg(r.kink || 0, true) + '°' + (spd > 0.5 ? '  ' + t('results.strip.speed', { v: I() ? I().num(Math.round(spd)) : Math.round(spd) }) : ''), (r.kinkRatio || 0) > 1);
   }
 
-  BG.RailInfo = { profile, Recorder, explain, rideCard, drawStrip, kinkLimit, rules, trainSpans, fmt, pct, deg };
+  BG.RailInfo = { profile, Recorder, explain, retext, rideCard, drawStrip, kinkLimit, rules, trainSpans, fmt, pct, deg };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -22,6 +22,15 @@
     return undefined;
   }
   function levels() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
+  // i18n (docs/I18N.md): every text a player reads goes through t(); numbers through BG.i18n's formatters
+  function I() { return BG.i18n || null; }
+  function t(key, params) { return I() ? I().t(key, params) : key; }
+  // a name from the data tables in the current language: vehicles.<kind>.<id> when the dictionary has it
+  function dictName(kind, id, fallback) {
+    const k = 'vehicles.' + kind + '.' + id;
+    return I() && (I().has(k) || I().has(k, 'en')) ? I().t(k) : fallback;
+  }
+  function matName(id) { const m = materialDef(id); return dictName('material', id, (m && m.name) || String(id)); }
   function levelId(lv) { if (!lv) return null; if (lv.id != null) return lv.id; const i = levels().indexOf(lv); return i >= 0 ? i + 1 : null; }
   function emptyDesign() {
     if (BG.Model && BG.Model.emptyDesign) { const d = safe(() => BG.Model.emptyDesign()); if (d) return d; }
@@ -38,15 +47,19 @@
   }
   function vehicleName(type) {
     const V = BG.Vehicles && BG.Vehicles[type];
-    return (V && V.name) || ({ car: 'car', van: 'van', bus: 'bus', truck: 'truck', semi: 'semi-trailer', tanker: 'tanker', heavy: 'heavy hauler' }[type] || 'vehicle');
+    return dictName('road', type, (V && V.name) || t('results.word.vehicle'));
   }
-  // name of a sim vehicle entry (road vehicle or train)
+  // name of a sim vehicle entry (road vehicle or train), as it reads inside a sentence
   function simVehicleName(v) {
-    if (!v) return 'vehicle';
+    if (!v) return t('results.word.vehicle');
     if (v.kind === 'train' || v.type === 'train') {
-      const T = BG.Trains && v.preset && BG.Trains[typeof v.preset === 'string' ? v.preset : v.preset.id];
-      const nm = (T && T.name) || (v.preset && v.preset.name) || 'train';
-      return /train|tram|handcar|express|local|freight|commuter/i.test(nm) ? nm : nm + ' train';
+      const id = v.preset && (typeof v.preset === 'string' ? v.preset : v.preset.id);
+      const T = BG.Trains && id && BG.Trains[id];
+      const nm = (T && T.name) || (v.preset && v.preset.name);
+      if (!nm) return t('results.word.train');
+      const k = 'vehicles.train.' + id;
+      if (I() && (I().has(k) || I().has(k, 'en'))) return I().t(k);
+      return /train|tram|handcar|express|local|freight|commuter/i.test(nm) ? nm : t('results.word.namedTrain', { name: nm });
     }
     return vehicleName(v.type);
   }
@@ -137,12 +150,87 @@
     const t = clamp(((px - ax) * dx + (py - ay) * dy) / L2, 0, 1);
     return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
   }
-  function fmtLen(m) { return (Math.round(m * 100) / 100).toFixed(m < 10 ? 2 : 1) + ' m'; }
+  function fmtLen(m) { return I() ? I().meters(m, m < 10 ? 2 : 1) : (Math.round(m * 100) / 100).toFixed(m < 10 ? 2 : 1) + ' m'; }
   function money(n) { return BG.Hud && BG.Hud.money ? BG.Hud.money(n) : '$' + Math.round(n); }
+  function pct(r) { return I() ? I().percent(r) : Math.round(r * 100) + '%'; }
+  // a bonus chapter's name in the current language (hud.chapter.<id>.name), else its own
+  function bonusName(b) { const k = 'hud.chapter.' + b.id + '.name'; return I() && I().has(k, 'en') ? t(k) : b.name; }
+  // why the design can't be tested (BG.Model.validate's first error): editor.invalid.<type>[.joint|.beam|.pier]
+  function invalidText(e, d) {
+    if (!e) return '';
+    const base = 'editor.invalid.' + e.type;
+    const sub = e.pierIndex != null ? '.pier' : e.beamIndex != null ? '.beam' : e.nodeId != null ? '.joint' : '';
+    const key = I() && sub && I().has(base + sub, 'en') ? base + sub : base;
+    if (!I() || !I().has(key, 'en')) return e.msg || e.type;
+    const beam = d && e.beamIndex != null ? d.beams[e.beamIndex] : null;
+    const m = beam ? materialDef(beam.m) : null;
+    return t(key, { name: beam ? matName(beam.m) : '', max: m && m.maxLength ? (I().meters(m.maxLength)) : '' });
+  }
+  // the results card's title and explanation in the current language. ctx: the facts of the run (_finishRun)
+  function resultText(c) {
+    let title, text;
+    const RI = BG.RailInfo;
+    if (c.passed) {
+      title = t(c.stars === 3 ? 'results.title.flawless' : c.stars === 2 ? 'results.title.solid' : 'results.title.passed');
+      text = c.vt === 1 ? t(c.trainsOnly ? 'results.pass.oneTrain' : 'results.pass.oneVehicle')
+        : t(c.trainsOnly ? 'results.pass.allTrains' : 'results.pass.allVehicles', { n: c.vt });
+      if (c.stars === 3) text += ' ' + t('results.pass.three', { pct: pct(0.7) });
+      else if (c.starHeld) text += ' ' + t('results.pass.held', { pct: pct(0.7), n: c.broken });
+      else if (c.stars === 2) text += ' ' + t('results.pass.two', { cost: money(c.budget * 0.7) });
+      else text += ' ' + t('results.pass.one', { cost: money(c.budget * 0.85) });
+    } else if (c.simOk) {
+      title = t('results.title.overBudget');
+      text = t('results.fail.overBudget', { over: money(c.cost - c.budget) });
+    } else if (c.reason === 'derailed') {
+      const info = c.info;
+      title = t(c.broken > 0 ? 'results.title.derailedCollapse' : 'results.title.derailed');
+      // a broken rail is explained by the first-break line appended below
+      if (info && info.cause) {
+        if (RI && RI.retext) RI.retext(info);
+        text = info.cause + (info.at === 'broken' && c.firstBreak ? '' : ' ' + (info.advice || ''));
+      } else {
+        text = t('results.fail.derailed', { what: (c.derailed ? simVehicleName(c.derailed) : t('results.word.train')).toLowerCase(),
+          grade: I() ? I().num(Math.round(c.lim.maxGrade * 1000) / 10) : Math.round(c.lim.maxGrade * 1000) / 10,
+          kink: I() ? I().num(c.lim.maxKinkDeg) : c.lim.maxKinkDeg }) + ' ' +
+          t(c.broken > 0 ? 'results.fail.derailedBroken' : 'results.fail.derailedSag');
+      }
+    } else if (c.reason === 'vehicle_fell') {
+      const train = !!(c.fell && isTrain(c.fell));
+      const what = (c.fell ? simVehicleName(c.fell) : t('results.word.vehicle')).toLowerCase();
+      title = t(c.broken > 0 ? 'results.title.collapse' : 'results.title.offEdge');
+      text = t('results.fail.fell.' + (train ? 'train' : 'vehicle') + (c.water ? 'Water' : 'Valley'), { what }) + ' ' +
+        (c.broken > 0 ? t('results.fail.snapped', { n: c.broken }) : t('results.fail.gaps'));
+    } else if (c.reason === 'vehicle_jumped') {
+      title = t('results.title.jumped');
+      text = t('results.fail.jumped');
+    } else if (c.reason === 'stalled') {
+      title = t('results.title.stalled');
+      text = t('results.fail.stalled');
+    } else if (c.reason === 'timeout') {
+      title = t('results.title.timeout');
+      text = t('results.fail.timeout', { n: c.vf, total: c.vt, time: I() ? I().time(c.timeLimit, 0) : c.timeLimit + ' s' });
+    } else {
+      title = t('results.title.failed');
+      text = t('results.fail.generic');
+    }
+    // what gave way first, and why (teaches reading the stress map)
+    const fb = c.firstBreak, ft = c.firstTopple;
+    if (!c.passed && !c.simOk && ft && (!fb || ft.time <= fb.time)) {
+      text += ' ' + t('results.why.topple');
+    } else if (!c.passed && !c.simOk && fb) {
+      const name = matName(fb.m).toLowerCase();
+      const kN = Math.round(Math.abs(fb.force || 0) / 1000);
+      const p = { name, kN: I() ? I().num(kN) : kN };
+      if (fb.mode === 'bending') text += ' ' + t(railMaterial(fb.m) ? 'results.why.bendTrack' : 'results.why.bendRoad', p);
+      else if (fb.mode === 'compression') text += ' ' + t('results.why.compression', p);
+      else text += ' ' + t('results.why.tension', p);
+    }
+    return { title, text };
+  }
 
   // ------------------------------------------------------------------ demo scene (title)
   const DEMO_LEVEL = {
-    id: 0, name: 'Demo', hint: '', theme: 'meadow',
+    id: 0, name: 'SPAN', hint: '', theme: 'meadow',
     terrain: { leftEdge: 0, leftY: 0, rightEdge: 24, rightY: 0, floorY: -9, waterY: -6 },
     anchors: [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 0, y: -3 }, { x: 24, y: -3 }],
     pierZones: [], maxPiers: 0, noBuild: [], buildArea: { x0: -2, x1: 26, y0: -8, y1: 12 },
@@ -418,12 +506,12 @@
 
     openLevel(id, opts) {
       const lv = this.findLevel(id);
-      if (!lv) { hudCall('toast', 'Level ' + id + ' is not available yet.', 'info'); return false; }
+      if (!lv) { hudCall('toast', t('hud.toast.levelUnavailable', { n: id }), 'info'); return false; }
       if (!(opts && opts.force) && !this.isUnlocked(levelId(lv))) {
         sfx('error');
         const shut = BG.Storage && BG.Storage.lockText ? safe(() => BG.Storage.lockText(levelId(lv), levels()), null)
           : BG.Storage && BG.Storage.campaignLockText ? safe(() => BG.Storage.campaignLockText(campaignOf(lv)), null) : null;
-        hudCall('toast', shut || 'Complete the previous level first.', 'info');
+        hudCall('toast', shut || t('hud.unlock.prevOne'), 'info');
         return false;
       }
       this._leaveLevel();
@@ -551,7 +639,7 @@
       const ed = this.editor; if (!ed) return;
       if (typeof ed.toggleMirror === 'function') ed.toggleMirror(); else ed.mirror = !ed.mirror;
       if (typeof ed.toggleMirror !== 'function') sfx('toggle', { on: !!ed.mirror });
-      hudCall('toast', ed.mirror ? 'Mirror symmetry on' : 'Mirror symmetry off', 'info', 1400);
+      hudCall('toast', t(ed.mirror ? 'editor.toast.mirrorOn' : 'editor.toast.mirrorOff'), 'info', 1400);
     },
     undo() { const ed = this.editor; if (ed && ed.undo && this.state === 'edit') { this._quietCounts = true; ed.undo(); } },
     redo() { const ed = this.editor; if (ed && ed.redo && this.state === 'edit') { this._quietCounts = true; ed.redo(); } },
@@ -561,7 +649,7 @@
       if (!d.beams.length && !d.nodes.length && !(d.piers || []).length) { sfx('error'); return; }
       this._quietCounts = true;
       if (ed && ed.clear) ed.clear(); else { this._replaceDesign(emptyDesign()); sfx('erase'); }
-      hudCall('toast', 'Bridge cleared — Ctrl+Z to undo', 'info');
+      hudCall('toast', t('editor.toast.cleared'), 'info');
     },
     applyTemplate(id) {
       const ed = this.editor; if (!ed || this.state !== 'edit') return;
@@ -569,8 +657,9 @@
       if (ed.applyTemplate) {
         const ok = safe(() => ed.applyTemplate(id), false);
         if (ok === false) return;
-        const t = BG.Templates && BG.Templates.list ? BG.Templates.list.find(x => x.id === id) : null;
-        hudCall('toast', (t ? t.name : 'Template') + ' placed — tweak it to fit the budget', 'info');
+        const tpl = BG.Templates && BG.Templates.list ? BG.Templates.list.find(x => x.id === id) : null;
+        const name = tpl ? tpl.name : t('editor.tpl.generic');
+        hudCall('toast', t('editor.toast.tplPlaced', { name }), 'info');
       }
     },
 
@@ -594,24 +683,25 @@
       const lv = this.level;
       const d = this.getDesign();
       if (!d.beams.length) {
-        sfx('error'); hudCall('toast', 'Nothing to test yet — drag from an anchor to build a road.', 'warn', 3200);
+        sfx('error'); hudCall('toast', t('editor.toast.nothingToTest'), 'warn', 3200);
         return false;
       }
       if (BG.Model && BG.Model.validate) {
         const v = safe(() => BG.Model.validate(lv, d), null);
         if (v && v.ok === false && v.errors && v.errors.length) {
           sfx('error');
-          hudCall('toast', 'Can\'t test yet: ' + (v.errors[0].msg || v.errors[0].type) + (v.errors.length > 1 ? ' (+' + (v.errors.length - 1) + ' more)' : ''), 'warn', 3600);
+          const why = invalidText(v.errors[0], d);
+          hudCall('toast', v.errors.length > 1 ? t('editor.toast.cantTestMore', { why, n: v.errors.length - 1 }) : t('editor.toast.cantTest', { why }), 'warn', 3600);
           return false;
         }
       }
       if (typeof BG.Simulation !== 'function') {
-        sfx('error'); hudCall('toast', 'Physics engine not loaded.', 'warn'); return false;
+        sfx('error'); hudCall('toast', t('editor.toast.noPhysics'), 'warn'); return false;
       }
       const sim = safe(() => new BG.Simulation(lv, cloneDesign(d), { seed: 1 }), null);
-      if (!sim) { sfx('error'); hudCall('toast', 'Simulation failed to start.', 'warn'); return false; }
+      if (!sim) { sfx('error'); hudCall('toast', t('editor.toast.simFailed'), 'warn'); return false; }
       if (BG.Model && BG.Model.roadConnected && !safe(() => BG.Model.roadConnected(lv, d), true)) {
-        hudCall('toast', 'Heads up: the road does not connect both banks yet, so traffic cannot make it across.', 'warn', 4200);
+        hudCall('toast', t('editor.toast.notConnected'), 'warn', 4200);
       }
       if (this.editor) { this.editor.chainFrom = null; safe(() => this.editor._refresh && this.editor._refresh()); }
       this._lastToggle = nowMs();
@@ -658,7 +748,7 @@
       this.followOn = !this.followOn;
       if (this.state === 'sim' || this.state === 'results') this._applyFollow(this.followOn);
       sfx('toggle', { on: this.followOn });
-      hudCall('toast', this.followOn ? 'Camera follows the traffic' : 'Camera follow off', 'info', 1400);
+      hudCall('toast', t(this.followOn ? 'editor.toast.followOn' : 'editor.toast.followOff'), 'info', 1400);
     },
     setFollow(on) { if (!!on !== !!this.followOn) this.toggleFollow(); },
     // ---------------------------------------------------------------- track recording strip (rail)
@@ -667,7 +757,7 @@
       if (!this.level || !this.hasTrack()) return;
       this.trackOn = !this.trackOn;
       sfx('toggle', { on: this.trackOn });
-      hudCall('toast', this.trackOn ? 'Track recording on' : 'Track recording off', 'info', 1400);
+      hudCall('toast', t(this.trackOn ? 'editor.toast.trackOn' : 'editor.toast.trackOff'), 'info', 1400);
     },
     /** what the HUD's track strip draws this frame (null = hidden) */
     getTrackStrip() {
@@ -1006,65 +1096,20 @@
       if (starHeld) stars = 2;
       const reason = sim.failReason || (status === 'failed' && sim.status === 'running' ? 'timeout' : null);
 
-      let title, text;
-      if (passed) {
-        title = stars === 3 ? 'Flawless engineering!' : stars === 2 ? 'Solid bridge!' : 'Bridge passed!';
-        const noun = vehicles.length && vehicles.every(isTrain) ? 'train' : 'vehicle';
-        text = (vt === 1 ? 'The ' + noun + ' crossed' : 'All ' + vt + ' ' + noun + 's crossed') + ' safely. ';
-        if (stars === 3) text += 'Under 70% of budget — elegant and efficient.';
-        else if (starHeld) text += 'Under 70% of budget, but ' + broken + ' member' + (broken === 1 ? '' : 's') + ' broke: on the railway the third star also needs the structure to hold.';
-        else if (stars === 2) text += 'Get the cost under ' + money(budget * 0.7) + ' for the third star.';
-        else text += 'Get under ' + money(budget * 0.85) + ' for another star.';
-      } else if (simOk) {
-        title = 'Over budget';
-        text = 'Everything made it across, but the bridge is ' + money(cost - budget) + ' over budget. Trim some material and test again.';
-      } else if (reason === 'derailed') {
-        const lim = Object.assign({}, BG.RailRules || { maxGrade: 0.06, maxKinkDeg: 4 }, sim.railRules || lv.rail || {});
-        const dt = vehicles.find(v => isTrain(v) && (v.state === 'derailed' || (v.cars || []).some(c => c && c.state === 'derailed')));
-        const what = dt ? simVehicleName(dt) : 'train';
-        const info = this._derailFx && this._derailFx.info;
-        title = broken > 0 ? 'Derailed — and the bridge gave way!' : 'Derailed!';
-        // a broken rail is explained by the first-break line appended below
-        if (info && info.cause) text = info.cause + (info.at === 'broken' && (sum.firstBreak || sim.firstBreak) ? '' : ' ' + (info.advice || ''));
-        else {
-          text = 'The ' + what.toLowerCase() + ' came off the rails. Trains are far fussier than cars: keep the track grade under ' +
-            Math.round(lim.maxGrade * 1000) / 10 + '% and the bend between rail segments under ' + lim.maxKinkDeg + '°. ' +
-            (broken > 0 ? 'A broken or missing rail under a wheel derails it instantly — check the red members.' : 'Stiffen the deck so it sags less under the load, and avoid sharp kinks at the bridge ends.');
-        }
-      } else if (reason === 'vehicle_fell') {
-        const fell = vehicles.find(v => v.state === 'fallen' || (isTrain(v) && (v.cars || []).some(c => c && c.state === 'fallen')));
-        const what = (fell ? simVehicleName(fell) : 'vehicle').toLowerCase();
-        const where = lv.terrain && lv.terrain.waterY != null ? 'into the water' : 'into the valley';
-        title = broken > 0 ? 'Collapse!' : 'Off the edge!';
-        text = (/^[aeiou]/.test(what) ? 'An ' : 'A ') + what + ' fell ' + where + '. ' + (broken > 0 ? broken + ' beam' + (broken === 1 ? '' : 's') + ' snapped — check the red members on the stress map.' : 'Make sure the road reaches all the way across, without gaps or steep steps.');
-      } else if (reason === 'vehicle_jumped') {
-        title = 'No jumping!';
-        text = 'A vehicle flew across instead of driving. The road has to run continuously from bank to bank and carry the traffic all the way.';
-      } else if (reason === 'stalled') {
-        title = 'Traffic stuck';
-        text = 'Every vehicle came to a stop on the bridge. Is the deck too steep, too bumpy, or sagging into a dip they cannot climb out of?';
-      } else if (reason === 'timeout') {
-        title = 'Out of time';
-        text = 'Only ' + vf + ' of ' + vt + ' vehicles made it across in ' + (lv.timeLimit || Math.round(sim.time)) + ' s. Is the deck too steep, or sagging so much that traffic gets stuck?';
-      } else {
-        title = 'Bridge failed';
-        text = 'Not every vehicle made it across. Strengthen the overloaded members and try again.';
-      }
-
-      // what gave way first, and why (teaches reading the stress map)
+      // the title and explanation are built by resultText(ctx), which the HUD calls again on a language change
       const fb = sum.firstBreak || sim.firstBreak;
       const ft = sum.firstTopple || sim.firstTopple; // §17 a land pylon overturned its footing
-      if (!passed && !simOk && ft && (!fb || ft.time <= fb.time)) {
-        text += ' A land pylon toppled first: its footing could not hold the pull of its stays. Guy it back with backstays to an inland anchor behind it.';
-      } else if (!passed && !simOk && fb) {
-        const mname = (materialDef(fb.m).name || fb.m).toLowerCase();
-        const kN = Math.round(Math.abs(fb.force || 0) / 1000);
-        let why;
-        if (fb.mode === 'bending') why = 'The ' + mname + ' deck bent too far at a joint - ' + (railMaterial(fb.m) ? 'track' : 'road') + ' needs a supported joint (a strut, hanger or chord below it) about every 5-6 m.';
-        else if (fb.mode === 'compression') why = 'The first beam to fail was ' + mname + ' crushed in compression (' + kN + ' kN). Shorten it, double it up, or use a stronger material.';
-        else why = 'The first beam to fail was ' + mname + ' pulled apart in tension (' + kN + ' kN). Share the load with more members or use a stronger material.';
-        text += ' ' + why;
-      }
+      const derailed = reason === 'derailed' ? vehicles.find(v => isTrain(v) && (v.state === 'derailed' || (v.cars || []).some(c => c && c.state === 'derailed'))) : null;
+      const fell = reason === 'vehicle_fell' ? vehicles.find(v => v.state === 'fallen' || (isTrain(v) && (v.cars || []).some(c => c && c.state === 'fallen'))) : null;
+      const ctx = {
+        passed, simOk, stars, starHeld, broken, vt, vf, cost, budget, reason,
+        trainsOnly: !!(vehicles.length && vehicles.every(isTrain)),
+        lim: Object.assign({}, BG.RailRules || { maxGrade: 0.06, maxKinkDeg: 4 }, sim.railRules || lv.rail || {}),
+        derailed, fell, water: !!(lv.terrain && lv.terrain.waterY != null), timeLimit: lv.timeLimit || Math.round(sim.time),
+        info: this._derailFx && this._derailFx.info, firstBreak: fb || null, firstTopple: ft || null,
+      };
+      const txt = resultText(ctx);
+      const title = txt.title, text = txt.text;
 
       let rec = { entry: null, improved: false };
       const S = BG.Storage;
@@ -1098,22 +1143,23 @@
         rail: BG.RailInfo && sim.ride ? safe(() => BG.RailInfo.rideCard(sim, sum), null) : null,
         derail: this._derailFx && this._derailFx.info ? this._derailFx.info : null,
       };
+      Object.defineProperty(res, 'textCtx', { value: ctx }); // for resultText() on a language change (not saved)
       this.lastResult = res;
       this._setState('results');
       hudCall('setMode', 'results');
       hudCall('showResults', res);
       sfx(passed ? 'success' : 'fail');
       // a newly opened campaign gets a toast once the stars have landed
-      const OPEN_TOAST = { rail: 'The Iron Road is open! Railway bridges await on the level select.', famous: 'Famous Bridges is open! Rebuild real bridges from history on the level select.' };
       opened.forEach((c, i) => setTimeout(() => {
         if (this.state !== 'results') return;
-        hudCall('toast', OPEN_TOAST[c] || 'A new campaign is open on the level select.', 'good', 5200);
+        const k = 'results.toast.open.' + c;
+        hudCall('toast', I() && I().has(k, 'en') ? t(k) : t('results.toast.open'), 'good', 5200);
         if (c === 'rail') sfx('horn', { kind: 'whistle' });
       }, 1500 + i * 1800));
       // a hidden bonus chapter revealed by this result (Anchorages after level 40)
       bonusOpened.forEach((b, i) => setTimeout(() => {
         if (this.state !== 'results') return;
-        hudCall('toast', 'A hidden chapter has opened: ' + b.name + ' (levels ' + b.first + '–' + b.last + ') on the level select.', 'good', 5200);
+        hudCall('toast', t('results.toast.bonus', { name: bonusName(b), from: b.first, to: b.last }), 'good', 5200);
       }, 1500 + (opened.length + i) * 1800));
       // explain the unlock rule the moment it lets the player skip ahead
       skipOpened.forEach((l, i) => setTimeout(() => {
@@ -1125,11 +1171,11 @@
     skipUnlockText(lv) {
       const H = BG.Hud;
       const camp = campaignOf(lv);
-      const name = H && H.shortLabel ? safe(() => H.shortLabel(lv), null) : null;
-      const unit = camp === 'famous' ? 'bridge' : 'level';
-      const fin = camp === 'rail' ? 'line finales' : camp === 'famous' ? 'the finale' : 'chapter finales';
-      return (name || 'Level ' + levelId(lv)) + ' unlocked — you can skip one ' + unit + ' (' + fin + ' can\'t be skipped)';
+      const name = (H && H.shortLabel ? safe(() => H.shortLabel(lv), null) : null) || t('core.level', { n: levelId(lv) });
+      const k = 'results.toast.skip.' + camp;
+      return t(I() && I().has(k, 'en') ? k : 'results.toast.skip.road', { name });
     },
+    resultText(ctx) { return resultText(ctx); },
     nextLevel() {
       const next = this.nextInCampaign(this.level);
       if (next) this.openLevel(levelId(next));
@@ -1192,15 +1238,15 @@
         if (!beam) return null;
         const m = materialDef(beam.m);
         const len = beamLength(this.level, d, beam);
-        const rows = [['Length', fmtLen(len) + ' / ' + (m.maxLength || '?') + ' m'], ['Cost', money(len * (m.costPerMeter || 0))]];
-        if (m.tensionOnly) rows.push(['Type', 'Tension only']);
-        else if (m.isRoad) rows.push(['Type', 'Road deck']);
+        const rows = [[t('editor.tip.length'), t('editor.tip.lengthOf', { len: fmtLen(len), max: m.maxLength ? (I() ? I().meters(m.maxLength) : m.maxLength + ' m') : '?' })], [t('editor.tip.cost'), money(len * (m.costPerMeter || 0))]];
+        if (m.tensionOnly) rows.push([t('editor.tip.type'), t('editor.tip.tensionOnly')]);
+        else if (m.isRoad) rows.push([t('editor.tip.type'), t('editor.tip.roadDeck')]);
         const lp = this._lastPeaks, bi = d.beams.indexOf(beam);
         if (lp && bi >= 0 && lp.keys[bi] === beam.a + '|' + beam.b + '|' + beam.m && lp.peaks[bi]) {
           const q = lp.peaks[bi];
-          rows.push(['Last test', q.broken ? 'broke' : 'peak ' + Math.round(q.p * 100) + '%', q.broken || q.p >= 0.9 ? 'bad' : q.p >= 0.7 ? 'warn' : 'good']);
+          rows.push([t('editor.tip.lastTest'), q.broken ? t('editor.tip.broke') : t('editor.tip.peak', { p: pct(q.p) }), q.broken || q.p >= 0.9 ? 'bad' : q.p >= 0.7 ? 'warn' : 'good']);
         }
-        return { x: p.x, y: p.y, title: m.name || beam.m, color: m.color, rows };
+        return { x: p.x, y: p.y, title: matName(beam.m), color: m.color, rows };
       }
       if ((this.state === 'sim' || this.state === 'results') && this.sim && r && r.screenToWorld) {
         const sim = this.sim;
@@ -1223,19 +1269,20 @@
         const b = sim.beams[best];
         const m = b.material || materialDef(b.m);
         const f = +b.force || 0;
-        const kind = Math.abs(f) < 1 ? '' : f > 0 ? ' tension' : ' compression';
+        const kN = I() ? I().num(Math.abs(f) / 1000, 1) : (Math.abs(f) / 1000).toFixed(1);
+        const force = Math.abs(f) < 1 ? t('editor.tip.kN', { v: kN }) : t(f > 0 ? 'editor.tip.kNTension' : 'editor.tip.kNCompression', { v: kN });
         const s = Math.abs(+b.stress || 0), pk = +b.peak || 0;
         const rows = [
-          ['Length', fmtLen(b.restLength || 0)],
-          ['Force', (Math.abs(f) / 1000).toFixed(1) + ' kN' + kind],
-          ['Stress', Math.round(s * 100) + '%', s >= 0.9 ? 'bad' : s >= 0.7 ? 'warn' : 'good'],
-          ['Peak', Math.round(pk * 100) + '%', pk >= 0.9 ? 'bad' : pk >= 0.7 ? 'warn' : ''],
+          [t('editor.tip.length'), fmtLen(b.restLength || 0)],
+          [t('editor.tip.force'), force],
+          [t('editor.tip.stress'), pct(s), s >= 0.9 ? 'bad' : s >= 0.7 ? 'warn' : 'good'],
+          [t('editor.tip.peakK'), pct(pk), pk >= 0.9 ? 'bad' : pk >= 0.7 ? 'warn' : ''],
         ];
         if (b.bend != null) {
           const bd = Math.abs(+b.bend || 0);
-          rows.splice(3, 0, ['of which bending', Math.round(bd * 100) + '%', bd >= 0.5 ? 'warn' : '']);
+          rows.splice(3, 0, [t('editor.tip.bending'), pct(bd), bd >= 0.5 ? 'warn' : '']);
         }
-        return { x: p.x, y: p.y, title: (m && m.name) || b.m, color: m && m.color, rows, stress: this.state === 'results' ? pk : s, peak: pk };
+        return { x: p.x, y: p.y, title: (m && m.id ? matName(m.id) : matName(b.m)), color: m && m.color, rows, stress: this.state === 'results' ? pk : s, peak: pk };
       }
       return null;
     },

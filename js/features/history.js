@@ -128,11 +128,11 @@
             if (run.k) b[key].k = run.k;
           }
         };
-        better('cost', run.c, true, 'Lowest cost');
-        better('members', run.n, true, 'Fewest members');
-        better('peak', run.p, true, 'Lowest peak stress');
-        better('time', run.d, true, 'Fastest crossing');
-        better('stars', run.s, false, 'Most stars');
+        better('cost', run.c, true, tx('features.history.best.cost'));
+        better('members', run.n, true, tx('features.history.best.members'));
+        better('peak', run.p, true, tx('features.history.best.peak'));
+        better('time', run.d, true, tx('features.history.best.time'));
+        better('stars', run.s, false, tx('features.history.best.stars'));
       }
       sset('hist.bests', bests);
       H._pruneSnapshots();
@@ -335,12 +335,12 @@
     // checks a parsed or string save without touching storage: { ok, error?, save, keys }
     validateSave(input) {
       let o = input;
-      if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { return { ok: false, error: 'That file is not a SPAN save (not JSON).' }; } }
-      if (!isObj(o) || o.format !== SAVE_FORMAT || !isObj(o.data)) return { ok: false, error: 'That file is not a SPAN save.' };
-      if ((o.schema | 0) > SCHEMA) return { ok: false, error: 'That save is from a newer version of SPAN.' };
+      if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { return { ok: false, error: tx('features.history.save.notJson') }; } }
+      if (!isObj(o) || o.format !== SAVE_FORMAT || !isObj(o.data)) return { ok: false, error: tx('features.history.save.notSave') };
+      if ((o.schema | 0) > SCHEMA) return { ok: false, error: tx('features.history.save.newer') };
       const keys = Object.keys(o.data).filter(k => /^[A-Za-z0-9_.\-]{1,80}$/.test(k) && k !== '__probe');
-      if (!keys.length) return { ok: false, error: 'That save file is empty.' };
-      if (o.data.progress != null && !isObj(o.data.progress)) return { ok: false, error: 'That save file is damaged.' };
+      if (!keys.length) return { ok: false, error: tx('features.history.save.empty') };
+      if (o.data.progress != null && !isObj(o.data.progress)) return { ok: false, error: tx('features.history.save.damaged') };
       return { ok: true, save: o, keys };
     },
     importSave(input) {
@@ -363,6 +363,8 @@
     },
   };
   BG.History = H;
+  // i18n (docs/I18N.md): the record and save texts above run in Node too; BG.i18n is loaded first everywhere
+  function tx(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; }
   if (BG.Storage) BG.Storage.SCHEMA = SCHEMA; // history: schema version of the save as a whole
 
   // =================================================================== browser UI
@@ -376,16 +378,20 @@
   function icon(n) { return Hud.icon ? Hud.icon(n) : ''; }
   function sfx(n, o) { try { BG.Audio && BG.Audio.play(n, o); } catch (e) { /* */ } }
   function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
+  const tr = t;   // where a local `t` (a timestamp) shadows it
+  function pct(v) { return BG.i18n ? BG.i18n.percent(v) : Math.round(v * 100) + '%'; }
+  function fnum(v) { return BG.i18n ? BG.i18n.num(+v || 0) : String(v); }
+  function secs(v) { return BG.i18n ? BG.i18n.time(v) : v.toFixed(1) + ' s'; }
   function toast(m, k, ms) { safe(() => Hud.toast && Hud.toast(m, k, ms)); }
   function levels() { return Array.isArray(BG.Levels) ? BG.Levels : []; }
   function findLevel(id) { return safe(() => Game.findLevel(id), null); }
   function lvLabel(id) {
     const lv = findLevel(id);
     // daily / endless levels (string ids, js/features/daily.js): their name, not 'Level daily-20261003'
-    if (lv && typeof id === 'string' && /^(daily|endless)-/.test(id)) return (/^daily-/.test(id) ? 'Daily' : 'Endless') + (lv.name ? ' · ' + lv.name : '');
+    if (lv && typeof id === 'string' && /^(daily|endless)-/.test(id)) return t(/^daily-/.test(id) ? 'features.history.daily' : 'features.history.endless') + (lv.name ? ' · ' + lv.name : '');
     // campaigns name their own levels the way the title's Continue does (famous bridges by name)
     if (lv && Hud.shortLabel) return Hud.shortLabel(lv);
-    return (lv && Hud.levelLabel ? Hud.levelLabel(lv) : 'Level ' + id);
+    return (lv && Hud.levelLabel ? Hud.levelLabel(lv) : t('core.level', { n: id }));
   }
   // the number shown in front of a level's name in the lists: the top-bar badge number (famous bridges 1-12),
   // D / E for daily and endless crossings (their ids are strings)
@@ -401,23 +407,23 @@
   function stars(n) { return '★'.repeat(n | 0) + '<span class="hs-dim">' + '★'.repeat(3 - (n | 0)) + '</span>'; }
   function fmtDur(ms) {
     const m = Math.floor(ms / 60000);
-    if (m < 1) return Math.round(ms / 1000) + ' s';
-    if (m < 60) return m + ' min';
-    return Math.floor(m / 60) + ' h ' + (m % 60) + ' min';
+    if (m < 1) return t('features.history.dur.s', { n: Math.round(ms / 1000) });
+    if (m < 60) return t('features.history.dur.min', { n: m });
+    return t('features.history.dur.h', { h: Math.floor(m / 60), m: m % 60 });
   }
   function ago(t) {
     if (!t) return '';
     const d = Date.now() - t, m = Math.round(d / 60000);
-    if (m < 1) return 'just now';
-    if (m < 60) return m + ' min ago';
+    if (m < 1) return tr('features.history.ago.now');
+    if (m < 60) return tr('features.history.ago.min', { n: m });
     const h = Math.round(m / 60);
-    if (h < 24) return h + ' h ago';
+    if (h < 24) return tr('features.history.ago.h', { n: h });
     const days = Math.round(h / 24);
-    if (days < 7) return days === 1 ? 'yesterday' : days + ' days ago';
-    try { return new Date(t).toLocaleDateString(); } catch (e) { return days + ' days ago'; }
+    if (days < 7) return days === 1 ? tr('features.history.ago.yesterday') : tr('features.history.ago.days', { n: days });
+    return (BG.i18n && BG.i18n.date(t)) || tr('features.history.ago.days', { n: days });
   }
-  const REASONS = { over_budget: 'Over budget', vehicle_fell: 'Fell', derailed: 'Derailed', vehicle_jumped: 'Jumped', stalled: 'Stuck', timeout: 'Out of time', failed: 'Failed' };
-  function reasonText(r) { return REASONS[r] || 'Failed'; }
+  const REASONS = ['over_budget', 'vehicle_fell', 'derailed', 'vehicle_jumped', 'stalled', 'timeout', 'failed'];
+  function reasonText(r) { return t('features.history.reason.' + (REASONS.indexOf(r) >= 0 ? r : 'failed')); }
 
   function materialCounts(d) {
     const o = {};
@@ -440,7 +446,7 @@
     const pts = list.map((r, j) => X(j).toFixed(1) + ',' + Y(r.c).toFixed(1)).join(' ');
     const bl = budget ? '<line class="sp-budget" x1="0" x2="' + w + '" y1="' + Y(budget).toFixed(1) + '" y2="' + Y(budget).toFixed(1) + '"/>' : '';
     const dots = list.map((r, j) => '<circle class="' + (r.ok ? 'sp-ok' : 'sp-bad') + '" cx="' + X(j).toFixed(1) + '" cy="' + Y(r.c).toFixed(1) + '" r="2.2"/>').join('');
-    return '<svg class="hist-spark" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" role="img" aria-label="Cost over ' + list.length + ' attempts">' +
+    return '<svg class="hist-spark" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" role="img" aria-label="' + esc(t('features.history.sparkAria', { n: list.length })) + '">' +
       bl + '<polyline points="' + pts + '"/>' + dots + '</svg>';
   }
 
@@ -479,22 +485,22 @@
     if (rec && res.passed) {
       const imp = rec.improvements || [];
       const cost = imp.find(i => i.key === 'cost');
-      if (rec.first) parts.push('<span class="hb hb-new">' + icon('flag') + 'First pass on this level</span>');
-      else if (cost && cost.prev != null) parts.push('<span class="hb hb-new">' + icon('trophy') + 'New best! <b>−' + money(-cost.delta) + '</b> vs your previous ' + money(cost.prev) + '</span>');
+      if (rec.first) parts.push('<span class="hb hb-new">' + icon('flag') + esc(t('features.history.res.first')) + '</span>');
+      else if (cost && cost.prev != null) parts.push('<span class="hb hb-new">' + icon('trophy') + t('features.history.res.newBest', { delta: esc(money(-cost.delta)), prev: esc(money(cost.prev)) }) + '</span>');
       imp.forEach(i => {
         if (rec.first || i.key === 'cost' || i.prev == null) return;
-        let t;
-        if (i.key === 'members') t = 'Fewest members: ' + i.v + ' (was ' + i.prev + ')';
-        else if (i.key === 'peak') t = 'Lowest peak stress: ' + Math.round(i.v * 100) + '% (was ' + Math.round(i.prev * 100) + '%)';
-        else if (i.key === 'time') t = 'Fastest crossing: ' + i.v.toFixed(1) + ' s (was ' + i.prev.toFixed(1) + ' s)';
-        else if (i.key === 'stars') t = 'New star record: ' + '★'.repeat(i.v);
-        if (t) parts.push('<span class="hb hb-up">' + t + '</span>');
+        let s;
+        if (i.key === 'members') s = t('features.history.res.members', { v: i.v, prev: i.prev });
+        else if (i.key === 'peak') s = t('features.history.res.peak', { v: pct(i.v), prev: pct(i.prev) });
+        else if (i.key === 'time') s = t('features.history.res.time', { v: secs(i.v), prev: secs(i.prev) });
+        else if (i.key === 'stars') s = t('features.history.res.stars', { stars: '★'.repeat(i.v) });
+        if (s) parts.push('<span class="hb hb-up">' + esc(s) + '</span>');
       });
-      if (!rec.first && !cost && rec.prev && rec.prev.cost) parts.push('<span class="hb">Your best: ' + money(rec.prev.cost.v) + ' (' + (res.cost > rec.prev.cost.v ? '+' : '') + money(res.cost - rec.prev.cost.v) + ')</span>');
+      if (!rec.first && !cost && rec.prev && rec.prev.cost) parts.push('<span class="hb">' + esc(t('features.history.res.yourBest', { best: money(rec.prev.cost.v), diff: (res.cost > rec.prev.cost.v ? '+' : '') + money(res.cost - rec.prev.cost.v) })) + '</span>');
     } else if (rec && rec.best && rec.best.cost) {
-      parts.push('<span class="hb">Your best here: ' + money(rec.best.cost.v) + (rec.best.stars ? ' · ' + '★'.repeat(rec.best.stars.v) : '') + '</span>');
+      parts.push('<span class="hb">' + esc(t('features.history.res.bestHere', { best: money(rec.best.cost.v) }) + (rec.best.stars ? ' · ' + '★'.repeat(rec.best.stars.v) : '')) + '</span>');
     }
-    if (rec && rec.best) parts.push('<span class="hb hb-dim">Attempt ' + (rec.best.runs | 0) + '</span>');
+    if (rec && rec.best) parts.push('<span class="hb hb-dim">' + esc(t('features.history.res.attempt', { n: rec.best.runs | 0 })) + '</span>');
     box.innerHTML = parts.join('');
     box.hidden = !parts.length;
   }
@@ -504,12 +510,12 @@
     const b = H.getBests(id);
     if (!b || !b.runs) return '';
     const p = [];
-    if (b.cost) p.push('Best ' + money(b.cost.v));
+    if (b.cost) p.push(t('features.history.tip.best', { cost: money(b.cost.v) }));
     if (b.stars) p.push('★'.repeat(b.stars.v));
-    if (b.members) p.push(b.members.v + ' members');
-    if (b.peak) p.push('peak ' + Math.round(b.peak.v * 100) + '%');
-    if (b.time) p.push(b.time.v.toFixed(1) + ' s');
-    p.push(b.runs + ' run' + (b.runs === 1 ? '' : 's'));
+    if (b.members) p.push(t('features.history.members', { n: b.members.v }));
+    if (b.peak) p.push(t('features.history.tip.peak', { pct: pct(b.peak.v) }));
+    if (b.time) p.push(secs(b.time.v));
+    p.push(t('core.runs', { n: b.runs }));
     return p.join(' · ');
   }
   const origBuildLS = Hud.buildLevelSelect;
@@ -755,21 +761,23 @@
     if (lr) lr.insertBefore(histButton('btn-ghost'), lr.lastElementChild);
 
     // history overlay
-    const ov = el(`<div id="history" class="modal hist-modal" role="dialog" aria-modal="true" aria-label="History">
+    // data-i18n: BG.i18n.apply translates the static parts (again on a language change); the lists are renderHistory's
+    const ov = el(`<div id="history" class="modal hist-modal" role="dialog" aria-modal="true" data-i18n-aria="features.history.title">
         <div class="modal-card glass hist-card">
-          <div class="modal-head"><h3>${icon('clock')}History</h3><button class="btn btn-icon btn-ghost" data-hact="close" title="Close (Esc)">${icon('close')}</button></div>
+          <div class="modal-head"><h3 data-i18n="features.history.title">${icon('clock')}</h3><button class="btn btn-icon btn-ghost" data-hact="close" data-i18n-title="features.closeEsc">${icon('close')}</button></div>
           <div class="hist-tabs" role="tablist">
-            <button class="hist-tab" role="tab" data-htab="runs">Runs</button>
-            <button class="hist-tab" role="tab" data-htab="levels">Levels</button>
-            <button class="hist-tab" role="tab" data-htab="stats">Stats</button>
+            <button class="hist-tab" role="tab" data-htab="runs" data-i18n="features.history.tab.runs"></button>
+            <button class="hist-tab" role="tab" data-htab="levels" data-i18n="features.history.tab.levels"></button>
+            <button class="hist-tab" role="tab" data-htab="stats" data-i18n="features.history.tab.stats"></button>
           </div>
           <div class="hist-filters" data-href="filters">
-            <label><span>Level</span><select data-hfilter="level"></select></label>
-            <label><span>Result</span><select data-hfilter="result"><option value="all">All</option><option value="pass">Passed</option><option value="fail">Failed</option></select></label>
+            <label><span data-i18n="features.history.filter.level"></span><select data-hfilter="level"></select></label>
+            <label><span data-i18n="features.history.filter.result"></span><select data-hfilter="result"><option value="all" data-i18n="features.history.filter.all"></option><option value="pass" data-i18n="features.history.filter.pass"></option><option value="fail" data-i18n="features.history.filter.fail"></option></select></label>
           </div>
           <div class="hist-body" data-href="body"></div>
         </div>
       </div>`);
+    if (BG.i18n) BG.i18n.apply(ov);
     ui.appendChild(ov);
     hud.el.history = ov;
     ov.addEventListener('click', e => {
@@ -839,6 +847,8 @@
     UI.open = false;
   }
   BG.History.open = openHistory;
+  // i18n: the open overlay's lists are built in code; rebuild them in the new language
+  if (BG.i18n) BG.i18n.on('languagechange', () => { if (UI.open) safe(renderHistory); });
   BG.History.close = closeHistory;
   BG.History.isOpen = () => UI.open;
   // Esc closes the overlay; other keys must not reach the game while it is open
@@ -859,7 +869,7 @@
     const filters = ov.querySelector('[data-href=filters]');
     filters.hidden = UI.tab !== 'runs';
     const sel = ov.querySelector('[data-hfilter=level]');
-    sel.innerHTML = '<option value="all">All levels</option>' + played.map(id => '<option value="' + id + '">' + esc(lvFull(id)) + '</option>').join('');
+    sel.innerHTML = '<option value="all">' + esc(t('features.history.filter.allLevels')) + '</option>' + played.map(id => '<option value="' + id + '">' + esc(lvFull(id)) + '</option>').join('');
     if (UI.level !== 'all' && played.indexOf(+UI.level) < 0) UI.level = 'all';
     sel.value = String(UI.level);
     ov.querySelector('[data-hfilter=result]').value = UI.result;
@@ -881,46 +891,46 @@
     if (UI.result === 'pass') list = list.filter(r => r.ok);
     else if (UI.result === 'fail') list = list.filter(r => !r.ok);
     list = list.slice(-150).reverse();
-    if (!list.length) return head + '<p class="hist-empty">No test runs yet. Build a bridge and press Test — every run is recorded here.</p>';
+    if (!list.length) return head + '<p class="hist-empty">' + esc(t('features.history.emptyRuns')) + '</p>';
     const rows = list.map(r => {
       const res = r.ok ? '<span class="hr-ok">' + stars(r.s) + '</span>' : '<span class="hr-bad">' + esc(reasonText(r.f)) + '</span>';
-      const load = r.k ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + esc(r.k) + '" data-l="' + r.l + '" title="Open this design in the editor">Load</button>' : '';
+      const load = r.k ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + esc(r.k) + '" data-l="' + r.l + '" title="' + esc(t('features.history.loadTip')) + '">' + esc(t('features.history.load')) + '</button>' : '';
       return '<li class="hist-run ' + (r.ok ? 'ok' : 'bad') + '">' +
         '<div class="hr-lv"><b>' + esc(lvNum(r.l)) + '</b><span>' + esc(lvName(r.l)) + '</span></div>' +
         '<div class="hr-res">' + res + '<small>' + esc(ago(r.t)) + '</small></div>' +
-        '<div class="hr-num"><b>' + money(r.c) + '</b><small>' + r.n + ' members' + (r.p != null ? ' · ' + Math.round(r.p * 100) + '%' : '') + '</small></div>' +
+        '<div class="hr-num"><b>' + money(r.c) + '</b><small>' + esc(t('features.history.members', { n: r.n }) + (r.p != null ? ' · ' + pct(r.p) : '')) + '</small></div>' +
         '<div class="hr-act">' + load + '</div></li>';
     }).join('');
     return head + '<ul class="hist-runs">' + rows + '</ul>';
   }
   function levelsHtml(played, bests, runs) {
-    if (!played.length) return '<p class="hist-empty">Levels you test will show here with your personal bests.</p>';
+    if (!played.length) return '<p class="hist-empty">' + esc(t('features.history.emptyLevels')) + '</p>';
     return '<ul class="hist-levels">' + played.map(id => {
       const b = bests[String(id)] || {};
       const lr = runs.filter(r => r.l === id);
       const lv = findLevel(id);
       const bestK = b.cost && b.cost.k && H.hasSnapshot(b.cost.k) ? b.cost.k : null;
       return '<li class="hist-level">' +
-        '<button class="hl-name" data-hact="level" data-l="' + id + '" title="Show the runs of this level"><b>' + esc(lvNum(id)) + '</b><span>' + esc(lvName(id)) + '</span></button>' +
+        '<button class="hl-name" data-hact="level" data-l="' + id + '" title="' + esc(t('features.history.levelTip')) + '"><b>' + esc(lvNum(id)) + '</b><span>' + esc(lvName(id)) + '</span></button>' +
         '<div class="hl-spark">' + sparkline(lr, lv ? lv.budget : null, 140, 30) + '</div>' +
-        '<div class="hl-best">' + (b.cost ? '<b>' + money(b.cost.v) + '</b>' : '<b class="hs-dim">—</b>') + '<small>' + (b.stars ? '<span class="hr-ok">' + stars(b.stars.v) + '</span> · ' : '') + (b.runs | 0) + ((b.runs | 0) === 1 ? ' run' : ' runs') + '</small></div>' +
-        '<div class="hr-act">' + (bestK ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + bestK + '" data-l="' + id + '" title="Open your cheapest passing design">Load best</button>' : '') + '</div></li>';
+        '<div class="hl-best">' + (b.cost ? '<b>' + money(b.cost.v) + '</b>' : '<b class="hs-dim">—</b>') + '<small>' + (b.stars ? '<span class="hr-ok">' + stars(b.stars.v) + '</span> · ' : '') + esc(t('core.runs', { n: b.runs | 0 })) + '</small></div>' +
+        '<div class="hr-act">' + (bestK ? '<button class="btn btn-glass sm" data-hact="load" data-k="' + bestK + '" data-l="' + id + '" title="' + esc(t('features.history.loadBestTip')) + '">' + esc(t('features.history.loadBest')) + '</button>' : '') + '</div></li>';
     }).join('') + '</ul>';
   }
   function statsHtml() {
     const s = H.summary();
     const fav = s.favourite ? matName(s.favourite) : '—';
     const tiles = [
-      ['Test runs', s.runs], ['Bridges that held', s.bridgesBuilt], ['Collapses', s.collapses], ['Beams placed', s.beamsPlaced],
-      ['Budget spent', money(s.spent)], ['Favourite material', esc(fav)], ['Play time', fmtDur(s.playMs)], ['Levels passed', s.levelsPassed + ' / ' + s.levelsPlayed + ' played'],
+      ['runs', fnum(s.runs)], ['held', fnum(s.bridgesBuilt)], ['collapses', fnum(s.collapses)], ['beams', fnum(s.beamsPlaced)],
+      ['spent', money(s.spent)], ['fav', esc(fav)], ['playTime', esc(fmtDur(s.playMs))], ['passed', esc(t('features.history.stat.passedOf', { n: s.levelsPassed, of: s.levelsPlayed }))],
     ];
-    return '<div class="hist-stats">' + tiles.map(t => '<div class="hst"><small>' + t[0] + '</small><b>' + t[1] + '</b></div>').join('') + '</div>' +
-      (s.since ? '<p class="hist-since">Since ' + esc(safe(() => new Date(s.since).toLocaleDateString(), '')) + ' · all data stays on this device (Settings → Export to move it)</p>' : '');
+    return '<div class="hist-stats">' + tiles.map(x => '<div class="hst"><small>' + esc(t('features.history.stat.' + x[0])) + '</small><b>' + x[1] + '</b></div>').join('') + '</div>' +
+      (s.since ? '<p class="hist-since">' + esc(t('features.history.since', { date: safe(() => BG.i18n ? BG.i18n.date(s.since) : new Date(s.since).toLocaleDateString(), '') })) + '</p>' : '');
   }
 
   function loadFromHistory(k, levelId) {
     const d = H.loadSnapshot(k);
-    if (!d) { toast('That design is no longer stored.', 'warn'); return; }
+    if (!d) { toast(t('features.history.toast.gone'), 'warn'); return; }
     closeHistory();
     if (!Game.level || Game.level.id !== levelId || Game.state !== 'edit') {
       if (Game.state === 'sim' || Game.state === 'results') safe(() => Game.backToEdit());
@@ -937,7 +947,7 @@
     } finally { quiet--; }
     lastMats = materialCounts(Game.getDesign());
     safe(() => Game._saveNow());
-    toast('Design loaded from history — Ctrl+Z to undo', 'info');
+    toast(t('features.history.toast.loaded'), 'info');
   }
 
   function downloadSave() {
@@ -953,15 +963,15 @@
       a.href = url; a.download = name; a.style.display = 'none';
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
-      toast('Save exported (' + Math.max(1, Math.round(str.length / 1024)) + ' KB).', 'good');
-    } catch (e) { toast('Export is not supported in this browser.', 'warn'); }
+      toast(t('features.history.toast.exported', { kb: Math.max(1, Math.round(str.length / 1024)) }), 'good');
+    } catch (e) { toast(t('features.history.toast.noExport'), 'warn'); }
   }
   function readImport(f) {
-    if (f.size > 8 * 1024 * 1024) { toast('That file is too large to be a SPAN save.', 'warn'); return; }
+    if (f.size > 8 * 1024 * 1024) { toast(t('features.history.toast.tooLarge'), 'warn'); return; }
     const rd = new FileReader();
     rd.onload = () => {
       let o;
-      try { o = JSON.parse(String(rd.result)); } catch (e) { toast('That file is not a SPAN save.', 'warn'); sfx('error'); return; }
+      try { o = JSON.parse(String(rd.result)); } catch (e) { toast(t('features.history.save.notSave'), 'warn'); sfx('error'); return; }
       const pre = H.validateSave(o);
       if (!pre.ok) { toast(pre.error, 'warn'); sfx('error'); return; }
       // leave the level first so its design is not saved over the imported one
@@ -969,10 +979,10 @@
       suppress = true;
       const res = H.importSave(o);
       if (!res.ok) { suppress = false; toast(res.error, 'warn'); sfx('error'); return; }
-      toast('Save imported — reloading…', 'good');
+      toast(t('features.history.toast.imported'), 'good');
       setTimeout(() => { try { root.location.reload(); } catch (e) { suppress = false; } }, 700);
     };
-    rd.onerror = () => toast('Could not read that file.', 'warn');
+    rd.onerror = () => toast(t('features.history.toast.readFailed'), 'warn');
     rd.readAsText(f);
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -32,6 +32,7 @@
   function canvasEl() { const g = game(); return (g && g.canvas) || doc.getElementById('game-canvas'); }
   function $(s, el) { return (el || doc).querySelector(s); }
   function icon(n) { return BG.Hud && BG.Hud.icon ? BG.Hud.icon(n) : ''; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
   function t(k, p) { return BG.i18n ? BG.i18n.t(k, p) : k; } // i18n (docs/I18N.md)
   function h(markup) { const t = doc.createElement('template'); t.innerHTML = markup.trim(); return t.content.firstElementChild; }
   function wrap(obj, name, fn) {
@@ -141,7 +142,7 @@
           this.detect();
           const was = this.low;
           this.apply();
-          if (!was && this.low && BG.Hud && BG.Hud.toast) BG.Hud.toast('Performance mode on for smoother play (Settings)', 'info', 2600);
+          if (!was && this.low && BG.Hud && BG.Hud.toast) BG.Hud.toast(t('features.mobile.perfOn'), 'info', 2600);
         }
       }
     },
@@ -195,17 +196,33 @@
   }
 
   // ------------------------------------------------------------------ touch wording
+  // Desktop wording -> touch wording, for English and Danish texts. Every rule runs, but a pattern only matches text in
+  // its own language, which is the language on screen, so the touch wording comes from features.mobile.touch.* in
+  // the current language. Danish texts word their mouse / key hints like the level hints do: "(tast 2)",
+  // "(Mellemrum)", "(højreklik eller Esc stopper byggeriet)", "Ctrl+Z for at fortryde", "holde musen over en bjælke",
+  // "klik på" ("tryk" is both press and tap, so "tryk på Test" stays).
+  const tt = (k, p) => () => t('features.mobile.touch.' + k, p);
   const TOUCH_TEXT = [
+    // English
     [/\s*\(key \d\)/gi, ''],
-    [/\(right-click or Esc stops building\)/gi, '(tap the last joint again to stop building)'],
-    [/right-click or Esc/gi, 'tap the last joint again'],
-    [/press Test \(Space\)/gi, 'tap Test'],
-    [/\bpress (Test|Inspect|Build it|Copy result)\b/gi, 'tap $1'],
+    [/\(right-click or Esc stops building\)/gi, tt('stopBuilding')],
+    [/right-click or Esc/gi, tt('lastJoint')],
+    [/press (Test) \(Space\)/gi, (m, w) => t('features.mobile.touch.tap', { what: w })],
+    [/\bpress (Test|Inspect|Build it|Copy result)\b/gi, (m, w) => t('features.mobile.touch.tap', { what: w })],
     [/\s*\(Space\)/g, ''],
-    [/Ctrl\+Z to undo/g, 'tap Undo to restore it'],
-    [/\bhover a beam\b/gi, 'touch a beam'],
+    [/Ctrl\+Z to undo/g, tt('undo')],
+    [/\bhover a beam\b/gi, tt('beam')],
     [/\bClick\b/g, 'Tap'],
     [/\bclick(ed|ing|s)?\b/g, (m, s) => 'tap' + (s === 'ed' ? 'ped' : s === 'ing' ? 'ping' : s || '')],
+    // Danish
+    [/\s*\(tast \d\)/gi, ''],
+    [/\(højreklik eller Esc stopper byggeriet\)/gi, tt('stopBuilding')],
+    [/højreklik eller Esc/gi, tt('lastJoint')],
+    [/\s*\(Mellemrum\)/gi, ''],
+    [/Ctrl\+Z for at fortryde/g, tt('undo')],
+    [/\bhold(e?) musen over en bjælke/gi, (m, e) => t(e ? 'features.mobile.touch.beamInf' : 'features.mobile.touch.beam')],
+    [/\bKlik(ke|ker|ket|kede)?(?![a-zæøå])/g, (m, s) => 'Tryk' + (s || '')],
+    [/(^|[^a-zæøåA-ZÆØÅ])klik(ke|ker|ket|kede)?(?![a-zæøå])/g, (m, p, s) => p + 'tryk' + (s || '')],
   ];
   function touchText(s) {
     if (!Env.touch || typeof s !== 'string') return s;
@@ -259,14 +276,16 @@
     UI.ctx = h('<div class="m-ctx glass" role="menu"></div>');
     UI.rotate = h(`<div class="m-rotate glass" role="status">
         <span class="m-rot-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg></span>
-        <p><b>Rotate for the best view</b>Landscape gives the bridge more room. Portrait still works fine.</p>
-        <span class="m-rot-btns"><button class="btn btn-primary" data-mact="rotateOk">Got it</button><button class="btn btn-glass m-fs-land" data-mact="fsLand" hidden>Fullscreen</button></span>
+        <p><b data-i18n="features.mobile.rotateTitle"></b><span data-i18n="features.mobile.rotateText"></span></p>
+        <span class="m-rot-btns"><button class="btn btn-primary" data-mact="rotateOk" data-i18n="features.mobile.gotIt"></button><button class="btn btn-glass m-fs-land" data-mact="fsLand" hidden data-i18n="core.fullscreen"></button></span>
       </div>`);
+    if (BG.i18n) BG.i18n.apply(UI.rotate);   // data-i18n: re-translated on a language change
     ui.appendChild(UI.loupe); ui.appendChild(UI.reticle); ui.appendChild(UI.ctx); ui.appendChild(UI.rotate);
 
     // current-material chip + bottom-sheet scrim (phones)
     const dock = $('.dock', lvl);
-    UI.chip = h(`<button class="m-mat-chip glass" data-mact="sheet" aria-haspopup="true" title="Materials"><span class="m-chip-sw"></span><span class="m-chip-txt"><b>Road</b><small></small></span>${icon('chevDown')}</button>`);
+    UI.chip = h(`<button class="m-mat-chip glass" data-mact="sheet" aria-haspopup="true" data-i18n-title="features.mobile.materials"><span class="m-chip-sw"></span><span class="m-chip-txt"><b></b><small></small></span>${icon('chevDown')}</button>`);
+    if (BG.i18n) BG.i18n.apply(UI.chip);
     UI.scrim = h('<div class="m-sheet-scrim" data-mact="sheetClose"></div>');
     if (dock) { dock.appendChild(UI.scrim); dock.appendChild(UI.chip); }
 
@@ -331,7 +350,7 @@
     applyTouchText();
     syncSettingsUi();
     // i18n: the fullscreen titles and the title foot are set in code; re-set them in the new language
-    if (BG.i18n) BG.i18n.on('languagechange', () => { syncFsButtons(); applyTouchText(); });
+    if (BG.i18n) BG.i18n.on('languagechange', () => { syncFsButtons(); applyTouchText(); chipSig = ''; safe(updateChip); hideCtx(); safe(updateResultsMore); });
   }
   function sfx(n) { safe(() => { if (BG.Audio && BG.Audio.play) BG.Audio.play(n); }); }
   function onFsChange() { syncFsButtons(); setTimeout(onResize, 60); }
@@ -375,7 +394,7 @@
       sw.innerHTML = ($('.mat-ico', btn) || {}).innerHTML || '';
       nm.textContent = ($('.mat-info b', btn) || {}).textContent || mat;
       const cost = ($('.mat-meta em', btn) || {}).textContent || '', len = ($('.mat-meta i', btn) || {}).textContent || '';
-      sm.textContent = tool === 'erase' ? 'Erase tool' : tool === 'pier' ? 'Pier tool' : tool === 'select' ? 'Select tool' : tool === 'arch' ? 'Arch tool · ' + len : cost + ' · ' + len; // arch-tool
+      sm.textContent = tool === 'erase' ? t('features.mobile.tool.erase') : tool === 'pier' ? t('features.mobile.tool.pier') : tool === 'select' ? t('features.mobile.tool.select') : tool === 'arch' ? t('features.mobile.tool.arch', { len }) : cost + ' · ' + len; // arch-tool
     }
     UI.chip.classList.toggle('m-tool-mode', tool !== 'build');
   }
@@ -655,29 +674,29 @@
     const rect = c.getBoundingClientRect();
     const w = ed._s2w(cx - rect.left, cy - rect.top);
     const o = { pointerType: 'touch', button: 0 };
-    let what = null, title = 'Here';
+    let what = null, title = t('features.mobile.ctx.here');
     const node = safe(() => ed._pickNode(w.x, w.y, ed._pickR(o), (q) => q.kind === 'node'), null);
-    if (node) { what = 'joint'; title = 'Joint'; }
+    if (node) { what = 'joint'; title = t('features.mobile.ctx.joint'); }
     else {
       const bi = safe(() => ed._pickBeam(w.x, w.y, Math.max(0.3, ed._px(16))), null);
       if (bi != null) {
         const b = ed.design.beams[bi];
         const md = (BG.Materials && b && BG.Materials[b.m]) || {};
-        what = 'beam'; title = (md.name || (b && b.m) || 'Beam');
+        what = 'beam'; title = (md.name || (b && b.m) || t('features.mobile.ctx.beam'));
       } else {
         const pi = safe(() => ed._pickPier(w.x, w.y), null);
-        if (pi != null) { what = 'pier'; title = 'Pier'; }
+        if (pi != null) { what = 'pier'; title = t('features.mobile.ctx.pier'); }
       }
     }
     const items = [];
-    if (what) items.push({ label: 'Delete ' + (what === 'beam' ? 'beam' : what), cls: 'danger', ico: 'trash', fn: () => { ed.chainFrom = null; safe(() => ed.rightClick(w.x, w.y, o)); } });
-    if (ed.chainFrom) items.push({ label: 'Stop building', ico: 'close', fn: () => { ed.chainFrom = null; safe(() => ed._refresh()); sfx('click'); } });
-    items.push({ label: 'Undo', ico: 'undo', disabled: !(ed.canUndo && ed.canUndo()), fn: () => g.undo() });
-    items.push({ label: ed.tool === 'erase' ? 'Build tool' : 'Erase tool', ico: ed.tool === 'erase' ? 'beam' : 'erase', fn: () => { g.setTool(ed.tool === 'erase' ? 'build' : 'erase'); sfx('click'); } });
-    items.push({ label: 'Fit view', ico: 'eye', fn: () => { fitLevel(); sfx('click'); } });
-    UI.ctx.innerHTML = '<div class="m-ctx-title">' + title + '</div>' +
-      items.map((it, i) => '<button class="' + (it.cls || '') + '" data-i="' + i + '"' + (it.disabled ? ' disabled' : '') + '>' + icon(it.ico) + '<span>' + it.label + '</span></button>').join('') +
-      (what === 'joint' ? '<div class="m-ctx-note">Tip: hold a joint, then drag to move it.</div>' : '');
+    if (what) items.push({ label: t('features.mobile.ctx.delete.' + what), cls: 'danger', ico: 'trash', fn: () => { ed.chainFrom = null; safe(() => ed.rightClick(w.x, w.y, o)); } });
+    if (ed.chainFrom) items.push({ label: t('features.mobile.ctx.stop'), ico: 'close', fn: () => { ed.chainFrom = null; safe(() => ed._refresh()); sfx('click'); } });
+    items.push({ label: t('features.mobile.ctx.undo'), ico: 'undo', disabled: !(ed.canUndo && ed.canUndo()), fn: () => g.undo() });
+    items.push({ label: t(ed.tool === 'erase' ? 'features.mobile.ctx.buildTool' : 'features.mobile.ctx.eraseTool'), ico: ed.tool === 'erase' ? 'beam' : 'erase', fn: () => { g.setTool(ed.tool === 'erase' ? 'build' : 'erase'); sfx('click'); } });
+    items.push({ label: t('features.mobile.ctx.fit'), ico: 'eye', fn: () => { fitLevel(); sfx('click'); } });
+    UI.ctx.innerHTML = '<div class="m-ctx-title">' + esc(title) + '</div>' +
+      items.map((it, i) => '<button class="' + (it.cls || '') + '" data-i="' + i + '"' + (it.disabled ? ' disabled' : '') + '>' + icon(it.ico) + '<span>' + esc(it.label) + '</span></button>').join('') +
+      (what === 'joint' ? '<div class="m-ctx-note">' + esc(t('features.mobile.ctx.tip')) + '</div>' : '');
     UI.ctx.onclick = (e) => {
       const b = e.target.closest('button[data-i]');
       if (!b || b.disabled) return;
@@ -814,6 +833,8 @@
   function updateResultsMore() {
     const card = doc.querySelector('#screen-level .results-card');
     if (!card) return;
+    const acts = card.querySelector('.res-actions');   // css/mobile.css shows data-more in the "More below" cue
+    if (acts) acts.setAttribute('data-more', t('features.mobile.moreBelow'));
     card.classList.toggle('m-more', card.scrollHeight - card.scrollTop - card.clientHeight > 6);
   }
   let moreBound = false;

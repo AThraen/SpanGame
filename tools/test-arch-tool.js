@@ -465,7 +465,7 @@ section('overlay renderer (fake canvas)');
   });
   BG.ArchTool.drawOverlay(r, ctx, { editorState: ed.state }, { x: 0, y: 0 });
   ok(calls.beams >= ed.state.arch.plan.n + 3, 'segments, posts and braces drawn', calls.beams);
-  ok(calls.label.some((t) => /Parabolic/.test(t) && /× Steel/.test(t) && /span 24\.0 m/.test(t) && /rise 5\.0 m/.test(t) && /\$/.test(t)), 'label: shape, segments × material, span, rise, cost', calls.label);
+  ok(calls.label.some((t) => /Parabolic/.test(t) && /× Steel/.test(t) && /span 24\.0\sm/.test(t) && /rise 5\.0\sm/.test(t) && /\$/.test(t)), 'label: shape, segments × material, span, rise, cost', calls.label);
   ok(calls.label.some((t) => /posts to the deck/.test(t)), 'second line: posts + gesture help', calls.label);
   BG.ArchTool.drawOverlay(r, ctx, { editorState: {} }, { x: 0, y: 0 });
   ok(true, 'no arch state: nothing drawn, no throw');

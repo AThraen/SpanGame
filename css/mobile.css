@@ -393,7 +393,7 @@ html, body { overscroll-behavior: none; }
 .m-phone.m-landscape .results.is-rail .rc-t small { font-size: 9.5px; }
 .m-phone.m-landscape .results.is-rail .rc-grade b { font-size: 19px; }
 .m-phone.m-landscape .results-card .res-actions { padding-top: 8px; padding-bottom: 10px; }
-.m-phone .results-card .res-actions::before { content: "More below \2193"; position: absolute; left: 50%; top: -30px; transform: translate(-50%, 6px); padding: 3px 12px; border-radius: 99px; background: rgba(73, 198, 242, .94); color: #06202c; font-size: 11.5px; font-weight: 750; letter-spacing: .02em; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+.m-phone .results-card .res-actions::before { content: attr(data-more) " \2193"; /* data-more: set by js/features/mobile.js (i18n) */ position: absolute; left: 50%; top: -30px; transform: translate(-50%, 6px); padding: 3px 12px; border-radius: 99px; background: rgba(73, 198, 242, .94); color: #06202c; font-size: 11.5px; font-weight: 750; letter-spacing: .02em; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
 .m-phone .results-card.m-more .res-actions::before { opacity: 1; transform: translate(-50%, 0); }
 
 /* Iron Road: track strip above the sim bar (landscape) / under the top bar (portrait), derail callout docked */

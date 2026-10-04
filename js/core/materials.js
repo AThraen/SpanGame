@@ -75,6 +75,9 @@
     },
   };
 
+  // i18n (docs/I18N.md): `name` reads vehicles.material.<id> in the current language
+  if (BG.i18n && BG.i18n.lazy) Object.keys(M).forEach(id => BG.i18n.lazy(M[id], { name: 'vehicles.material.' + id }));
+
   BG.Materials = M;
   /** Palette order (keys 1–6 on road levels; rail levels list their own materials). */
   BG.MaterialOrder = ['road', 'reinforced_road', 'wood', 'steel', 'rope', 'cable', 'rail', 'masonry', 'girder'];

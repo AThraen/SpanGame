@@ -18,7 +18,10 @@
     rail: () => !!(BG.Trains && BG.Materials && BG.Materials.rail), // Iron Road (SPEC §9)
     masonry: () => !!(BG.Materials && BG.Materials.masonry),
   };
-  const LABELS = { wind: 'Weather & wind', rail: 'Iron Road (trains)', masonry: 'Masonry' };
+  // i18n: the module names come from the dictionary (features.req.*); register(req, check, label) may give its own text
+  const LABEL_KEYS = { wind: 'features.req.wind', rail: 'features.req.rail', masonry: 'features.req.masonry' };
+  const LABELS = {};
+  function tr(k) { return BG.i18n ? BG.i18n.t(k) : k; }
 
   function has(req) {
     if (provided[req]) return true;
@@ -37,7 +40,7 @@
     met(level) { return !isStub(level) && missing(level).length === 0; },
     isStub,
     provide(req) { provided[req] = true; },
-    label(req) { return LABELS[req] || req; },
+    label(req) { return LABELS[req] || (LABEL_KEYS[req] ? tr(LABEL_KEYS[req]) : req); },
     register(req, check, label) { CHECKS[req] = check; if (label) LABELS[req] = label; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

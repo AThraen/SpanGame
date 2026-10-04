@@ -602,6 +602,13 @@
   }
 
   /** Traffic description: {total, text: "3 cars, 1 bus", items:[{type,count,name}]} */
+  // i18n (docs/I18N.md): "2 cars" / "2 biler" from the vehicles.*.count plurals; without BG.i18n, plain English
+  function I() { return BG.i18n || null; }
+  function tcount(key, n, other, plain) {
+    const i = I();
+    if (i && i.has(key, 'en')) return i.t(key, { n });
+    return i && other ? other() : plain();
+  }
   function trafficSummary(level) {
     const parts = [], items = [];
     let total = 0;
@@ -613,14 +620,15 @@
         const cars = tr ? tr.carCount : 0;
         total += c;
         items.push({ type: 'train', kind: 'train', train: g.train, preset: g.train, count: c, name, cars, mass: tr ? tr.mass : 0 });
-        parts.push(c + ' ' + name.toLowerCase() + ' train' + (c > 1 ? 's' : '') + (cars > 1 ? ' (' + cars + ' cars)' : ''));
+        const one = tcount('vehicles.train.' + g.train + '.count', c, () => I().t('vehicles.train.other.count', { n: c, name: name.toLowerCase() }), () => c + ' ' + name.toLowerCase() + ' train' + (c > 1 ? 's' : ''));
+        parts.push(cars > 1 ? (I() ? I().t('vehicles.traffic.withCars', { train: one, cars: I().t('vehicles.traffic.cars', { n: cars }) }) : one + ' (' + cars + ' cars)') : one);
         continue;
       }
       const def = BG.Vehicles && BG.Vehicles[g.type];
       total += c;
       const name = def ? def.name.toLowerCase() : g.type;
       items.push({ type: g.type, kind: 'road', count: c, name });
-      parts.push(c + ' ' + name + (c > 1 ? (/(s|sh|ch)$/.test(name) ? 'es' : 's') : ''));
+      parts.push(tcount('vehicles.road.' + g.type + '.count', c, null, () => c + ' ' + name + (c > 1 ? (/(s|sh|ch)$/.test(name) ? 'es' : 's') : '')));
     }
     return { total, text: parts.join(', '), items };
   }

@@ -981,6 +981,11 @@
     { id: 'cable_stayed', name: 'Cable-Stayed', desc: 'Straight stays fan out from tall towers directly to the deck.' },
     { id: 'viaduct', name: 'Viaduct', desc: 'A row of masonry arches on piers carries the deck on stone columns. Stone loves compression.' },
   ];
+  // i18n (docs/I18N.md): name / desc read content.template.<id>.name / .desc, the reasons content.template.reason.*;
+  // the English text here is the fallback
+  const I18N = BG.i18n || null;
+  if (I18N && I18N.lazy) LIST.forEach(t => I18N.lazy(t, { name: 'content.template.' + t.id + '.name', desc: 'content.template.' + t.id + '.desc' }));
+  function why(id, text) { const k = 'content.template.reason.' + id; return I18N && I18N.has(k, 'en') ? I18N.t(k) : text; }
 
   function generate(id, level, opts) {
     opts = opts || {};
@@ -1034,15 +1039,15 @@
     const ctx = level ? makeContext(level, {}) : null;
     return LIST.map((t) => {
       let ok = true, reason = null;
-      if ((t.id === 'suspension' || t.id === 'cable_stayed') && !hasT) { ok = false; reason = 'needs rope or cable'; }
+      if ((t.id === 'suspension' || t.id === 'cable_stayed') && !hasT) { ok = false; reason = why('cable', 'needs rope or cable'); }
       if (t.id === 'viaduct') {
-        if (!hasM) { ok = false; reason = 'needs masonry'; }
-        else if (!ctx || !viaductSupports(ctx)) { ok = false; reason = 'needs piers or low cliff anchors'; }
+        if (!hasM) { ok = false; reason = why('masonry', 'needs masonry'); }
+        else if (!ctx || !viaductSupports(ctx)) { ok = false; reason = why('supports', 'needs piers or low cliff anchors'); }
       }
       if (ok && level) {
         let d = null;
         try { d = generate(t.id, level, {}); } catch (e) { d = null; }
-        if (!d || !d.beams.length || fullCheck(level, d).length) { ok = false; reason = "doesn't fit this crossing"; }
+        if (!d || !d.beams.length || fullCheck(level, d).length) { ok = false; reason = why('fit', "doesn't fit this crossing"); }
       }
       return Object.assign({}, t, { ok, reason });
     });

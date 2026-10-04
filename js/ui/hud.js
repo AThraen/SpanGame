@@ -29,6 +29,15 @@
   function lvName(level) { return level ? (I() ? I().levelText(level, 'name') : level.name) : ''; }
   // data tables (chapters, campaign looks): fields that read their text from the dictionary on every access
   function lazyText(obj, map) { return I() ? I().lazy(obj, map) : obj; }
+  function num(n, d) { return I() ? I().num(n, d) : String(d == null ? Math.round(n * 100) / 100 : (+n).toFixed(d)); }
+  function meters(m, d) { return I() ? I().meters(m, d) : num(m, d) + ' m'; }
+  function pctOf(r) { return I() ? I().percent(r) : Math.round(r * 100) + '%'; }
+  // a name from the data tables (BG.Materials, BG.Vehicles, BG.Trains, BG.RailCars) in the current language:
+  // vehicles.<kind>.<id> when the dictionary has it, else the data's own (English) name
+  function dictName(kind, id, fallback) {
+    const k = 'vehicles.' + kind + '.' + id;
+    return I() && (I().has(k) || I().has(k, 'en')) ? I().t(k) : fallback;
+  }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function sfx(name, o) { try { BG.Audio && BG.Audio.play(name, o); } catch (e) { /* */ } }
   function game() { return BG.Game || {}; }
@@ -125,21 +134,27 @@
     const wheels = (TRAIN_WHEELS[k] || []).map(x => '<circle cx="' + x + '" cy="15.6" r="2.3" class="vw"/>').join('');
     return '<svg class="veh train" viewBox="0 0 48 19" aria-hidden="true"><path d="M0 18.2H48" class="vr"/><g class="vb">' + TRAIN[k] + '</g>' + wheels + '</svg>';
   }
+  // only used until BG.Trains provides the presets (names come from the dictionary: vehicles.train.<id>)
   const TRAIN_FALLBACK = {
-    handcar: { name: 'Handcar', cars: ['handcar'] }, tram: { name: 'Tram', cars: ['tram'] },
-    steam_local: { name: 'Steam Local', cars: ['loco_steam', 'tender', 'coach', 'coach'] },
-    steam_express: { name: 'Steam Express', cars: ['loco_steam', 'tender', 'coach', 'coach', 'coach', 'coach'] },
-    commuter: { name: 'Commuter', cars: ['loco_diesel', 'coach', 'coach', 'coach'] },
-    freight_short: { name: 'Short Freight', cars: ['loco_diesel', 'boxcar', 'boxcar', 'tank_wagon', 'boxcar'] },
-    freight_long: { name: 'Long Freight', cars: ['loco_diesel', 'loco_diesel'].concat(Array(12).fill('boxcar')) },
-    ore: { name: 'Ore Train', cars: ['loco_diesel', 'loco_diesel'].concat(Array(24).fill('ore_wagon')) },
-    highspeed: { name: 'High-Speed', cars: ['hs_power', 'hs_coach', 'hs_coach', 'hs_coach', 'hs_coach', 'hs_power'] },
-    highspeed_long: { name: 'High-Speed Long', cars: ['hs_power'].concat(Array(10).fill('hs_coach'), ['hs_power']) },
+    handcar: { cars: ['handcar'] }, tram: { cars: ['tram'] },
+    steam_local: { cars: ['loco_steam', 'tender', 'coach', 'coach'] },
+    steam_express: { cars: ['loco_steam', 'tender', 'coach', 'coach', 'coach', 'coach'] },
+    commuter: { cars: ['loco_diesel', 'coach', 'coach', 'coach'] },
+    freight_short: { cars: ['loco_diesel', 'boxcar', 'boxcar', 'tank_wagon', 'boxcar'] },
+    freight_long: { cars: ['loco_diesel', 'loco_diesel'].concat(Array(12).fill('boxcar')) },
+    ore: { cars: ['loco_diesel', 'loco_diesel'].concat(Array(24).fill('ore_wagon')) },
+    highspeed: { cars: ['hs_power', 'hs_coach', 'hs_coach', 'hs_coach', 'hs_coach', 'hs_power'] },
+    highspeed_long: { cars: ['hs_power'].concat(Array(10).fill('hs_coach'), ['hs_power']) },
   };
   function trainPreset(id) {
     const T = BG.Trains && BG.Trains[id];
     if (T && Array.isArray(T.cars)) return T;
-    return TRAIN_FALLBACK[id] || { id, name: id || 'Train', cars: [] };
+    return TRAIN_FALLBACK[id] ? Object.assign({ id }, TRAIN_FALLBACK[id]) : { id, cars: [] };
+  }
+  // a train preset's name in the current language
+  function trainName(preset) {
+    const id = preset && preset.id;
+    return dictName('train', id, (preset && preset.name) || id || t('hud.traffic.train'));
   }
   function trainKind(preset) {
     const cars = (preset && preset.cars) || [];
@@ -151,8 +166,8 @@
     return 'diesel';
   }
   function trainShortName(preset) {
-    const n = String((preset && preset.name) || 'Train').replace(/\s*train$/i, '').trim();
-    return n || 'Train';
+    const n = String(trainName(preset)).replace(/\s*train$/i, '').trim();
+    return n || t('hud.traffic.train');
   }
   function railCarMass(type) {
     const C = BG.RailCars && BG.RailCars[type];
@@ -162,7 +177,7 @@
   }
   function trainMass(preset) { return ((preset && preset.cars) || []).reduce((a, c) => a + railCarMass(c), 0); }
   function isTrainGroup(g) { return !!g && (g.type === 'train' || !!g.train); }
-  function fmtMass(kg) { const t = kg / 1000; return (t >= 100 ? Math.round(t).toLocaleString('en-US') : Math.round(t * 10) / 10) + ' t'; }
+  function fmtMass(kg) { const tn = kg / 1000; return (tn >= 100 ? num(Math.round(tn)) : num(Math.round(tn * 10) / 10)) + '\u00a0t'; }
   // one traffic chip: road vehicle (icon ×count) or train (icon, "2 × Local Steam · 4 cars")
   function trafficChip(g) {
     const n = g.count || 1;
@@ -170,10 +185,10 @@
       const p = trainPreset(g.train);
       const cars = (p.cars || []).length;
       const m = trainMass(p);
-      const tip = n + ' × ' + (p.name || g.train) + (cars ? ' — ' + cars + ' car' + (cars === 1 ? '' : 's') : '') + (m ? ', ' + fmtMass(m) : '');
-      return `<span class="tr-item tr-train" title="${esc(tip)}">${trainSvg(trainKind(p))}${n > 1 ? '<i>' + n + ' ×</i>' : ''}<em>${esc(trainShortName(p))}</em>${cars > 1 ? '<b>· ' + cars + ' cars</b>' : ''}</span>`;
+      const tip = n + ' × ' + trainName(p) + (cars ? ' — ' + t('hud.traffic.cars', { n: cars }) : '') + (m ? ', ' + fmtMass(m) : '');
+      return `<span class="tr-item tr-train" title="${esc(tip)}">${trainSvg(trainKind(p))}${n > 1 ? '<i>' + n + ' ×</i>' : ''}<em>${esc(trainShortName(p))}</em>${cars > 1 ? '<b>· ' + esc(t('hud.traffic.cars', { n: cars })) + '</b>' : ''}</span>`;
     }
-    return `<span class="tr-item" title="${n} × ${esc(vehicleName(g.type))} (${Math.round(vehicleMass(g.type) / 100) / 10} t)">${vehSvg(g.type)}<b>×${n}</b></span>`;
+    return `<span class="tr-item" title="${n} × ${esc(vehicleName(g.type))} (${fmtMass(vehicleMass(g.type))})">${vehSvg(g.type)}<b>×${n}</b></span>`;
   }
   // the level's headline train (heaviest group) as a small icon, for rail level tiles
   function trafficIcon(level) {
@@ -186,23 +201,23 @@
   function trafficSummary(groups) {
     return groups.map(g => {
       const n = g.count || 1;
-      if (isTrainGroup(g)) { const p = trainPreset(g.train); return n + ' ' + (p.name || 'train') + (n > 1 ? 's' : ''); }
-      return n + ' ' + vehicleName(g.type);
+      if (isTrainGroup(g)) return t('hud.traffic.trainCount', { n, name: trainName(trainPreset(g.train)) });
+      return t('hud.traffic.vehicleCount', { n, name: vehicleName(g.type) });
     }).join(', ');
   }
 
   // ------------------------------------------------------------------ data helpers
   const FALLBACK_MATERIALS = {
-    road: { id: 'road', name: 'Road', color: '#3b3f46', costPerMeter: 100, tensionLimit: 4.5e5, compressionLimit: 4.5e5, maxLength: 6, isRoad: true },
-    reinforced_road: { id: 'reinforced_road', name: 'Reinforced Road', color: '#4a4f5a', costPerMeter: 180, tensionLimit: 9e5, compressionLimit: 9e5, maxLength: 6, isRoad: true },
-    wood: { id: 'wood', name: 'Wood', color: '#b07a44', costPerMeter: 50, tensionLimit: 2.4e5, compressionLimit: 2e5, maxLength: 6 },
-    steel: { id: 'steel', name: 'Steel', color: '#8c97a8', costPerMeter: 120, tensionLimit: 9e5, compressionLimit: 8e5, maxLength: 10 },
-    rope: { id: 'rope', name: 'Rope', color: '#c8a46a', costPerMeter: 20, tensionLimit: 1.2e5, compressionLimit: 0, maxLength: 20, tensionOnly: true },
-    cable: { id: 'cable', name: 'Steel Cable', color: '#5f6873', costPerMeter: 60, tensionLimit: 1.6e6, compressionLimit: 0, maxLength: 40, tensionOnly: true },
+    road: { id: 'road', color: '#3b3f46', costPerMeter: 100, tensionLimit: 4.5e5, compressionLimit: 4.5e5, maxLength: 6, isRoad: true },
+    reinforced_road: { id: 'reinforced_road', color: '#4a4f5a', costPerMeter: 180, tensionLimit: 9e5, compressionLimit: 9e5, maxLength: 6, isRoad: true },
+    wood: { id: 'wood', color: '#b07a44', costPerMeter: 50, tensionLimit: 2.4e5, compressionLimit: 2e5, maxLength: 6 },
+    steel: { id: 'steel', color: '#8c97a8', costPerMeter: 120, tensionLimit: 9e5, compressionLimit: 8e5, maxLength: 10 },
+    rope: { id: 'rope', color: '#c8a46a', costPerMeter: 20, tensionLimit: 1.2e5, compressionLimit: 0, maxLength: 20, tensionOnly: true },
+    cable: { id: 'cable', color: '#5f6873', costPerMeter: 60, tensionLimit: 1.6e6, compressionLimit: 0, maxLength: 40, tensionOnly: true },
     // Iron Road (only used until BG.Materials provides them)
-    rail: { id: 'rail', name: 'Rail Track', color: '#5b4a3a', costPerMeter: 220, tensionLimit: 1.2e6, compressionLimit: 1.2e6, maxLength: 6, isRail: true },
-    masonry: { id: 'masonry', name: 'Masonry', color: '#b8a68a', costPerMeter: 40, tensionLimit: 2e4, compressionLimit: 6e6, maxLength: 5 },
-    girder: { id: 'girder', name: 'Box Girder', color: '#4f6f8f', costPerMeter: 300, tensionLimit: 2.6e6, compressionLimit: 2.4e6, maxLength: 12 },
+    rail: { id: 'rail', color: '#5b4a3a', costPerMeter: 220, tensionLimit: 1.2e6, compressionLimit: 1.2e6, maxLength: 6, isRail: true },
+    masonry: { id: 'masonry', color: '#b8a68a', costPerMeter: 40, tensionLimit: 2e4, compressionLimit: 6e6, maxLength: 5 },
+    girder: { id: 'girder', color: '#4f6f8f', costPerMeter: 300, tensionLimit: 2.6e6, compressionLimit: 2.4e6, maxLength: 12 },
   };
   const MAT_ORDER = ['road', 'reinforced_road', 'rail', 'wood', 'steel', 'girder', 'masonry', 'rope', 'cable'];
   function materials() {
@@ -211,6 +226,8 @@
     return FALLBACK_MATERIALS;
   }
   function material(id) { return materials()[id] || FALLBACK_MATERIALS[id] || { id, name: id, costPerMeter: 0, maxLength: 0 }; }
+  // a material's name in the current language (the palette, tooltips, toasts)
+  function matName(id) { const m = material(id); return dictName('material', id, m.name || String(id)); }
   function levelMaterials(level) {
     const M = materials();
     let ids = (level && Array.isArray(level.materials) && level.materials.length) ? level.materials.slice() : MAT_ORDER.filter(id => M[id]);
@@ -229,8 +246,7 @@
   }
   function vehicleName(type) {
     const V = BG.Vehicles && BG.Vehicles[type];
-    if (V && V.name) return V.name;
-    return { car: 'Car', van: 'Van', bus: 'Bus', truck: 'Truck', semi: 'Semi-trailer', tanker: 'Tanker', heavy: 'Heavy hauler' }[type] || type;
+    return dictName('road', type, (V && V.name) || type);
   }
   function vehicleMass(type) {
     const V = BG.Vehicles && BG.Vehicles[type];
@@ -251,7 +267,9 @@
   };
   function theme(name) { return THEMES[name] || THEMES.meadow; }
 
-  const SHORT_MAT = { reinforced_road: 'Reinf. Road', cable: 'Cable', rail: 'Rail Track', girder: 'Box Girder' };
+  // the palette's short material names (hud.palette.short.<id>); the others show their full name
+  const SHORT_MAT = { reinforced_road: 1, cable: 1, rail: 1, girder: 1 };
+  function shortMatName(id) { return SHORT_MAT[id] ? t('hud.palette.short.' + id) : matName(id); }
   // a chapter's name / desc are getters that read hud.chapter.<key>.name / .desc in the current language
   function chapterText(ch) { return lazyText(ch, { name: 'hud.chapter.' + ch.key + '.name', desc: 'hud.chapter.' + ch.key + '.desc' }); }
   const RAIL_CHAPTERS = [
@@ -267,40 +285,36 @@
   // BG.Hud.registerCampaign(id, ui) (js/features/famous.js registers 'famous').
   const CAMPAIGN_UI = {
     road: lazyText({
-      id: 'road', icon: () => icon('road'), cls: '', levelK: 'LEVEL',
+      id: 'road', icon: () => icon('road'), cls: '',
       chapters: () => CHAPTERS, maxDefault: 150,
-      finale: {
-        banner: 'All crossings complete', title: 'You spanned them all!',
-        text: (starLine, res) => 'Fifty bridges, from a wobbly plank to a 150 m suspension span. ' + starLine +
-          (res && res.hasNext ? ' A hidden chapter has opened: the Forces of Nature.' : '') +
-          (levelsList().some(l => campaignOf(l) === 'rail') ? ' The Iron Road is waiting on the level select.' : ''),
-      },
-      bonusFinale: {
-        banner: 'Forces of Nature weathered', title: 'Storm-proof!',
-        text: starLine => 'Hurricane, earthquake and a galloping deck - your bridges rode out all three. ' + starLine,
-      },
+      finale: finaleText('road', (res) => [
+        res && res.hasNext ? t('results.finale.road.forces') : '',
+        levelsList().some(l => campaignOf(l) === 'rail') ? t('results.finale.road.rail') : '',
+      ]),
+      bonusFinale: finaleText('forces'),
       // finales of the branching bonus chapters (BG.Storage.CAMPAIGNS.road.bonus), keyed by chapter id
       bonusFinales: {
-        anchorages: {
-          banner: 'Anchorages complete', title: 'Firmly anchored!',
-          text: starLine => 'Deadmen, guy lines, a lone pylon and a grand suspension span - every pull carried safely back into the ground. ' + starLine,
-        },
+        anchorages: finaleText('anchorages'),
       },
-    }, { name: 'hud.camp.road.name', sub: 'hud.camp.road.sub', allLabel: 'hud.camp.road.all' }),
+    }, { name: 'hud.camp.road.name', sub: 'hud.camp.road.sub', allLabel: 'hud.camp.road.all', levelK: 'hud.level.badge' }),
     rail: lazyText({
-      id: 'rail', icon: () => icon('train'), cls: 'is-rail', levelK: 'RAIL',
+      id: 'rail', icon: () => icon('train'), cls: 'is-rail',
       chapters: () => RAIL_CHAPTERS, maxDefault: 60,
-      finale: {
-        banner: 'Iron Road complete', title: 'End of the line!',
-        text: starLine => 'Twenty railway bridges, from a handcar over a creek to high-speed expresses on a double-deck span. ' + starLine,
-      },
+      finale: finaleText('rail'),
       locked: () => `<div class="camp-locked glass">
             <div class="cl-art">${trainSvg('steam')}</div>
             <div class="cl-text"><h3>${icon('lock')}${esc(t('hud.camp.rail.closed'))}</h3>
             <p>${esc(t('hud.camp.rail.closedText', { n: (stor() && stor().CAMPAIGNS && stor().CAMPAIGNS.rail.unlockAfter) || 10 }))}</p></div>
           </div>`,
-    }, { name: 'hud.camp.rail.name', sub: 'hud.camp.rail.sub', allLabel: 'hud.camp.rail.all' }),
+    }, { name: 'hud.camp.rail.name', sub: 'hud.camp.rail.sub', allLabel: 'hud.camp.rail.all', levelK: 'hud.level.badgeRail' }),
   };
+  // a campaign finale's banner / title / text in the current language (results.finale.<id>.*); extra(res) adds
+  // sentences after the star line
+  function finaleText(id, extra) {
+    return lazyText({
+      text: (starLine, res) => ['results.finale.' + id + '.text'].map(k => t(k)).concat(starLine ? [starLine] : [], extra ? extra(res) : []).filter(Boolean).join(' '),
+    }, { banner: 'results.finale.' + id + '.banner', title: 'results.finale.' + id + '.title' });
+  }
   const CAMPAIGN_ORDER = ['road', 'rail'];
   function campaignOf(level) {
     const S = stor();
@@ -364,10 +378,10 @@
   // and time limit; a themed bonus chapter (every level shares the theme) keeps its name.
   function levelSubText(level, camp, cu, ch, gap) {
     const piers = level.maxPiers | 0;
-    const chap = ch ? (ch.hidden ? ch.name : (camp === 'rail' ? 'Line ' : 'Chapter ') + ch.n) : null;
-    return [camp !== 'road' ? cu.name : null, chap, gap ? gap + ' m gap' : null,
-      piers > 0 ? piers + (piers === 1 ? ' pier' : ' piers') : null,
-      level.timeLimit ? level.timeLimit + ' s limit' : null].filter(Boolean).join(' · ');
+    const chap = ch ? (ch.hidden ? ch.name : t(camp === 'rail' ? 'hud.level.line' : 'hud.level.chapter', { n: ch.n })) : null;
+    return [camp !== 'road' ? cu.name : null, chap, gap ? t('hud.level.gap', { gap: meters(gap) }) : null,
+      piers > 0 ? t('hud.level.piers', { n: piers }) : null,
+      level.timeLimit ? t('hud.level.timeLimit', { time: I() ? I().time(level.timeLimit, 0) : level.timeLimit + ' s' }) : null].filter(Boolean).join(' · ');
   }
   const CHAPTERS = [
     { n: 1, key: 'road1', from: 1, to: 5, theme: 'meadow' },
@@ -517,6 +531,24 @@
       if (this.el.levels && this.screen === 'levelSelect') this.buildLevelSelect();
       this.applySettings();
       this._sig = {};
+      this._pierSig = null;
+      // in a level: top bar, palette, templates, the hint, an open results card and derail callout
+      if (this.level && this.el.level) {
+        this._levelText();
+        if (this.el.hint && this.el.hint.classList.contains('show') && !this._hintOwn) {
+          const lv = this.level;
+          this.el.hintText.textContent = I() ? I().levelText(lv, 'hint') : lv.hint;
+          this.showHint(null, 0); // (re)applies wrappers such as the Arch tool pointer; stays until dismissed
+        }
+        if (this._res && this.el.results && this.el.results.classList.contains('show')) this._resultsText(this._res);
+        if (this._derailInfo && this.el.derail && this.el.derail.classList.contains('show')) {
+          if (BG.RailInfo && BG.RailInfo.retext) BG.RailInfo.retext(this._derailInfo);
+          this.el.dcTitle.textContent = this._derailInfo.title || t('results.derail.title');
+          this.el.dcCar.textContent = this._derailInfo.car || '';
+          this.el.dcCause.textContent = this._derailInfo.cause || '';
+          this.el.dcAdvice.textContent = this._derailInfo.advice || '';
+        }
+      }
     },
 
     // ---------------------------------------------------------------- title
@@ -647,7 +679,7 @@
     // chapters), continueLabel(level), finale: { banner, title, text(starLine) } }
     // Text fields may be getters (BG.i18n.lazy) or given as keys: nameKey / subKey / allLabelKey (translated on read).
     registerCampaign(id, ui) {
-      const u = lazyText({ id, icon: () => icon('road'), cls: 'is-' + id, levelK: 'LEVEL', sub: '' }, { name: () => id, allLabel: 'hud.camp.road.all' });
+      const u = lazyText({ id, icon: () => icon('road'), cls: 'is-' + id, sub: '' }, { name: () => id, allLabel: 'hud.camp.road.all', levelK: 'hud.level.badge' });
       Object.defineProperties(u, Object.getOwnPropertyDescriptors(ui || {}));
       const keys = {};
       ['name', 'sub', 'allLabel'].forEach(k => { if (u[k + 'Key']) keys[k] = u[k + 'Key']; });
@@ -763,74 +795,74 @@
       const el = h(`
         <section id="screen-level" class="screen">
           <header class="topbar glass">
-            <button class="btn btn-icon btn-ghost" data-act="back" title="Levels (Esc)">${icon('back')}</button>
-            <div class="lvl-badge"><span class="lvl-k">LEVEL</span><span class="lvl-n" data-ref="lvlNum">1</span></div>
+            <button class="btn btn-icon btn-ghost" data-act="back" data-i18n-title="hud.top.back">${icon('back')}</button>
+            <div class="lvl-badge"><span class="lvl-k"></span><span class="lvl-n" data-ref="lvlNum">1</span></div>
             <div class="lvl-title"><div class="lvl-name" data-ref="lvlName">—</div><div class="lvl-sub" data-ref="lvlSub"></div></div>
             <div class="budget" data-ref="budget">
-              <div class="budget-row"><span class="budget-k">${icon('coin')}Cost</span><span class="budget-v"><b data-ref="cost">$0</b> <i>/</i> <span data-ref="budgetV">$0</span></span></div>
+              <div class="budget-row"><span class="budget-k" data-i18n="hud.top.cost">${icon('coin')}</span><span class="budget-v"><b data-ref="cost">$0</b> <i>/</i> <span data-ref="budgetV">$0</span></span></div>
               <div class="budget-bar"><div class="budget-fill" data-ref="fill"></div>
-                <span class="tick t70" title="★★★ at 70% of budget"></span><span class="tick t85" title="★★ at 85% of budget"></span>
+                <span class="tick t70" data-i18n-title="hud.top.tick3"></span><span class="tick t85" data-i18n-title="hud.top.tick2"></span>
                 <span class="tick-lbl l70">★★★</span><span class="tick-lbl l85">★★</span>
               </div>
             </div>
-            <div class="traffic" data-ref="traffic" title="Traffic"></div>
-            <button class="btn btn-icon btn-ghost" data-act="hint" title="Show hint" hidden>${icon('bulb')}</button>
-            <button class="btn btn-icon btn-ghost" data-act="settings" title="Settings">${icon('gear')}</button>
+            <div class="traffic" data-ref="traffic" data-i18n-title="hud.top.traffic"></div>
+            <button class="btn btn-icon btn-ghost" data-act="hint" data-i18n-title="hud.top.hint" hidden>${icon('bulb')}</button>
+            <button class="btn btn-icon btn-ghost" data-act="settings" data-i18n-title="core.settings">${icon('gear')}</button>
           </header>
 
           <nav class="rail glass" data-ref="rail">
-            <button class="tool" data-tool="build" title="Build (B)">${icon('beam')}<span>Build</span></button>
-            <button class="tool" data-tool="erase" title="Erase (E) — or right-click">${icon('erase')}<span>Erase</span></button>
-            <button class="tool" data-tool="pier" title="Pier (P)">${icon('pier')}<span>Pier</span></button>
-            <button class="tool" data-tool="select" title="Select (S) — box-select, then Delete; drag joints to move">${icon('select')}<span>Select</span></button>
-            <button class="tool" data-tool="arch" title="Arch &amp; Curve (A) — drag from start to end, move up/down for the rise, click to place">${icon('arch')}<span>Arch</span></button><!-- arch-tool -->
+            <button class="tool" data-tool="build" data-i18n-title="hud.tool.buildTip">${icon('beam')}<span data-i18n="hud.tool.build"></span></button>
+            <button class="tool" data-tool="erase" data-i18n-title="hud.tool.eraseTip">${icon('erase')}<span data-i18n="hud.tool.erase"></span></button>
+            <button class="tool" data-tool="pier" data-i18n-title="hud.tool.pierTip">${icon('pier')}<span></span></button>
+            <button class="tool" data-tool="select" data-i18n-title="hud.tool.selectTip">${icon('select')}<span data-i18n="hud.tool.select"></span></button>
+            <button class="tool" data-tool="arch" data-i18n-title="hud.tool.archTip">${icon('arch')}<span data-i18n="hud.tool.arch"></span></button><!-- arch-tool -->
             <div class="rail-sep"></div>
-            <button class="tool toggle" data-act="mirror" title="Mirror symmetry (M)">${icon('mirror')}<span>Mirror</span></button>
+            <button class="tool toggle" data-act="mirror" data-i18n-title="hud.tool.mirrorTip">${icon('mirror')}<span data-i18n="hud.tool.mirror"></span></button>
             <div class="tool-wrap" data-ref="tplWrap">
-              <button class="tool" data-act="templates" title="Bridge templates">${icon('truss')}<span>Templates</span></button>
+              <button class="tool" data-act="templates" data-i18n-title="hud.tool.templatesTip">${icon('truss')}<span data-i18n="hud.tool.templates"></span></button>
             </div>
             <div class="rail-sep"></div>
-            <button class="tool" data-act="undo" title="Undo (Ctrl+Z)">${icon('undo')}<span>Undo</span></button>
-            <button class="tool" data-act="redo" title="Redo (Ctrl+Y)">${icon('redo')}<span>Redo</span></button>
-            <button class="tool danger" data-act="clear" title="Clear all">${icon('trash')}<span>Clear</span></button>
+            <button class="tool" data-act="undo" data-i18n-title="hud.tool.undoTip">${icon('undo')}<span data-i18n="hud.tool.undo"></span></button>
+            <button class="tool" data-act="redo" data-i18n-title="hud.tool.redoTip">${icon('redo')}<span data-i18n="hud.tool.redo"></span></button>
+            <button class="tool danger" data-act="clear" data-i18n-title="hud.tool.clearTip">${icon('trash')}<span data-i18n="hud.tool.clear"></span></button>
           </nav>
 
           <div class="tpl-menu glass" data-ref="tplMenu"></div>
 
           <div class="dock">
-            <div class="track-strip glass" data-ref="track" title="Track recording: grade and kink at every rail joint, red above the derail limit (T)"><canvas data-ref="trackCanvas"></canvas></div>
+            <div class="track-strip glass" data-ref="track" data-i18n-title="hud.sim.trackStripTip"><canvas data-ref="trackCanvas"></canvas></div>
             <div class="palette glass" data-ref="palette"></div>
             <div class="simbar glass" data-ref="simbar">
-              <button class="btn btn-ghost sb-btn" data-act="edit" title="Back to editing (Space)">${icon('pencil')}<span>Edit</span></button>
-              <button class="btn btn-ghost sb-btn" data-act="restart" title="Restart test (R)">${icon('restart')}<span>Restart</span></button>
+              <button class="btn btn-ghost sb-btn" data-act="edit" data-i18n-title="hud.sim.editTip">${icon('pencil')}<span data-i18n="hud.sim.edit"></span></button>
+              <button class="btn btn-ghost sb-btn" data-act="restart" data-i18n-title="hud.sim.restartTip">${icon('restart')}<span data-i18n="hud.sim.restart"></span></button>
               <div class="sb-sep"></div>
-              <button class="btn btn-icon btn-ghost" data-act="pause" title="Pause / resume (P)">${icon('pause')}</button>
-              <button class="btn btn-icon btn-ghost" data-act="step" title="Single step (.)">${icon('step')}</button>
+              <button class="btn btn-icon btn-ghost" data-act="pause" data-i18n-title="hud.sim.pauseTip">${icon('pause')}</button>
+              <button class="btn btn-icon btn-ghost" data-act="step" data-i18n-title="hud.sim.stepTip">${icon('step')}</button>
               <div class="seg" data-ref="speed">
-                <button data-speed="0.25" title="Slow motion (-)">¼×</button><button data-speed="1">1×</button><button data-speed="2" title="Fast (=)">2×</button><button data-speed="4" title="Faster">4×</button><button data-speed="8" title="Fastest">8×</button>
+                <button data-speed="0.25" data-i18n-title="hud.sim.slow">¼×</button><button data-speed="1">1×</button><button data-speed="2" data-i18n-title="hud.sim.fast">2×</button><button data-speed="4" data-i18n-title="hud.sim.faster">4×</button><button data-speed="8" data-i18n-title="hud.sim.fastest">8×</button>
               </div>
               <div class="sb-sep"></div>
-              <div class="sb-stat">${icon('clock')}<b data-ref="simTime">0.0</b><span data-ref="simLimit">/ 40 s</span></div>
-              <div class="sb-stat">${icon('flag')}<b data-ref="simVeh">0/0</b><span>across</span></div>
+              <div class="sb-stat">${icon('clock')}<b data-ref="simTime">0.0</b><span data-ref="simLimit"></span></div>
+              <div class="sb-stat">${icon('flag')}<b data-ref="simVeh">0/0</b><span data-i18n="hud.sim.across"></span></div>
               <div class="sb-sep"></div>
-              <button class="btn btn-ghost sb-btn toggle" data-act="follow" title="Camera follows the traffic (F)">${icon('follow')}<span>Follow</span></button>
-              <button class="btn btn-ghost sb-btn toggle" data-act="track" title="Track recording strip (T)">${icon('track')}<span>Track</span></button>
-              <button class="btn btn-ghost sb-btn toggle" data-act="stress" title="Stress overlay">${icon('stress')}<span>Stress</span></button>
+              <button class="btn btn-ghost sb-btn toggle" data-act="follow" data-i18n-title="hud.sim.followTip">${icon('follow')}<span data-i18n="hud.sim.follow"></span></button>
+              <button class="btn btn-ghost sb-btn toggle" data-act="track" data-i18n-title="hud.sim.trackTip">${icon('track')}<span data-i18n="hud.sim.track"></span></button>
+              <button class="btn btn-ghost sb-btn toggle" data-act="stress" data-i18n-title="hud.settings.stress">${icon('stress')}<span data-i18n="hud.sim.stress"></span></button>
             </div>
           </div>
 
-          <button class="test-btn" data-act="test" title="Test bridge (Space)">
+          <button class="test-btn" data-act="test" data-i18n-title="hud.sim.testTip">
             <span class="tb-ico tb-play">${icon('play')}</span><span class="tb-ico tb-edit">${icon('pencil')}</span>
-            <span class="tb-lbl"><b class="tb-play">Test</b><b class="tb-edit">Build</b><small>Space</small></span>
+            <span class="tb-lbl"><b class="tb-play" data-i18n="hud.sim.test"></b><b class="tb-edit" data-i18n="hud.tool.build"></b><small data-i18n="hud.keys.space"></small></span>
           </button>
 
           <div class="hint glass" data-ref="hint">
             <span class="hint-ico">${icon('bulb')}</span><p data-ref="hintText"></p>
-            <button class="btn btn-icon btn-ghost sm" data-act="hideHint" title="Dismiss">${icon('close')}</button>
+            <button class="btn btn-icon btn-ghost sm" data-act="hideHint" data-i18n-title="hud.top.dismiss">${icon('close')}</button>
           </div>
 
           <div class="derail-callout" data-ref="derail" aria-live="assertive">
-            <div class="dc-card glass"><div class="dc-head"><span class="dc-dot"></span><b data-ref="dcTitle">Derailed!</b><small data-ref="dcCar"></small></div>
+            <div class="dc-card glass"><div class="dc-head"><span class="dc-dot"></span><b data-ref="dcTitle"></b><small data-ref="dcCar"></small></div>
               <p class="dc-cause" data-ref="dcCause"></p><p class="dc-advice" data-ref="dcAdvice"></p></div>
             <span class="dc-stem"></span>
           </div>
@@ -839,21 +871,22 @@
             <div class="results-card glass">
               <div class="res-banner" data-ref="resBanner"></div>
               <div class="res-stars" data-ref="resStars">${starSvg()}${starSvg('mid')}${starSvg()}</div>
-              <h2 data-ref="resTitle">Bridge passed!</h2>
+              <h2 data-ref="resTitle"></h2>
               <p class="res-reason" data-ref="resReason"></p>
               <div class="res-rail" data-ref="resRail" hidden></div>
               <div class="res-stats" data-ref="resStats"></div>
               <div class="res-budget" data-ref="resBudget"><div class="rb-bar"><div class="rb-fill"></div><span class="tick t70"></span><span class="tick t85"></span><span class="rb-cap"></span></div></div>
               <div class="res-actions">
-                <button class="btn btn-glass" data-act="inspect" title="Inspect peak stress map">${icon('eye')}<span>Inspect</span></button>
-                <button class="btn btn-glass" data-act="resEdit">${icon('pencil')}<span>Edit</span></button>
-                <button class="btn btn-glass" data-act="retry">${icon('restart')}<span>Retry</span></button>
-                <button class="btn btn-primary" data-act="next">${icon('next')}<span>Next level</span></button>
+                <button class="btn btn-glass" data-act="inspect" data-i18n-title="results.inspectTip">${icon('eye')}<span data-i18n="results.inspect"></span></button>
+                <button class="btn btn-glass" data-act="resEdit">${icon('pencil')}<span data-i18n="hud.sim.edit"></span></button>
+                <button class="btn btn-glass" data-act="retry">${icon('restart')}<span></span></button>
+                <button class="btn btn-primary" data-act="next">${icon('next')}<span></span></button>
               </div>
             </div>
-            <button class="res-pill glass" data-act="uninspect">${icon('eye')}<span>Peak stress map</span><b data-ref="pillText"></b><em>Show results</em></button>
+            <button class="res-pill glass" data-act="uninspect">${icon('eye')}<span data-i18n="results.peakMap"></span><b data-ref="pillText"></b><em data-i18n="results.showResults"></em></button>
           </div>
         </section>`);
+      tr(el);
 
       el.addEventListener('click', e => this._onLevelClick(e));
       el.addEventListener('pointerdown', e => {
@@ -878,7 +911,7 @@
       if (tool) { if (!tool.disabled) { sfx('click'); call('setTool', tool.dataset.tool); } return; }
       const mat = e.target.closest('[data-mat]');
       if (mat) {
-        if (mat.classList.contains('disabled')) { sfx('error'); this.toast(material(mat.dataset.mat).name + ' is not available on this level.', 'info'); return; }
+        if (mat.classList.contains('disabled')) { sfx('error'); this.toast(t('editor.toast.matUnavailable', { name: matName(mat.dataset.mat) }), 'info'); return; }
         sfx('click'); call('setMaterial', mat.dataset.mat); return;
       }
       const sp = e.target.closest('[data-speed]');
@@ -938,23 +971,9 @@
       const camp = campaignOf(level);
       const cu = campaignUi(camp);
       this.el.lvlNum.textContent = cu.levelNum ? cu.levelNum(level) : displayNum(level);
-      $('.lvl-k', this.el.level).textContent = cu.levelK || 'LEVEL';
       CAMPAIGN_ORDER.forEach(c => this.el.level.classList.toggle('camp-' + c, c === camp));
-      this.el.lvlName.textContent = level.name || levelLabel(level);
-      const t = level.terrain || {};
-      const gap = (t.rightEdge != null && t.leftEdge != null) ? Math.round(t.rightEdge - t.leftEdge) : null;
-      const ch = chaptersFor(camp).find(c => id >= c.from && id <= c.to);
-      this.el.lvlSub.textContent = cu.levelSub ? cu.levelSub(level, gap) : levelSubText(level, camp, cu, ch, gap);
       this.el.level.style.setProperty('--acc', theme(level.theme).accent);
-      this.el.budgetV.textContent = money(level.budget);
       this._shownCost = 0;
-
-      // traffic (road vehicles and trains)
-      const groups = Array.isArray(level.traffic) ? level.traffic : [];
-      const total = groups.reduce((a, g) => a + (g.count || 1), 0);
-      const allTrains = groups.length && groups.every(isTrainGroup);
-      this.el.traffic.innerHTML = groups.map(trafficChip).join('') || '<span class="tr-none">No traffic</span>';
-      this.el.traffic.title = total + ' ' + (allTrains ? 'train' : 'vehicle') + (total === 1 ? '' : 's') + ': ' + trafficSummary(groups);
 
       // camera follow toggle (only when the renderer can follow)
       const fb = $('[data-act=follow]', this.el.simbar);
@@ -964,8 +983,6 @@
       this.hideDerail();
       this._sig.sim = null;
 
-      // palette
-      this._buildPalette(level);
 
       // tools
       const hasPiers = Array.isArray(level.pierZones) && level.pierZones.length > 0 && (level.maxPiers == null || level.maxPiers > 0);
@@ -976,12 +993,10 @@
       }
       const hasTpl = !!level.templates && list.length > 0;
       this.el.tplWrap.hidden = !hasTpl;
-      // pier tool shows how many piers this crossing allows
-      const pierLbl = $('[data-tool=pier] span', this.el.rail);
-      if (pierLbl) pierLbl.textContent = hasPiers && level.maxPiers != null ? 'Pier 0/' + level.maxPiers : 'Pier';
-      this._pierSig = null;
-      this.el.tplMenu.innerHTML = '<div class="tpl-head">Start from a template</div>' + list.map(t =>
-        `<button class="tpl-item" data-tpl="${esc(t.id)}"><span class="tpl-pic">${tplPic(t.id)}</span><span class="tpl-txt"><b>${esc(t.name || t.id)}</b><small>${esc(t.desc || '')}</small></span></button>`).join('');
+      this._tplList = list;
+      this._hasPiers = hasPiers;
+      // name, subtitle, budget, traffic, palette, pier count and templates: built in code, rebuilt on a language change
+      this._levelText();
 
       // hint
       const hasHint = !!level.hint;
@@ -995,6 +1010,38 @@
       this.setMode('edit');
     },
 
+    // the in-level texts built in code (enterLevel, and again when the language changes)
+    _levelText() {
+      const level = this.level;
+      if (!level || !this.el.level) return;
+      const id = levelId(level);
+      const camp = campaignOf(level);
+      const cu = campaignUi(camp);
+      $('.lvl-k', this.el.level).textContent = cu.levelK || t('hud.level.badge');
+      this.el.lvlName.textContent = lvName(level) || levelLabel(level);
+      const tr0 = level.terrain || {};
+      const gap = (tr0.rightEdge != null && tr0.leftEdge != null) ? Math.round(tr0.rightEdge - tr0.leftEdge) : null;
+      const ch = chaptersFor(camp).find(c => id >= c.from && id <= c.to);
+      this.el.lvlSub.textContent = cu.levelSub ? cu.levelSub(level, gap) : levelSubText(level, camp, cu, ch, gap);
+      this.el.budgetV.textContent = money(level.budget);
+      this._sig.budget = null;
+      // traffic (road vehicles and trains)
+      const groups = Array.isArray(level.traffic) ? level.traffic : [];
+      const total = groups.reduce((a, g) => a + (g.count || 1), 0);
+      const allTrains = groups.length && groups.every(isTrainGroup);
+      this.el.traffic.innerHTML = groups.map(trafficChip).join('') || '<span class="tr-none">' + esc(t('hud.traffic.none')) + '</span>';
+      this.el.traffic.title = t(allTrains ? 'hud.traffic.trains' : 'hud.traffic.vehicles', { n: total }) + ': ' + trafficSummary(groups);
+      this._buildPalette(level);
+      this._sig.tools = null;
+      // pier tool shows how many piers this crossing allows
+      const pierLbl = $('[data-tool=pier] span', this.el.rail);
+      if (pierLbl) pierLbl.textContent = this._hasPiers && level.maxPiers != null ? t('hud.tool.pierCount', { n: 0, max: level.maxPiers }) : t('hud.tool.pier');
+      this._pierSig = null;
+      this.el.tplMenu.innerHTML = '<div class="tpl-head">' + esc(t('editor.tpl.head')) + '</div>' + (this._tplList || []).map(tp =>
+        `<button class="tpl-item" data-tpl="${esc(tp.id)}"><span class="tpl-pic">${tplPic(tp.id)}</span><span class="tpl-txt"><b>${esc(tplText(tp, 'name') || tp.id)}</b><small>${esc(tplText(tp, 'desc'))}</small></span></button>`).join('');
+      this._sig.sim = null;
+    },
+
     _buildPalette(level) {
       const M = materials();
       const allowed = levelMaterials(level);
@@ -1005,16 +1052,18 @@
         const s = strengthOf(m);
         const pct = s > 0 ? clamp(0.12 + 0.88 * (Math.log(s) - Math.log(lo)) / (Math.log(hi) - Math.log(lo) || 1), 0.08, 1) : 0.05;
         const tags = [];
-        if (m.isRoad) tags.push('road deck');
-        if (m.isRail) tags.push('track: trains ride on it');
-        if (m.tensionOnly) tags.push('tension only');
-        if (compressionOnly(m)) tags.push('compression only: build arches');
-        return `<button class="mat ${m.isRail ? 'mat-rail' : ''}" data-mat="${esc(id)}" title="${esc(m.name)} — ${money(m.costPerMeter)}/m, max ${m.maxLength} m${tags.length ? ', ' + esc(tags.join(', ')) : ''}">
+        if (m.isRoad) tags.push(t('hud.palette.tagRoad'));
+        if (m.isRail) tags.push(t('hud.palette.tagRail'));
+        if (m.tensionOnly) tags.push(t('hud.palette.tagTension'));
+        if (compressionOnly(m)) tags.push(t('hud.palette.tagCompression'));
+        const perM = t('hud.palette.perM', { cost: money(m.costPerMeter) });
+        const tip = t('hud.palette.tip', { name: matName(id), cost: perM, max: meters(m.maxLength) }) + (tags.length ? ', ' + tags.join(', ') : '');
+        return `<button class="mat ${m.isRail ? 'mat-rail' : ''}" data-mat="${esc(id)}" title="${esc(tip)}">
             <span class="kbd">${i + 1}</span>
             <span class="mat-ico">${matSwatch(id, m)}</span>
-            <span class="mat-info"><b>${esc(SHORT_MAT[id] || m.name || id)}</b>
-              <span class="mat-meta"><em>${money(m.costPerMeter)}/m</em><i>≤ ${m.maxLength} m</i></span>
-              <span class="mat-str" title="Strength"><span style="width:${Math.round(pct * 100)}%"></span></span>
+            <span class="mat-info"><b>${esc(shortMatName(id))}</b>
+              <span class="mat-meta"><em>${esc(perM)}</em><i>≤ ${esc(meters(m.maxLength))}</i></span>
+              <span class="mat-str" title="${esc(t('hud.palette.strength'))}"><span style="width:${Math.round(pct * 100)}%"></span></span>
             </span>
           </button>`;
       }).join('');
@@ -1045,8 +1094,9 @@
     // ms: auto-hide delay (0 = stay until dismissed; the first tutorial levels keep their hint up)
     showHint(text, ms) {
       const lv = this.level;
-      const msg = text || (lv && lv.hint);
+      const msg = text || (lv && I() ? I().levelText(lv, 'hint') : lv && lv.hint);
       if (!msg) return;
+      this._hintOwn = !!text && !(lv && (text === lv.hint || (I() && text === I().levelText(lv, 'hint')))); // a custom text stays as it is on a language change
       this.el.hintText.textContent = msg;
       this.el.hint.classList.add('show');
       clearTimeout(this._hintTimer);
@@ -1138,9 +1188,9 @@
         if (this._pierSig !== sigP) {
           this._pierSig = sigP;
           const pl = $('[data-tool=pier] span', this.el.rail);
-          if (pl) pl.textContent = 'Pier ' + sigP;
+          if (pl) pl.textContent = t('hud.tool.pierCount', { n: np, max: lv.maxPiers });
           const pb = $('[data-tool=pier]', this.el.rail);
-          if (pb) pb.title = 'Pier (P): ' + np + ' of ' + lv.maxPiers + ' allowed';
+          if (pb) pb.title = t('hud.tool.pierCountTip', { n: np, max: lv.maxPiers });
         }
       }
 
@@ -1148,14 +1198,14 @@
       const sim = g.sim;
       if (this.mode === 'sim' || this.mode === 'results') {
         const tl = lv.timeLimit || 0;
-        const t = sim ? (+sim.time || 0) : 0;
+        const st = sim ? (+sim.time || 0) : 0;
         const vt = sim && sim.vehicles ? sim.vehicles.length : 0;
         const vf = sim && sim.vehicles ? sim.vehicles.filter(v => v.state === 'finished').length : 0;
-        const sigS = t.toFixed(1) + '|' + vf + '/' + vt + '|' + !!g.paused + '|' + g.speed + '|' + !!(g.settings && g.settings.showStress) + '|' + !!g.followOn + '|' + !!g.trackOn;
+        const sigS = st.toFixed(1) + '|' + vf + '/' + vt + '|' + !!g.paused + '|' + g.speed + '|' + !!(g.settings && g.settings.showStress) + '|' + !!g.followOn + '|' + !!g.trackOn;
         if (this._sig.sim !== sigS) {
           this._sig.sim = sigS;
-          this.el.simTime.textContent = t.toFixed(1);
-          this.el.simLimit.textContent = tl ? '/ ' + tl + ' s' : 's';
+          this.el.simTime.textContent = num(st, 1);
+          this.el.simLimit.textContent = tl ? '/ ' + (I() ? I().time(tl, 0) : tl + ' s') : t('hud.sim.seconds');
           this.el.simVeh.textContent = vf + '/' + vt;
           const pb = $('[data-act=pause]', this.el.simbar);
           pb.innerHTML = g.paused ? icon('play') : icon('pause');
@@ -1166,7 +1216,7 @@
           $('[data-act=stress]', this.el.simbar).classList.toggle('on', !!(g.settings && g.settings.showStress));
           $('[data-act=follow]', this.el.simbar).classList.toggle('on', !!g.followOn);
           $('[data-act=track]', this.el.simbar).classList.toggle('on', !!g.trackOn);
-          this.el.simTime.parentElement.classList.toggle('warn', tl && t > tl * 0.9);
+          this.el.simTime.parentElement.classList.toggle('warn', tl && st > tl * 0.9);
         }
       }
 
@@ -1231,7 +1281,8 @@
     showDerail(info) {
       const dc = this.el.derail;
       if (!dc || !info) return;
-      this.el.dcTitle.textContent = info.title || 'Derailed!';
+      this._derailInfo = info;
+      this.el.dcTitle.textContent = info.title || t('results.derail.title');
       this.el.dcCar.textContent = info.car || '';
       this.el.dcCause.textContent = info.cause || '';
       this.el.dcAdvice.textContent = info.advice || '';
@@ -1248,27 +1299,28 @@
       el.hidden = !c;
       if (!c) { el.innerHTML = ''; return; }
       const RI = BG.RailInfo;
-      const pct = (v, fx) => RI ? RI.pct(v, fx) : String(Math.round(v * 1000) / 10);
-      const deg = (v, fx) => RI ? RI.deg(v, fx) : String(Math.round(v * 573) / 10);
+      const pct = (v, fx) => RI ? RI.pct(v, fx) : num(Math.round(v * 1000) / 10);
+      const deg = (v, fx) => RI ? RI.deg(v, fx) : num(Math.round(v * 573) / 10);
       const tick = ok => '<i class="rv-ico ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + '</i>';
       const verdict = (ok, label, sub) => '<div class="rv ' + (ok ? 'ok' : 'no') + '">' + tick(ok) + '<span><b>' + esc(label) + '</b><small>' + esc(sub) + '</small></span></div>';
       const d = res.derail;
-      const structSub = c.structureOk ? 'No member broke' : c.broken + ' member' + (c.broken === 1 ? '' : 's') + ' broke';
-      const railSub = c.railsOk ? 'Every car stayed on the track' : (d ? (d.car ? d.car + ' · ' : '') + (d.title || 'derailed').replace(/!$/, '').toLowerCase() : 'A car came off the rails');
+      if (d && RI && RI.retext) RI.retext(d);
+      const structSub = c.structureOk ? t('results.rail.noneBroke') : t('results.rail.broke', { n: c.broken });
+      const railSub = c.railsOk ? t('results.rail.allOnTrack') : (d ? (d.car ? d.car + ' · ' : '') + (d.title || t('results.rail.derailed')).replace(/!$/, '').toLowerCase() : t('results.rail.carOff'));
       const cls = r => (r > 1 ? 'bad' : r > 0.8 ? 'warn' : 'good');
-      const kinkSub = 'limit ' + deg(c.kinkLim) + '°' + (c.kinkSpeed > 0.5 ? ' at ' + Math.round(c.kinkSpeed) + ' m/s' : '');
+      const kinkSub = t('results.rail.limitDeg', { v: deg(c.kinkLim) }) + (c.kinkSpeed > 0.5 ? ' ' + t('results.rail.atSpeed', { v: num(Math.round(c.kinkSpeed)) }) : '');
       const tiles = [
-        ['Worst grade', pct(c.grade, true) + '%', 'limit ' + pct(c.gradeLim) + '%', cls(c.gradeRatio)],
-        ['Worst kink', deg(c.kink, true) + '°', kinkSub, cls(c.kinkRatio)],
-        ['Peak sag', (Math.round(c.sag * 100) / 100).toFixed(2) + ' m', 'rail joints', ''],
+        [t('results.rail.worstGrade'), t('results.strip.pct', { v: pct(c.grade, true) }), t('results.rail.limitPct', { v: pct(c.gradeLim) }), cls(c.gradeRatio)],
+        [t('results.rail.worstKink'), deg(c.kink, true) + '°', kinkSub, cls(c.kinkRatio)],
+        [t('results.rail.peakSag'), meters(c.sag, 2), t('results.rail.railJoints'), ''],
       ];
       const lt = c.letter;
       const ltCls = lt === 'A' || lt === 'B' ? 'good' : lt === 'C' ? 'warn' : 'bad';
-      const ltSub = lt === 'F' ? 'derailed' : lt === 'A' ? 'silky smooth' : lt === 'B' ? 'smooth' : lt === 'C' ? 'bumpy' : 'rough ride';
-      el.innerHTML = '<div class="rv-row">' + verdict(c.structureOk, 'Structure held', structSub) + verdict(c.railsOk, 'Train stayed on the rails', railSub) + '</div>' +
-        '<div class="ride-card"><div class="rc-head">Ride quality</div><div class="rc-tiles">' +
-        tiles.map(t => '<div class="rc-t"><span>' + t[0] + '</span><b class="' + t[3] + '">' + t[1] + '</b><small>' + esc(t[2]) + '</small></div>').join('') +
-        '<div class="rc-t rc-grade"><span>Smoothness</span><b class="' + ltCls + '">' + lt + '</b><small>' + ltSub + '</small></div>' +
+      const ltSub = t(lt === 'F' ? 'results.rail.gradeF' : lt === 'A' ? 'results.rail.gradeA' : lt === 'B' ? 'results.rail.gradeB' : lt === 'C' ? 'results.rail.gradeC' : 'results.rail.gradeD');
+      el.innerHTML = '<div class="rv-row">' + verdict(c.structureOk, t('results.rail.structure'), structSub) + verdict(c.railsOk, t('results.rail.onRails'), railSub) + '</div>' +
+        '<div class="ride-card"><div class="rc-head">' + esc(t('results.rail.ride')) + '</div><div class="rc-tiles">' +
+        tiles.map(x => '<div class="rc-t"><span>' + esc(x[0]) + '</span><b class="' + x[3] + '">' + esc(x[1]) + '</b><small>' + esc(x[2]) + '</small></div>').join('') +
+        '<div class="rc-t rc-grade"><span>' + esc(t('results.rail.smoothness')) + '</span><b class="' + ltCls + '">' + lt + '</b><small>' + esc(ltSub) + '</small></div>' +
         '</div></div>';
     },
 
@@ -1304,60 +1356,34 @@
     showResults(res) {
       const el = this.el.results;
       this._resultTimers.forEach(clearTimeout); this._resultTimers = [];
+      this._res = res;
       el.classList.remove('inspecting');
       el.classList.toggle('pass', !!res.passed);
       el.classList.toggle('fail', !res.passed);
-      this.el.resBanner.textContent = res.passed ? (res.stars === 3 ? 'Masterpiece' : res.improved ? 'New best' : 'Level complete') : (res.simOk ? 'Over budget' : 'Bridge failed');
-      this.el.resTitle.textContent = res.title;
-      this.el.resReason.textContent = res.reasonText || '';
       this.hideDerail();
-      this._railResults(res);
       el.classList.toggle('is-rail', !!res.rail);
       const stars = $$('.star', this.el.resStars);
       stars.forEach(s => s.classList.remove('on', 'pop'));
       const pct = res.budget ? res.cost / res.budget : 0;
-      const pk = res.peakStress != null ? Math.round(res.peakStress * 100) : null;
-      this.el.resStats.innerHTML = [
-        ['Cost', money(res.cost), res.cost > res.budget ? 'bad' : 'good'],
-        ['Budget', money(res.budget), ''],
-        [res.campaign === 'rail' || res.rail ? 'Traffic' : 'Vehicles', (res.vehiclesFinished || 0) + ' / ' + (res.vehiclesTotal || 0), res.vehiclesFinished >= res.vehiclesTotal && res.vehiclesTotal ? 'good' : 'bad'],
-        ['Peak stress', pk != null ? pk + '%' : '—', pk != null && pk >= 100 ? 'bad' : ''],
-        ['Time', (res.time || 0).toFixed(1) + ' s', ''],
-        ['Broken', String(res.brokenBeams || 0), res.brokenBeams ? 'bad' : 'good'],
-      ].map(r => '<div class="rs"><span>' + r[0] + '</span><b class="' + r[2] + '">' + r[1] + '</b></div>').join('');
       const rb = $('.rb-fill', this.el.resBudget);
       rb.style.width = '0%';
       rb.style.background = budgetColor(pct);
-      $('.rb-cap', this.el.resBudget).textContent = Math.round(pct * 100) + '% of budget';
       this._resultTimers.push(setTimeout(() => { rb.style.width = (clamp(pct, 0, 1) * 100) + '%'; }, 250));
       const nb = $('[data-act=next]', el);
       nb.hidden = !res.passed;
-      $('span', nb).textContent = res.hasNext ? 'Next level' : (campaignUi(res.campaign).allLabel || 'All levels');
       // the sim is deterministic: retrying an unchanged failed bridge replays the same failure,
       // so after a failure the main action is going back to edit
       $('[data-act=retry]', el).classList.remove('btn-primary');
       $('[data-act=retry]', el).classList.add('btn-glass');
       $('[data-act=resEdit]', el).classList.toggle('btn-primary', !res.passed);
       $('[data-act=resEdit]', el).classList.toggle('btn-glass', !!res.passed);
-      $('[data-act=retry] span', el).textContent = res.passed ? 'Replay' : 'Retry';
       // finale of a campaign (res.finaleKind: 'road' after 50, 'bonus' after 53, 'rail' after 120, 'famous' after 212):
       // banner, title and text come from that campaign's registered look (CAMPAIGN_UI[...].finale)
       const kind = res.finale ? (res.finaleKind || res.campaign || 'road') : null;
       el.classList.toggle('finale', !!kind);
       const bonusFin = kind && kind !== 'bonus' && !CAMPAIGN_UI[kind] ? kind : null; // a branching bonus chapter (anchorages)
       CAMPAIGN_ORDER.concat(['bonus']).forEach(c => el.classList.toggle('finale-' + c, kind === c || (c === 'bonus' && !!bonusFin)));
-      if (kind) {
-        const camp = kind === 'bonus' || bonusFin ? 'road' : kind;
-        const c = campaignStarsOf(camp);
-        const starLine = c.max ? 'You hold ' + c.got + ' of ' + c.max + ' stars' + (c.got < c.max ? '. The three-star lines are still waiting.' : '. A perfect run.') : '';
-        const fin = kind === 'bonus' ? CAMPAIGN_UI.road.bonusFinale : bonusFin ? (CAMPAIGN_UI.road.bonusFinales || {})[bonusFin] : campaignUi(camp).finale;
-        if (fin) {
-          this.el.resBanner.textContent = fin.banner;
-          this.el.resTitle.textContent = fin.title;
-          this.el.resReason.textContent = fin.text(starLine, res);
-        }
-      }
-      this.el.pillText.textContent = res.passed ? ('★'.repeat(res.stars) + ' · ' + money(res.cost)) : (res.simOk ? 'Over budget' : 'Failed');
+      this._resultsText(res);
       el.classList.add('show');
       for (let i = 0; i < 3; i++) {
         if (i < (res.stars | 0)) {
@@ -1367,6 +1393,49 @@
           }, 520 + i * 340));
         }
       }
+    },
+    // every text on the results card (showResults, and again when the language changes)
+    _resultsText(res) {
+      const el = this.el.results;
+      if (!el || !res) return;
+      // the title and explanation are rebuilt in the current language from the run's facts (BG.Game.resultText)
+      if (res.textCtx) {
+        const g = game();
+        const txt = g && typeof g.resultText === 'function' ? (function () { try { return g.resultText(res.textCtx); } catch (e) { console.error(e); return null; } })() : null;
+        if (txt) { res.title = txt.title; res.reasonText = txt.text; }
+      }
+      this.el.resBanner.textContent = t(res.passed ? (res.stars === 3 ? 'results.banner.masterpiece' : res.improved ? 'results.banner.newBest' : 'results.banner.complete') : (res.simOk ? 'results.banner.overBudget' : 'results.banner.failed'));
+      this.el.resTitle.textContent = res.title;
+      this.el.resReason.textContent = res.reasonText || '';
+      this._railResults(res);
+      const pct = res.budget ? res.cost / res.budget : 0;
+      const pk = res.peakStress != null ? res.peakStress : null;
+      this.el.resStats.innerHTML = [
+        [t('results.stat.cost'), money(res.cost), res.cost > res.budget ? 'bad' : 'good'],
+        [t('results.stat.budget'), money(res.budget), ''],
+        [t(res.campaign === 'rail' || res.rail ? 'results.stat.traffic' : 'results.stat.vehicles'), (res.vehiclesFinished || 0) + ' / ' + (res.vehiclesTotal || 0), res.vehiclesFinished >= res.vehiclesTotal && res.vehiclesTotal ? 'good' : 'bad'],
+        [t('results.stat.peakStress'), pk != null ? pctOf(Math.round(pk * 100) / 100) : '—', pk != null && Math.round(pk * 100) >= 100 ? 'bad' : ''],
+        [t('results.stat.time'), I() ? I().time(res.time || 0) : (res.time || 0).toFixed(1) + ' s', ''],
+        [t('results.stat.broken'), String(res.brokenBeams || 0), res.brokenBeams ? 'bad' : 'good'],
+      ].map(r => '<div class="rs"><span>' + esc(r[0]) + '</span><b class="' + r[2] + '">' + esc(r[1]) + '</b></div>').join('');
+      $('.rb-cap', this.el.resBudget).textContent = t('results.budgetPct', { pct: pctOf(Math.round(pct * 100) / 100) });
+      const nb = $('[data-act=next]', el);
+      $('span', nb).textContent = res.hasNext ? t('results.next') : (campaignUi(res.campaign).allLabel || t('hud.camp.road.all'));
+      $('[data-act=retry] span', el).textContent = t(res.passed ? 'results.replay' : 'results.retry');
+      const kind = res.finale ? (res.finaleKind || res.campaign || 'road') : null;
+      const bonusFin = kind && kind !== 'bonus' && !CAMPAIGN_UI[kind] ? kind : null;
+      if (kind) {
+        const camp = kind === 'bonus' || bonusFin ? 'road' : kind;
+        const c = campaignStarsOf(camp);
+        const starLine = c.max ? t(c.got < c.max ? 'results.finale.starsMissing' : 'results.finale.starsAll', { got: c.got, max: c.max }) : '';
+        const fin = kind === 'bonus' ? CAMPAIGN_UI.road.bonusFinale : bonusFin ? (CAMPAIGN_UI.road.bonusFinales || {})[bonusFin] : campaignUi(camp).finale;
+        if (fin) {
+          this.el.resBanner.textContent = fin.banner;
+          this.el.resTitle.textContent = fin.title;
+          this.el.resReason.textContent = fin.text(starLine, res);
+        }
+      }
+      this.el.pillText.textContent = res.passed ? ('★'.repeat(res.stars) + ' · ' + money(res.cost)) : t(res.simOk ? 'results.banner.overBudget' : 'results.pill.failed');
     },
     hideResults(instant) {
       const el = this.el.results;
@@ -1464,7 +1533,7 @@
     },
 
     // exposed helpers
-    icon, money, theme, vehSvg, trainSvg, material, materials, levelMaterials, CHAPTERS, RAIL_CHAPTERS, THEMES,
+    icon, money, theme, vehSvg, trainSvg, material, materials, matName, vehicleName, trainName, levelMaterials, CHAPTERS, RAIL_CHAPTERS, THEMES,
     campaignOf, displayNum, levelLabel, shortLabel, badgeNum, hiddenLevelIds, unlockRuleText, unlockInfoBtn,
   };
 
@@ -1482,6 +1551,12 @@
     return '#ff4d5e';
   }
 
+  // a bridge template's name / desc in the current language: BG.Templates.list holds them as getters
+  // (content.template.<id>.*), the menu's list (BG.Templates.available) holds copies made when the level opened
+  function tplText(tp, field) {
+    const live = BG.Templates && Array.isArray(BG.Templates.list) ? BG.Templates.list.find(x => x.id === tp.id) : null;
+    return (live || tp)[field] || '';
+  }
   // tiny pictograms for the template menu (viewBox 64x30, deck at y=20)
   function tplPic(id) {
     const deck = '<path class="tp-deck" d="M4 20H60"/>';

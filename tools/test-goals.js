@@ -54,6 +54,14 @@ const G = BG.Goals;
   const lv30 = L(20);
   const sym = { nodes: [{ id: 'n1', x: 6, y: 0 }], beams: [], piers: [] };
   ok('asymmetry of lone design is a miss', G.metrics(lv30, sym, null).symmetric === false || sym.beams.length === 0);
+  // i18n: names, conditions and progress follow the language (features.goals.* in js/i18n/<lang>/features.js)
+  G.register(9001, [{ type: 'penny', ratio: 0.7 }, { type: 'no_piers' }, { type: 'cool_head', max: 0.8 }]);
+  const en = G.evaluate(lv2, ref, null).goals;
+  ok('goal texts in English', en[0].name === 'Penny Pincher' && en[0].desc === 'Pass for at most 70% of the budget' && en[1].text === 'no piers' && en[2].text === 'run a test', en);
+  BG.i18n.setLanguage('da', { persist: false });
+  const da = G.evaluate(lv2, ref, null).goals;
+  BG.i18n.setLanguage('en', { persist: false });
+  ok('goal texts in Danish', da[0].name === 'Fedtsyl' && da[0].desc === 'Gennemfør for højst 70\u00a0% af budgettet' && da[1].name === 'Pillefri' && da[1].text === 'ingen piller' && da[2].text === 'kør en test' && G.TYPES.penny.name === 'Penny Pincher', da);
 }
 
 // ---------------------------------------------------------------- data shape

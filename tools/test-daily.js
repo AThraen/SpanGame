@@ -61,6 +61,11 @@ const G = BG.Generator, D = BG.Daily;
   ok('share text: header, name, stars, grid, streak', lines.length === 5 && /^SPAN Daily #279 · Tue 6 Oct 2026$/.test(lines[0]) && lines[1].indexOf(lvB.name) >= 0 &&
     lines[2] === '★★★ · 69% of budget · 15 members' && Array.from(lines[3]).length === 10 && lines[4] === '🔥 2-day streak', lines);
   ok('share grid: 7 green cells for 69%', lines[3] === '🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜', lines[3]);
+  // i18n: the share card in Danish (dates from the dictionary: the same text in every browser, with or without Intl)
+  BG.i18n.setLanguage('da', { persist: false });
+  const da = D.shareText(20261006, lvB, e6, { current: 2 }).split('\n');
+  BG.i18n.setLanguage('en', { persist: false });
+  ok('share text in Danish', da[0] === 'SPAN Dagens bro #279 · tir. 6. okt. 2026' && da[2] === '★★★ · 69\u00a0% af budgettet · 15 bjælker' && da[4] === '🔥 2 dage i træk' && da[3] === lines[3], da);
   // endless
   BG.Storage.set('endless', { best: { cleared: 0, stars: 0 }, run: { seed: 7, index: 0, cleared: 0, stars: 0, starsBy: {} }, runs: 1 });
   D.recordEndless(0, { passed: true, stars: 2 });

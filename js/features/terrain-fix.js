@@ -53,7 +53,8 @@
     ctx.restore();
     // label at the left end, just under the line (pier-zone labels sit above it)
     if (w > 140) {
-      const text = lava ? 'LAVA LINE · PIERS ONLY BELOW' : 'WATERLINE · PIERS ONLY BELOW';
+      const key = lava ? 'features.terrain.lavaLine' : 'features.terrain.waterLine';
+      const text = BG.i18n ? BG.i18n.t(key) : key;
       if (typeof r._label === 'function') r._label(ctx, p0.x + 12 + measure(ctx, text, 10) / 2 + 8, y + 14, text, 'rgba(8,28,52,0.8)', '#bfe6ff', 10);
     }
   }

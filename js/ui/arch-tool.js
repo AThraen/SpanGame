@@ -38,7 +38,7 @@
                               //    (a shorter one would be under the 0.25 m minimum member length)
   const SNAP_DECK = 0.45;     // m: a curve joint at a deck station this close to the deck is pinned onto it
   const POS_EPS = 0.02;
-  const SHAPE_NAMES = { parabolic: 'Parabolic', circular: 'Circular', catenary: 'Catenary' };
+  const SHAPE_NAMES = { parabolic: 'editor.arch.shape.parabolic', circular: 'editor.arch.shape.circular', catenary: 'editor.arch.shape.catenary' }; // dictionary keys
   const POST_ORDER = ['steel', 'wood', 'girder', 'masonry', 'reinforced_road'];
   const HANGER_ORDER = ['cable', 'rope', 'steel', 'wood', 'girder'];
   const ARCH_ORDER = ['masonry', 'steel', 'wood', 'girder', 'cable', 'rope'];
@@ -60,25 +60,28 @@
     return !!d && !d.tensionOnly && (+d.compressionLimit || 0) > 0 && (+d.tensionLimit || 0) < 0.05 * (+d.compressionLimit || 0);
   }
   function key(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
-  function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
-  function m1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+  // i18n (docs/I18N.md): every text goes through t(); numbers through BG.i18n's formatters
+  function I() { return BG.i18n || null; }
+  function t(key, params) { return I() ? I().t(key, params) : key; }
+  function money(n) { return I() ? I().money(n) : '$' + Math.round(n); }
+  function m1(v) { return I() ? I().meters(v, 1) : (Math.round(v * 10) / 10).toFixed(1) + ' m'; }
+  function matName(id) { return Editor.matName ? Editor.matName(id) : ((matDef(id) || {}).name || id); }
 
-  const REASON = {
-    too_long: (p) => 'A segment is longer than ' + maxLenOf(p.m) + ' m: add segments (+)',
-    too_short: () => 'Too short',
-    in_nobuild: () => 'Crosses a no-build zone: change the height or the end points',
-    in_terrain: () => 'Passes through the ground: change the height or the end points',
-    near_terrain: () => 'A joint is too close to the ground (keep 0.5 m clear)',
-    outside_build_area: () => 'Leaves the build area (dashed box): change the height or the end points',
-    underwater: () => (BG.Model && BG.Model.UNDERWATER_MSG) || "Can't build under water - use a pier",
-    roadway: () => (BG.Model && BG.Model.ROADWAY_MSG) || 'Keep the road clear',
-    material_not_allowed: (p) => ((matDef(p.m) || {}).name || p.m) + ' is not available here',
-    tension_only: (p) => ((matDef(p.m) || {}).name || p.m) + ' only carries tension: drag the curve below the line to hang it',
-    stone_hangs: (p) => ((matDef(p.m) || {}).name || p.m) + ' only carries compression: raise the curve into an arch',
-    rail_too_steep: () => 'Track must be laid nearly level',
-    span_short: () => 'Drag further: the curve needs at least ' + MIN_CHORD + ' m',
+  // why a curve (or one of its connectors) can't be built: editor.arch.reason.<code>. The part before a colon is the
+  // short form (the "n members skipped: ..." line keeps only that)
+  const REASON_PARAMS = {
+    too_long: (p) => ({ max: I() ? I().meters(maxLenOf(p.m)) : maxLenOf(p.m) + ' m' }),
+    material_not_allowed: (p) => ({ name: matName(p.m) }),
+    tension_only: (p) => ({ name: matName(p.m) }),
+    stone_hangs: (p) => ({ name: matName(p.m) }),
+    near_terrain: () => ({ gap: I() ? I().meters(0.5) : '0.5 m' }),
+    span_short: () => ({ min: I() ? I().meters(MIN_CHORD) : MIN_CHORD + ' m' }),
   };
-  function reasonText(r, plan) { const f = REASON[r]; return f ? f(plan || {}) : String(r || '').replace(/_/g, ' '); }
+  function reasonText(r, plan) {
+    const k = 'editor.arch.reason.' + r;
+    if (!r || !I() || !I().has(k, 'en')) return String(r || '').replace(/_/g, ' ');
+    return t(k, REASON_PARAMS[r] ? REASON_PARAMS[r](plan || {}) : null);
+  }
 
   // ================================================================ options
   P.archOptions = function () { return OPT; };
@@ -579,10 +582,10 @@
     this._commit();
     this._sfx('place', { material: plan.m, pan: this._pan(plan.crown ? plan.crown.x : plan.a.x) });
     if (OPT.connect && !posts && !braces && !this._design.beams.some((b) => isDeck(b.m))) {
-      if (!this._archToldNoDeck) this._toast('Tip: build the deck first - then the curve connects to the road or track above or below it.');
+      if (!this._archToldNoDeck) this._toast(t('editor.arch.toast.deckFirst'));
       this._archToldNoDeck = true;
     } else if (skipped) {
-      this._toast(skipped + ' connecting member' + (skipped === 1 ? '' : 's') + ' skipped: ' + reasonText(skipWhy.reason, { m: skipWhy.m }).replace(/:.*$/, '') + '.');
+      this._toast(t('editor.arch.toast.skipped', { n: skipped, why: reasonText(skipWhy.reason, { m: skipWhy.m }).replace(/:.*$/, '') }));
     }
     BG.ArchTool.placed = (BG.ArchTool.placed || 0) + 1;
     this.lastArch = { ids, mirror: mids, posts, braces, skipped, n: plan.n, rise: plan.rise, shape: plan.shape, m: plan.m, aligned: plan.aligned };
@@ -651,7 +654,7 @@
     this._syncLevel();
     if (!this._editable()) return false;
     const set = this._smoothSet();
-    if (set.ids.length < 3 || !set.move.length) { this._sfx('error'); this._toast('Select at least 3 joints along a curve to smooth them.'); return false; }
+    if (set.ids.length < 3 || !set.move.length) { this._sfx('error'); this._toast(t('editor.arch.toast.smoothMin', { n: 3 })); return false; }
     const ch = set.chain;
     const fit = C().fitParabola(ch);
     const A = ch[0], B = ch[ch.length - 1];
@@ -693,20 +696,20 @@
     this._cancelAct();
     this._begin();
     apply(1, true);
-    let t = 1;
+    let frac = 1;
     if (!valid()) {
       let lo = 0, hi = 1;
       for (let i = 0; i < 20; i++) { const mid = (lo + hi) / 2; apply(mid, true); if (valid()) lo = mid; else hi = mid; }
-      t = lo;
-      apply(t, true);
-      if (!valid()) { apply(0, false); t = 0; }
+      frac = lo;
+      apply(frac, true);
+      if (!valid()) { apply(0, false); frac = 0; }
     }
     const changed = this._commit();
     this._changed(true);
-    if (!changed) { this._sfx('error'); this._toast(t === 0 ? "Can't smooth these joints without breaking a rule." : 'Already smooth.'); return false; }
+    if (!changed) { this._sfx('error'); this._toast(t(frac === 0 ? 'editor.arch.toast.smoothBlocked' : 'editor.arch.toast.smoothDone')); return false; }
     this._sfx('place', { material: 'steel' });
-    if (t < 1) this._toast('Smoothed part of the way: further would break a rule.');
-    this.lastSmooth = { moved: moves.length, t };
+    if (frac < 1) this._toast(t('editor.arch.toast.smoothPart'));
+    this.lastSmooth = { moved: moves.length, t: frac };
     return true;
   };
 
@@ -918,25 +921,24 @@
     // labels (screen space): kept clear of the HUD (top bar, the arch bar, the rail, the palette) - above the
     // preview when there is room, else below it, and inside the screen sideways
     r._screenXf(ctx, sh.x, sh.y);
-    const name = (matDef(plan.m) || {}).name || plan.m;
+    const name = matName(plan.m);
     const lines = [];
     const rs = plan.rise;
-    if (av.phase === 'drag' || av.phase === 'end' || !plan.n) lines.push({ text: name + '  ·  span ' + m1(plan.span) + ' m', bad: false });
-    else lines.push({ text: SHAPE_NAMES[plan.shape] + '  ·  ' + plan.n + ' × ' + name + '  ·  span ' + m1(plan.span) + ' m  ·  ' + (rs < 0 ? 'sag ' + m1(-rs) : 'rise ' + m1(rs)) + ' m  ·  ' + money(plan.cost), bad: !plan.valid });
+    if (av.phase === 'drag' || av.phase === 'end' || !plan.n) lines.push({ text: t('editor.arch.label.span', { name, span: m1(plan.span) }), bad: false });
+    else lines.push({ text: t(rs < 0 ? 'editor.arch.label.planSag' : 'editor.arch.label.planRise', { shape: t(SHAPE_NAMES[plan.shape]), n: plan.n, name, span: m1(plan.span), h: m1(Math.abs(rs)), cost: money(plan.cost) }), bad: !plan.valid });
     let sub = null, bad = false;
     if (plan.reasonText && (av.phase === 'rise' || (plan.reason === 'span_short' && av.phase !== 'drag'))) { sub = plan.reasonText; bad = true; }
     else if (av.phase === 'rise') {
-      sub = av.touch ? 'Drag to set the ' + (rs < 0 ? 'sag' : 'rise') + ' · tap to place · −/+ segments'
-        : 'Move up/down for the ' + (rs < 0 ? 'sag' : 'rise') + ' · click to place · +/− or wheel: segments · Esc cancels';
+      sub = t('editor.arch.sub.' + (av.touch ? 'touch' : 'mouse') + (rs < 0 ? 'Sag' : 'Rise'));
       const valid = plan.connectors.filter((c) => c.valid).length;
       if (plan.connectors.length) {
-        sub = valid + ' ' + (plan.connectors.some((c) => c.kind === 'hanger') ? 'hanger' : 'post') + (valid === 1 ? '' : 's') + ' to the deck' + ' · ' + sub;
-      } else if (plan.noDeck) sub = 'No deck yet: build the road first to hang it on posts · ' + sub;
-      if (plan.skipped) sub = plan.skipped + ' connecting member' + (plan.skipped === 1 ? '' : 's') + ' skipped: ' + String(plan.skipReason || '').replace(/:.*$/, '') + ' · ' + sub;
+        sub = t(plan.connectors.some((c) => c.kind === 'hanger') ? 'editor.arch.sub.hangers' : 'editor.arch.sub.posts', { n: valid }) + ' · ' + sub;
+      } else if (plan.noDeck) sub = t('editor.arch.sub.noDeck') + ' · ' + sub;
+      if (plan.skipped) sub = t('editor.arch.sub.skipped', { n: plan.skipped, why: String(plan.skipReason || '').replace(/:.*$/, '') }) + ' · ' + sub;
       const free = [plan.a, plan.b].filter((e) => e && !e.id).length;
-      if (free && !plan.skipped) sub = (free === 2 ? 'Both ends are' : 'One end is') + ' free: start and end on an anchor, pier top or joint · ' + sub;
-    } else if (av.phase === 'end') sub = av.touch ? 'Tap the end point' : 'Click the end point';
-    else if (av.phase === 'drag') sub = av.touch ? 'Lift your finger on the end point' : 'Release on the end point';
+      if (free && !plan.skipped) sub = t(free === 2 ? 'editor.arch.sub.freeBoth' : 'editor.arch.sub.freeOne') + ' · ' + sub;
+    } else if (av.phase === 'end') sub = t(av.touch ? 'editor.arch.sub.tapEnd' : 'editor.arch.sub.clickEnd');
+    else if (av.phase === 'drag') sub = t(av.touch ? 'editor.arch.sub.liftEnd' : 'editor.arch.sub.releaseEnd');
     if (sub) lines.push({ text: BG.Mobile && BG.Mobile.touchText ? BG.Mobile.touchText(sub) : sub, bad, small: true });
     // the preview's screen extent
     let minY = Infinity, maxY = -Infinity;
@@ -985,8 +987,7 @@
     const S = safeArea(r);
     const d = root.document;
     const touch = !!(d && d.documentElement && d.documentElement.classList && d.documentElement.classList.contains('m-touch'));
-    const text = touch ? 'Arch tool: drag from one support to the other, then drag the handle to set the height'
-      : 'Arch tool: drag from one support to the other, release, then move up or down for the height';
+    const text = t(touch ? 'editor.arch.idleTouch' : 'editor.arch.idle');
     placeLabels(r, ctx, [{ text, small: true }], (S.left + S.right) / 2, S.bottom - 10, S.bottom);
   }
 
@@ -1007,32 +1008,33 @@
     if (UI.bar) return UI.bar;
     const lvl = doc.getElementById('screen-level');
     if (!lvl) return null;
-    const t = doc.createElement('template');
-    t.innerHTML = `<div class="arch-bar glass" role="toolbar" aria-label="Arch and curve options">
+    const tpl = doc.createElement('template');
+    tpl.innerHTML = `<div class="arch-bar glass" role="toolbar" data-i18n-aria="editor.arch.bar.aria">
         <div class="ab-sec ab-arch">
-          <div class="ab-head"><b>Arch &amp; Curve</b><small data-ab="help"></small></div>
-          <div class="ab-row ab-shapes" role="radiogroup" aria-label="Curve shape">
-            <button type="button" class="ab-chip" data-ab-shape="parabolic" title="Parabolic: the ideal arch under a uniform deck load (and the shape of a suspension cable)">Parabolic</button>
-            <button type="button" class="ab-chip" data-ab-shape="circular" title="Circular: the Roman arch, at most a half circle">Circular</button>
-            <button type="button" class="ab-chip" data-ab-shape="catenary" title="Catenary: a hanging cable - drag below the line to sag it, above it for a catenary arch">Catenary</button>
+          <div class="ab-head"><b data-i18n="editor.arch.bar.title"></b><small data-ab="help"></small></div>
+          <div class="ab-row ab-shapes" role="radiogroup" data-i18n-aria="editor.arch.bar.shape">
+            <button type="button" class="ab-chip" data-ab-shape="parabolic" data-i18n-title="editor.arch.bar.parabolicTip" data-i18n="editor.arch.shape.parabolic"></button>
+            <button type="button" class="ab-chip" data-ab-shape="circular" data-i18n-title="editor.arch.bar.circularTip" data-i18n="editor.arch.shape.circular"></button>
+            <button type="button" class="ab-chip" data-ab-shape="catenary" data-i18n-title="editor.arch.bar.catenaryTip" data-i18n="editor.arch.shape.catenary"></button>
           </div>
           <div class="ab-row ab-act">
-            <button type="button" class="ab-chip ab-place" data-ab="place" title="Place the curve (or click / tap the empty canvas)">✓ Place</button>
-            <button type="button" class="ab-chip ab-cancel" data-ab="cancel" title="Cancel the curve (Esc)">Cancel</button>
+            <button type="button" class="ab-chip ab-place" data-ab="place" data-i18n-title="editor.arch.bar.placeTip" data-i18n="editor.arch.bar.place"></button>
+            <button type="button" class="ab-chip ab-cancel" data-ab="cancel" data-i18n-title="editor.arch.bar.cancelTip" data-i18n="editor.arch.bar.cancel"></button>
           </div>
-          <div class="ab-row ab-segs"><span>Segments</span>
-            <button type="button" class="ab-chip ab-sq" data-ab="minus" title="Fewer segments (−)">−</button><b data-ab="n">auto</b>
-            <button type="button" class="ab-chip ab-sq" data-ab="plus" title="More segments (+)">+</button></div>
-          <label class="ab-row ab-conn" title="Line the curve up with the deck joints and add vertical posts (curve under the deck) or hangers (curve over it) to the road or track"><span>Connect to deck</span><input type="checkbox" class="switch" data-ab="connect"></label>
-          <label class="ab-row ab-brace" title="Diagonals between the curve and the deck in every panel: a pin-jointed arch with only posts sways"><span>Brace panels</span><input type="checkbox" class="switch" data-ab="brace"></label>
-          <div class="ab-row ab-cmat"><span>Posts / hangers</span><select data-ab="cmat" aria-label="Connector material"></select></div>
+          <div class="ab-row ab-segs"><span data-i18n="editor.arch.bar.segments"></span>
+            <button type="button" class="ab-chip ab-sq" data-ab="minus" data-i18n-title="editor.arch.bar.fewer">−</button><b data-ab="n"></b>
+            <button type="button" class="ab-chip ab-sq" data-ab="plus" data-i18n-title="editor.arch.bar.more">+</button></div>
+          <label class="ab-row ab-conn" data-i18n-title="editor.arch.bar.connectTip"><span data-i18n="editor.arch.bar.connect"></span><input type="checkbox" class="switch" data-ab="connect"></label>
+          <label class="ab-row ab-brace" data-i18n-title="editor.arch.bar.braceTip"><span data-i18n="editor.arch.bar.brace"></span><input type="checkbox" class="switch" data-ab="brace"></label>
+          <div class="ab-row ab-cmat"><span data-i18n="editor.arch.bar.connector"></span><select data-ab="cmat" data-i18n-aria="editor.arch.bar.connectorAria"></select></div>
         </div>
         <div class="ab-sec ab-select">
-          <button type="button" class="btn btn-glass ab-smooth" data-ab="smooth" title="Fit a smooth curve through the selected joints and space them evenly">${hudIcon('arch')}<span>Smooth</span></button>
+          <button type="button" class="btn btn-glass ab-smooth" data-ab="smooth" data-i18n-title="editor.arch.bar.smoothTip">${hudIcon('arch')}<span data-i18n="editor.arch.bar.smooth"></span></button>
           <small data-ab="selInfo"></small>
         </div>
       </div>`;
-    const bar = t.content.firstElementChild;
+    const bar = tpl.content.firstElementChild;
+    if (I()) I().apply(bar);
     lvl.appendChild(bar);
     bar.addEventListener('click', (e) => {
       const ed = editor();
@@ -1043,7 +1045,7 @@
       if (!b) return;
       const a = b.dataset.ab;
       if (a === 'minus' || a === 'plus') {
-        if (!ed.archSegments(a === 'plus' ? 1 : -1)) { ed._sfx('error'); toast(isTouch() ? 'Drag a curve first, then change its segments.' : 'Drag a curve first, then change its segments (+/−).'); }
+        if (!ed.archSegments(a === 'plus' ? 1 : -1)) { ed._sfx('error'); toast(t(isTouch() ? 'editor.arch.toast.segsFirstTouch' : 'editor.arch.toast.segsFirst')); }
       } else if (a === 'place') ed.archPlace();
       else if (a === 'cancel') ed.archCancel();
       else if (a === 'smooth') ed.smoothSelection();
@@ -1104,7 +1106,7 @@
     const av = ed && ed.state && ed.state.arch;
     const plan = av && av.plan;
     const allowed = ed ? ed._allowedList() : [];
-    const sig = [mode, OPT.shape, OPT.connect, OPT.brace, OPT.connMat, av ? av.phase : '', plan ? plan.n + '/' + plan.nMin + '/' + (av.n || 0) + '/' + plan.valid : '', allowed.join(','), selN, smoothN, isTouch(), lv && lv.id].join('|');
+    const sig = [mode, OPT.shape, OPT.connect, OPT.brace, OPT.connMat, av ? av.phase : '', plan ? plan.n + '/' + plan.nMin + '/' + (av.n || 0) + '/' + plan.valid : '', allowed.join(','), selN, smoothN, isTouch(), lv && lv.id, I() ? I().lang() : ''].join('|');
     if (sig === UI.sig) return;
     UI.sig = sig;
     if (mode && !UI.shown && hud && hud.hideHint) hud.hideHint(); // the bar sits where the hint shows (H brings it back)
@@ -1115,13 +1117,13 @@
     if (!mode) return;
     if (mode === 'select') {
       const info = bar.querySelector('[data-ab=selInfo]');
-      info.textContent = smoothN ? selN + ' joints selected' : 'Select joints along a curve';
+      info.textContent = smoothN ? t('editor.arch.bar.selected', { n: selN }) : t('editor.arch.bar.selectHint');
       bar.querySelector('[data-ab=smooth]').disabled = !smoothN;
       return;
     }
     bar.querySelectorAll('[data-ab-shape]').forEach((b) => { const on = b.dataset.abShape === OPT.shape; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); b.setAttribute('role', 'radio'); });
     const nEl = bar.querySelector('[data-ab=n]');
-    nEl.textContent = plan && plan.n ? String(plan.n) + (av.n ? '' : ' (auto)') : 'auto';
+    nEl.textContent = plan && plan.n ? (av.n ? String(plan.n) : t('editor.arch.bar.nAuto', { n: plan.n })) : t('editor.arch.bar.auto');
     const conn = bar.querySelector('[data-ab=connect]');
     if (conn.checked !== OPT.connect) conn.checked = OPT.connect;
     const br = bar.querySelector('[data-ab=brace]');
@@ -1137,19 +1139,20 @@
     place.disabled = !(av && av.phase === 'rise' && plan && plan.valid);
     const sel = bar.querySelector('[data-ab=cmat]');
     const opts = ['auto'].concat(allowed.filter((m) => !isDeck(m)));
-    const html = opts.map((m) => '<option value="' + esc(m) + '">' + esc(m === 'auto' ? 'Auto' : (matDef(m) || {}).name || m) + '</option>').join('');
+    const html = opts.map((m) => '<option value="' + esc(m) + '">' + esc(m === 'auto' ? t('editor.arch.bar.connectorAuto') : matName(m)) + '</option>').join('');
     if (sel._html !== html) { sel.innerHTML = html; sel._html = html; }
     sel.value = opts.indexOf(OPT.connMat) >= 0 ? OPT.connMat : 'auto';
     sel.disabled = !OPT.connect;
     bar.querySelector('.ab-cmat').classList.toggle('dim', !OPT.connect);
     const help = bar.querySelector('[data-ab=help]');
     const touch = isTouch();
-    help.textContent = !av || av.phase === 'idle' ? (touch ? 'Drag from start to end' : 'Drag from start to end (A)')
-      : av.phase === 'rise' ? (touch ? 'Drag to set the rise, tap to place' : 'Move up/down, click to place') : (touch ? 'Release at the end point' : 'Release at the end point');
+    help.textContent = t(!av || av.phase === 'idle' ? (touch ? 'editor.arch.help.startTouch' : 'editor.arch.help.start')
+      : av.phase === 'rise' ? (touch ? 'editor.arch.help.riseTouch' : 'editor.arch.help.rise') : 'editor.arch.help.release');
   }
 
   // hints: levels whose hint mentions arches point at the tool
-  function archHint(level) { return !!(level && typeof level.hint === 'string' && /\barch/i.test(level.hint)); }
+  // (editor.arch.hintMatch: a regex source per language, since level.hint reads in the current language)
+  function archHint(level) { const h = level && level.hint; return typeof h === 'string' && new RegExp(t('editor.arch.hintMatch'), 'i').test(h); }
 
   function install() {
     const H = BG.Hud, G = BG.Game;
@@ -1161,8 +1164,10 @@
         const lv = this.level;
         if (lv && archHint(lv)) {
           const tt = BG.Mobile && BG.Mobile.touchText;
-          const plain = !text || text === lv.hint || (tt && text === tt(lv.hint));
-          if (plain && !/Arch tool/.test(text || '')) text = (text || lv.hint) + (isTouch() ? ' Try the Arch tool.' : ' Try the Arch tool (A).');
+          const hint = I() ? I().levelText(lv, 'hint') : lv.hint;
+          const plain = !text || text === lv.hint || text === hint || (tt && (text === tt(lv.hint) || text === tt(hint)));
+          const tip = t(isTouch() ? 'editor.arch.hintTouch' : 'editor.arch.hint');
+          if (plain && (text || '').indexOf(tip) < 0) text = (text || hint) + ' ' + tip;
         }
         return o.call(this, text, ms);
       });

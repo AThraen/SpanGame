@@ -8,7 +8,7 @@ const vm = require('vm');
 const CORE = path.resolve(__dirname, '..', 'js', 'core');
 // i18n: BG.i18n and every dictionary load first, as in index.html (language 'en' in Node unless set)
 const I18N = path.resolve(__dirname, '..', 'js', 'i18n');
-const I18N_AREAS = ['core', 'hud', 'editor', 'results', 'levels', 'famous', 'features', 'vehicles'];
+const I18N_AREAS = ['core', 'hud', 'editor', 'results', 'levels', 'famous', 'features', 'vehicles', 'content'];
 const I18N_FILES = ['i18n.js'].concat(...['en', 'da'].map(l => I18N_AREAS.map(a => l + '/' + a + '.js')));
 const ORDER = ['materials.js', 'vehicles.js', 'trains.js', 'model.js', 'physics.js', 'events.js', 'levels.js', 'templates.js', 'curves.js']; // arch-tool: curves.js = BG.Curves // forces: events.js = BG.Forces
 

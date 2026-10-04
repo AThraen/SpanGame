@@ -95,7 +95,8 @@
       updateEl.type = 'button';
       updateEl.className = 'pwa-update glass';
       updateEl.setAttribute('role', 'status');
-      updateEl.innerHTML = '<span class="dot"></span><span class="pwa-update-text">New version available — tap to reload</span>';
+      updateEl.innerHTML = '<span class="dot"></span><span class="pwa-update-text" data-i18n="features.pwa.update"></span>';
+      if (BG.i18n) BG.i18n.apply(updateEl);   // data-i18n: re-translated on a language change
       updateEl.addEventListener('click', () => {
         updateEl.classList.add('busy');
         if (!PWA.applyUpdate()) root.location.reload();
@@ -120,7 +121,7 @@
     refreshRows();
     if (!lsGet(OFFLINE_FLAG)) {
       lsSet(OFFLINE_FLAG, '1');
-      hudToast('SPAN is ready to play offline.', 'good', 3200);
+      hudToast(tr('features.pwa.offlineReady'), 'good', 3200);
     }
   }
 
@@ -157,7 +158,7 @@
     root.addEventListener('appinstalled', () => {
       PWA.installed = true; PWA.installEvent = null;
       refreshRows();
-      hudToast('SPAN installed — find it on your home screen.', 'good', 3200);
+      hudToast(tr('features.pwa.installed'), 'good', 3200);
     });
   }
 
