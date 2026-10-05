@@ -9,7 +9,7 @@
     "released": "2026-10-04",
     "firstCommit": "2026-10-02",
     "asOf": "2026-10-05",
-    "commits": 44,
+    "commits": 45,
     "levels": 90,
     "campaigns": 3,
     "campaignLevels": {
@@ -25,12 +25,22 @@
     "browserSuites": 14,
     "languages": 2,
     "jsLines": {
-      "total": 34831,
-      "game": 25712,
-      "tools": 9119
+      "total": 34846,
+      "game": 25719,
+      "tools": 9127
     },
     "jsFiles": 89,
     "repo": "https://github.com/umage-ai/SpanGame",
-    "releaseNotes": "https://github.com/umage-ai/SpanGame/releases/tag/v1.1.0"
+    "releaseNotes": "https://github.com/umage-ai/SpanGame/releases/tag/v1.1.0",
+    "agentic": {
+      "agents": 77,
+      "workflows": 13,
+      "toolCalls": 6150,
+      "models": {
+        "Claude Opus": 72,
+        "Claude Sonnet": 5
+      },
+      "asOf": "2026-10-05"
+    }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

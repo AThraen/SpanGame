@@ -102,11 +102,11 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
     const imgs = Array.from(m.querySelectorAll('img')).map(i => ({ src: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0, link: !!i.closest('a[href="https://umage.ai"]') }));
     return { open: BG.About.isOpen() && m.classList.contains('show'), title: m.querySelector('.modal-head h3').textContent.trim(), wantTitle: t('features.about.title'),
       ver: m.querySelector('[data-aref=ver]').textContent, D: D && { version: D.version, levels: D.levels }, tiles: m.querySelectorAll('.abt-stat').length,
-      levelsTile: (m.querySelector('.abt-stat b') || {}).textContent, steps: m.querySelectorAll('.abt-step').length, links, imgs,
+      tileValues: [...m.querySelectorAll('.abt-stat b')].map(b => b.textContent), agents: (BG.AboutData && BG.AboutData.agentic || {}).agents, steps: m.querySelectorAll('.abt-step').length, links, imgs,
       cta: (m.querySelector('.abt-cta') || {}).textContent, ctaWant: t('features.about.ctaLink'), state: BG.Game.state };
   });
   ok('About opens from the title', AM.open && AM.title === AM.wantTitle && AM.state === 'title', AM.title);
-  ok('About: version and numbers from BG.AboutData', AM.D && AM.ver === AM.D.version && /^v\d+\.\d+/.test(AM.ver) && AM.tiles >= 6 && AM.levelsTile === String(AM.D.levels) && AM.steps === 5, { ver: AM.ver, D: AM.D, tiles: AM.tiles, levelsTile: AM.levelsTile, steps: AM.steps });
+  ok('About: version and numbers from BG.AboutData', AM.D && AM.ver === AM.D.version && /^v\d+\.\d+/.test(AM.ver) && AM.tiles >= 6 && AM.tileValues.includes(String(AM.D.levels)) && (!AM.agents || AM.tileValues[0] === String(AM.agents)) && AM.steps === 5, { ver: AM.ver, D: AM.D, tiles: AM.tiles, tileValues: AM.tileValues, steps: AM.steps });
   const want = { 'https://umage.ai': 1, 'https://github.com/umage-ai/SpanGame': 1, 'https://github.com/umage-ai/SpanGame/tree/main/docs': 1, 'https://github.com/umage-ai/SpanGame/issues': 1,
     'https://github.com/umage-ai/SpanGame/blob/main/LICENSE': 1, ['https://github.com/umage-ai/SpanGame/releases/tag/' + (AM.D && AM.D.version)]: 1 };
   ok('About: links to umage.ai, source, docs, issues, license and these release notes', Object.keys(want).every(h => AM.links.some(l => l.href === h)) && AM.links.every(l => /^https:\/\//.test(l.href)), AM.links.map(l => l.href));

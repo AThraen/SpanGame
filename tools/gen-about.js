@@ -81,7 +81,16 @@ function collect() {
     jsFiles: game.length + tools.length,
     repo: REPO,
     releaseNotes: tag ? REPO + '/releases/tag/' + tag : REPO + '/releases',
+    // how it was built: agent counts from docs/agentic-stats.json (kept by hand from the agent transcripts)
+    agentic: agenticStats(),
   };
+}
+
+function agenticStats() {
+  const f = path.join(ROOT, 'docs', 'agentic-stats.json');
+  if (!fs.existsSync(f)) return null;
+  const s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  return { agents: s.agents, workflows: s.workflows, toolCalls: s.toolCalls, models: s.models, asOf: s.asOf };
 }
 
 function render(data) {

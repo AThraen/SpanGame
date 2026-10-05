@@ -216,7 +216,10 @@
         t(d.released ? 'features.about.stat.toRelease' : 'features.about.stat.toDate', { version: ver }), 'abt-stat-wide',
         day(d.firstCommit) + ' → ' + day(to));
     }
+    const ag = d.agentic;
     m.querySelector('[data-aref=stats]').innerHTML = [
+      ag && ag.agents ? tile(num(ag.agents), t('features.about.stat.agents', { n: ag.agents }), 'abt-stat-wide',
+        t('features.about.stat.agentsSplit', { workflows: num(ag.workflows), calls: num(Math.round(ag.toolCalls / 100) * 100) })) : '',
       tile(num(d.levels), t('features.about.stat.levels', { n: d.campaigns })),
       tile(num(d.designs), t('features.about.stat.designs')),
       tile(num(d.testSuites), t('features.about.stat.suites', { n: d.testSuites })),
