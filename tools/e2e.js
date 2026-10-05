@@ -2,7 +2,8 @@
 // Usage: node tools/e2e.js [outDir=%TEMP%/span-e2e] [viewportW=1440] [viewportH=900] [--lang=da]
 //   --lang=da  plays everything in Danish (?lang=da): the texts it checks come from the dictionaries, so the same
 //              checks run in either language; the screenshots then show the Danish layout
-// Drives the real game headless: level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
+// Drives the real game headless: the title's "umage.ai presents" credit and the About screen (links, Esc, Settings
+// row, language switch in place), level select (50 levels / 6 chapters), mouse-built level 1 (incl. the
 // auto-split beginner path), pass/fail runs, templates (level 4), undo/redo, mirror + piers (level 11),
 // frame timing, progress; Iron Road: campaign tab gating, mouse-built 101, a derail callout (102), 108, the
 // follow-camera scenery cache, and the finale (120 only); the shared campaign system: one tab bar (Roads | Iron Road |
@@ -65,6 +66,79 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   ok('language on screen: ' + (LANG || 'en'), X.lang === (LANG || 'en'), X.lang);
   ok('real renderer', await page.evaluate(() => !BG.Game.usingFallbackRenderer));
   await shot('01-title');
+
+  // ---- about: "umage.ai presents" on the title, the About screen (from the title and from Settings), its links,
+  //      the language switch while it is open; the credit and the About button clear the title's buttons and chips
+  const titleClear = () => page.evaluate(() => {
+    const vis = e => { if (!e || e.closest('[hidden]')) return false; const cs = getComputedStyle(e); const r = e.getBoundingClientRect(); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const box = (name, r) => ({ name, l: r.left, t: r.top, r: r.right, b: r.bottom });
+    const boxes = [];
+    ['.abt-presents', '.abt-title-btn', '#screen-title .title-meta > *', '#screen-title .title-buttons > *'].forEach(sel => document.querySelectorAll(sel).forEach(e => { if (vis(e)) boxes.push(box(e.className.split(' ')[0] || sel, e.getBoundingClientRect())); }));
+    const foot = document.querySelector('#screen-title .title-foot');
+    if (vis(foot)) { const rg = document.createRange(); rg.selectNodeContents(foot); Array.from(rg.getClientRects()).forEach(r => boxes.push(box('title-foot text', r))); }
+    const mine = boxes.filter(b => /^abt-/.test(b.name)), hits = [];
+    mine.forEach(a => boxes.forEach(b => { if (a !== b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1) hits.push(a.name + ' x ' + b.name); }));
+    const out = mine.filter(a => a.l < -1 || a.t < -1 || a.r > innerWidth + 1 || a.b > innerHeight + 1).map(a => a.name + ' off screen');
+    return hits.concat(out);
+  });
+  const AB = await page.evaluate(() => {
+    const p = document.querySelector('.abt-presents'), img = p && p.querySelector('img'), b = document.querySelector('.abt-title-btn');
+    return { href: p && p.getAttribute('href'), target: p && p.target, rel: p && p.rel, img: !!(img && img.complete && img.naturalWidth > 0), alt: img && img.alt,
+      text: p && p.textContent.trim(), want: BG.i18n.t('features.about.presents'), shown: !!(p && p.getBoundingClientRect().height > 20 && +getComputedStyle(p).opacity > 0.9),
+      btn: !!(b && b.getBoundingClientRect().width > 30 && +getComputedStyle(b).opacity > 0.9), btnText: b && b.textContent.trim(), btnWant: BG.i18n.t('features.about.button'),
+      logoAbove: !!(p && p.getBoundingClientRect().bottom <= document.querySelector('.logo-art').getBoundingClientRect().top + 4) };
+  });
+  ok('title: "umage.ai presents" above the logo, linking to umage.ai in a new tab', AB.href === 'https://umage.ai' && AB.target === '_blank' && /noopener/.test(AB.rel) && AB.img && AB.alt === 'umage.ai' && AB.text === AB.want && AB.shown && AB.logoAbove, AB);
+  ok('title: About button shown', AB.btn && AB.btnText === AB.btnWant, AB);
+  ok('title: credit and About clear the buttons and chips (' + VW + 'x' + VH + ')', (await titleClear()).length === 0, await titleClear());
+  await page.setViewportSize({ width: 1024, height: 640 }); await page.waitForTimeout(250);
+  ok('title: credit and About clear the buttons and chips (1024x640)', (await titleClear()).length === 0, await titleClear());
+  await shot('01b-title-1024');
+  await page.setViewportSize({ width: VW, height: VH }); await page.waitForTimeout(250);
+  await page.click('.abt-title-btn'); await page.waitForTimeout(450);
+  const AM = await page.evaluate(() => {
+    const m = document.querySelector('#about'), D = BG.AboutData, t = (k, p) => BG.i18n.t(k, p);
+    const links = Array.from(m.querySelectorAll('a[href]')).map(a => ({ href: a.getAttribute('href'), target: a.target, rel: a.rel, id: a.dataset.alink || a.className.split(' ')[0] }));
+    const imgs = Array.from(m.querySelectorAll('img')).map(i => ({ src: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0, link: !!i.closest('a[href="https://umage.ai"]') }));
+    return { open: BG.About.isOpen() && m.classList.contains('show'), title: m.querySelector('.modal-head h3').textContent.trim(), wantTitle: t('features.about.title'),
+      ver: m.querySelector('[data-aref=ver]').textContent, D: D && { version: D.version, levels: D.levels }, tiles: m.querySelectorAll('.abt-stat').length,
+      levelsTile: (m.querySelector('.abt-stat b') || {}).textContent, steps: m.querySelectorAll('.abt-step').length, links, imgs,
+      cta: (m.querySelector('.abt-cta') || {}).textContent, ctaWant: t('features.about.ctaLink'), state: BG.Game.state };
+  });
+  ok('About opens from the title', AM.open && AM.title === AM.wantTitle && AM.state === 'title', AM.title);
+  ok('About: version and numbers from BG.AboutData', AM.D && AM.ver === AM.D.version && /^v\d+\.\d+/.test(AM.ver) && AM.tiles >= 6 && AM.levelsTile === String(AM.D.levels) && AM.steps === 5, { ver: AM.ver, D: AM.D, tiles: AM.tiles, levelsTile: AM.levelsTile, steps: AM.steps });
+  const want = { 'https://umage.ai': 1, 'https://github.com/umage-ai/SpanGame': 1, 'https://github.com/umage-ai/SpanGame/tree/main/docs': 1, 'https://github.com/umage-ai/SpanGame/issues': 1,
+    'https://github.com/umage-ai/SpanGame/blob/main/LICENSE': 1, ['https://github.com/umage-ai/SpanGame/releases/tag/' + (AM.D && AM.D.version)]: 1 };
+  ok('About: links to umage.ai, source, docs, issues, license and these release notes', Object.keys(want).every(h => AM.links.some(l => l.href === h)) && AM.links.every(l => /^https:\/\//.test(l.href)), AM.links.map(l => l.href));
+  ok('About: every link opens a new tab (rel=noopener)', AM.links.length >= 8 && AM.links.every(l => l.target === '_blank' && /noopener/.test(l.rel)), AM.links.filter(l => l.target !== '_blank' || !/noopener/.test(l.rel)));
+  ok('About: the umage.ai logos load and each one links to umage.ai', AM.imgs.length >= 2 && AM.imgs.every(i => i.ok && i.link && /^assets\/brand\/umage-ai-/.test(i.src)), AM.imgs);
+  ok('About: call to action', AM.cta && AM.cta.indexOf(AM.ctaWant) >= 0, AM.cta);
+  await shot('01c-about');
+  await page.keyboard.press('Enter'); await page.waitForTimeout(250);
+  ok('About: keys do not reach the game while it is open', await page.evaluate(() => BG.Game.state === 'title' && BG.About.isOpen()));
+  // language switch while open: the static texts and the numbers re-render, nothing from the old language remains
+  const other = (LANG || 'en') === 'en' ? 'da' : 'en';
+  const sw = await page.evaluate(([to, from]) => {
+    const m = document.querySelector('#about'), before = BG.i18n.t('features.about.stat.lines');
+    BG.i18n.setLanguage(to);
+    const t = k => BG.i18n.t(k);
+    const r = { title: m.querySelector('.modal-head h3').textContent.trim(), want: t('features.about.title'), eyebrow: m.querySelector('.abt-eyebrow').textContent, wantEyebrow: t('features.about.eyebrow'),
+      linesLbl: Array.from(m.querySelectorAll('.abt-stat span')).map(s => s.textContent), wantLines: t('features.about.stat.lines'), before,
+      presents: document.querySelector('.abt-presents span').textContent, wantPresents: t('features.about.presents'),
+      setRow: document.querySelector('.abt-set-row span').textContent.trim(), notes: (m.querySelector('[data-alink=notes]') || {}).textContent };
+    BG.i18n.setLanguage(from);
+    r.back = m.querySelector('.modal-head h3').textContent.trim() === BG.i18n.t('features.about.title');
+    return r;
+  }, [other, LANG || 'en']);
+  ok('About: switching the language re-renders it in place (' + other + ' and back)', sw.title === sw.want && sw.title !== AM.title && sw.eyebrow === sw.wantEyebrow && sw.linesLbl.indexOf(sw.wantLines) >= 0 && sw.linesLbl.indexOf(sw.before) < 0 &&
+    sw.presents === sw.wantPresents && sw.setRow === sw.want && sw.back, sw);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(350);
+  ok('About: Esc closes it', await page.evaluate(() => !BG.About.isOpen() && BG.Game.state === 'title'));
+  await page.click('#screen-title [data-act=settings]'); await page.waitForTimeout(400);
+  await page.click('#settings .abt-set-row'); await page.waitForTimeout(450);
+  ok('About opens from Settings (Settings closes)', await page.evaluate(() => BG.About.isOpen() && !BG.Hud.settingsOpen()));
+  await page.click('#about .modal-foot [data-aact=close]'); await page.waitForTimeout(350);
+  ok('About: Done closes it', await page.evaluate(() => !BG.About.isOpen()));
 
   await page.keyboard.press('Enter');
   await page.waitForTimeout(900);

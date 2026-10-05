@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="umage.ai">
+  <rect width="32" height="32" rx="6" fill="#000000"/>
+  <!-- Centred and scaled to fill the plate: the mark's own left margin (5.375
+       of the 32-unit box) becomes the margin on every side that its aspect
+       ratio allows. 1.52125 takes the 13.97-unit ink box to 21.25 wide, and
+       the translate pair moves its centre to the plate's centre, plus 1.6
+       units right: the dot pulls the combined ink box's centre right of the u
+       itself, so centring the box optically reads as a left-shifted letter.
+       1.6 of 32 units is exactly 1 px in a 20 px render. At this size the
+       letterform carries its own weight, with nothing thickening it. -->
+  <g transform="translate(17.6,16) scale(1.52125) translate(-12.3594,-18.5469)">
+  <g fill="#ffffff" transform="translate(5.5630,12.8750) scale(0.438194) translate(-28.7979,-73.5492)">
+    <path d="M 38.65311,99.50800 q -2.8956,0 -5.1308,-1.2192 -2.2352,-1.27 -3.5052,-3.4544 -1.2192,-2.2352 -1.2192,-5.1816 V 73.5492 h 3.7084 v 15.3416 q 0,3.4036 1.9304,5.3848 1.9304,1.9304 5.1816,1.9304 4.6228,0 7.0104,-3.9624 V 73.5492 h 3.759199 V 99 h -3.759199 v -2.9464 q -2.9972,3.4544 -7.9756,3.4544 z"/>
+    <path transform="translate(-129.4384,0)" d="M 186.68425,99.30480 q -1.0668,0 -1.8288,-0.762 -0.762,-0.762 -0.762,-1.8288 0,-1.0668 0.762,-1.8288 0.762,-0.762 1.8288,-0.762 1.0668,0 1.8288,0.762 0.762,0.762 0.762,1.8288 0,1.0668 -0.762,1.8288 -0.762,0.762 -1.8288,0.762 z"/>
+  </g>
+  </g>
+</svg>

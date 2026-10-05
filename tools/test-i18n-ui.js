@@ -183,6 +183,8 @@ const sol = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'solutions'
     await sweep('title screen', async () => {});
     await sweep('settings panel', () => p2.evaluate(() => BG.Hud.openSettings()));
     await p2.evaluate(() => BG.Hud.closeSettings());
+    await sweep('About screen', () => p2.evaluate(() => BG.About.open())); // about
+    await p2.evaluate(() => BG.About.close());
     await sweep('level select (Roads)', () => p2.evaluate(() => { BG.Game.goLevelSelect(); BG.Hud.setCampaignTab('road'); }));
     await sweep('level select (Iron Road)', () => p2.evaluate(() => BG.Hud.setCampaignTab('rail')));
     await sweep('level select (Famous Bridges)', () => p2.evaluate(() => BG.Hud.setCampaignTab('famous')));

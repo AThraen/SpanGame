@@ -26,6 +26,7 @@ const NODE = [
   ['test-history.js', '--node-only'],
   ['test-i18n.js', '--node-only'], // i18n: dictionaries complete in every language, the hard-coded string lint, formatting
   ['test-i18n-content.js'], // i18n: level, famous, vehicle and generated texts in both languages
+  ['test-about.js'], // about: the generated About-screen numbers (js/features/about-data.js) are present and well-formed
 ];
 const BROWSER = [
   ['e2e.js'],
@@ -44,18 +45,23 @@ const BROWSER = [
   ['test-i18n-ui.js'], // i18n: the in-level HUD, results card, ride card and derail callout switch language in place
 ];
 
-const which = process.argv[2] || 'node';
-const list = which === 'all' ? NODE.concat(BROWSER) : which === 'browser' ? BROWSER : NODE;
-const results = [];
-for (const [file, ...args] of list) {
-  const label = [file].concat(args).join(' ');
-  console.log('\n=== ' + label);
-  const t0 = Date.now();
-  const r = spawnSync(process.execPath, [path.join(__dirname, file)].concat(args), { stdio: 'inherit' });
-  results.push({ label, ok: r.status === 0, s: ((Date.now() - t0) / 1000).toFixed(0) });
+module.exports = { NODE, BROWSER }; // tools/gen-about.js counts the suites
+if (require.main === module) main();
+
+function main() {
+  const which = process.argv[2] || 'node';
+  const list = which === 'all' ? NODE.concat(BROWSER) : which === 'browser' ? BROWSER : NODE;
+  const results = [];
+  for (const [file, ...args] of list) {
+    const label = [file].concat(args).join(' ');
+    console.log('\n=== ' + label);
+    const t0 = Date.now();
+    const r = spawnSync(process.execPath, [path.join(__dirname, file)].concat(args), { stdio: 'inherit' });
+    results.push({ label, ok: r.status === 0, s: ((Date.now() - t0) / 1000).toFixed(0) });
+  }
+  console.log('\n=== summary (' + which + ')');
+  results.forEach(r => console.log((r.ok ? 'PASS ' : 'FAIL ') + r.label + '  (' + r.s + ' s)'));
+  const failed = results.filter(r => !r.ok).length;
+  console.log(failed ? failed + ' suite(s) failed' : 'all ' + results.length + ' suites passed');
+  process.exit(failed ? 1 : 0);
 }
-console.log('\n=== summary (' + which + ')');
-results.forEach(r => console.log((r.ok ? 'PASS ' : 'FAIL ') + r.label + '  (' + r.s + ' s)'));
-const failed = results.filter(r => !r.ok).length;
-console.log(failed ? failed + ' suite(s) failed' : 'all ' + results.length + ' suites passed');
-process.exit(failed ? 1 : 0);

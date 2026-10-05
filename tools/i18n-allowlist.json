@@ -4,6 +4,9 @@
     "SPAN"
   ],
   "files": {
+    "js/features/about.js": [
+      "/alt=.umage\\.ai/"
+    ]
   },
   "_sameAsEnglishDoc": "Dictionary keys whose translation is deliberately the same text as the English one (proper names, years, words that are the same in the language). Every other translated text must differ from English (tools/test-i18n.js, completeness). Exact keys or /regex/.",
   "sameAsEnglish": [

@@ -18,7 +18,8 @@
 //     selected day in view), daily share card and endless score in the results; famous tiles, the history card
 //     (scrolls with a finger) and the famous top bar; Forces of Nature forecast chip and warning banner; the
 //     results action row stays on screen (Iron Road: ride card above the footer, "More below" cue); the title with
-//     Continue / Resume
+//     Continue / Resume; the About screen (fits, scrolls, 44 px links, from the title and Settings) and the title
+//     credit "umage.ai presents" + About button clear of the chips, buttons and hints
 // Exit code 0 = all checks passed.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -107,6 +108,19 @@ const REACHABLE_JS = (sel) => {
   });
   return bad.slice(0, 6);
 };
+// about: the title credit ("umage.ai presents") and the About button overlap none of the title's buttons, chips or
+// hint text, and stay on screen
+const TITLE_CLEAR_JS = () => {
+  const vis = e => { if (!e || e.closest('[hidden]')) return false; const cs = getComputedStyle(e); const r = e.getBoundingClientRect(); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+  const box = (name, r) => ({ name, l: r.left, t: r.top, r: r.right, b: r.bottom });
+  const boxes = [];
+  ['.abt-presents', '.abt-title-btn', '#screen-title .title-meta > *', '#screen-title .title-buttons > *'].forEach(sel => document.querySelectorAll(sel).forEach(e => { if (vis(e)) boxes.push(box(e.className.split(' ')[0] || sel, e.getBoundingClientRect())); }));
+  const foot = document.querySelector('#screen-title .title-foot');
+  if (vis(foot)) { const rg = document.createRange(); rg.selectNodeContents(foot); Array.from(rg.getClientRects()).forEach(r => boxes.push(box('title-foot text', r))); }
+  const mine = boxes.filter(b => /^abt-/.test(b.name)), hits = [];
+  mine.forEach(a => boxes.forEach(b => { if (a !== b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1) hits.push(a.name + ' x ' + b.name + ' [' + [a.l, a.t, a.r, a.b, b.l, b.t, b.r, b.b].map(Math.round).join(',') + ']'); }));
+  return hits.concat(mine.filter(a => a.l < -1 || a.t < -1 || a.r > innerWidth + 1 || a.b > innerHeight + 1).map(a => a.name + ' off screen'));
+};
 // visible HUD buttons smaller than 44 px
 const TARGETS_JS = (sel) => {
   const out = [];
@@ -188,6 +202,28 @@ async function runDevice(browser, dev) {
 
   // ---- title / level select / settings
   await overflow('title'); await targets('title', '#screen-title button'); await shot('01-title');
+
+  // ---- about: "umage.ai presents" + the About button clear the chips and buttons; the About screen fits, scrolls,
+  //      has 44 px targets, and opens from the title and from Settings
+  ok('title: credit and About clear the buttons, chips and hints', (await page.evaluate(TITLE_CLEAR_JS)).length === 0, await page.evaluate(TITLE_CLEAR_JS));
+  await targets('title credit (umage.ai presents)', '.abt-presents');
+  await tapEl('#screen-title .abt-title-btn'); await page.waitForTimeout(500);
+  ok('tap About -> About screen', await page.evaluate(() => BG.About.isOpen() && BG.Game.state === 'title'));
+  await overflow('about'); await reachable('about close / done', '#about .modal-head button, #about .modal-foot button');
+  await targets('about', '#about button, #about .abt-link, #about .abt-umage, #about .abt-cta-go');
+  await shot('01b-about');
+  const abScroll = await page.evaluate(() => { const b = document.querySelector('#about .abt-body'); const before = b.scrollTop; b.scrollTop = b.scrollHeight; return { scrolls: b.scrollHeight <= b.clientHeight + 1 || b.scrollTop > before, ext: Array.from(document.querySelectorAll('#about a[href]')).every(a => a.target === '_blank' && /noopener/.test(a.rel)) }; });
+  await page.waitForTimeout(150);
+  ok('about: the body scrolls to the end; every link opens a new tab', abScroll.scrolls && abScroll.ext, abScroll);
+  await overflow('about (scrolled to the end)'); await reachable('about links + call to action', '#about .abt-link, #about .abt-cta-go');
+  await shot('01c-about-end');
+  await tapEl('#about .modal-foot [data-aact=close]'); await page.waitForTimeout(400);
+  ok('tap Done closes About', !(await page.evaluate(() => BG.About.isOpen())));
+  await page.evaluate(() => BG.Hud.openSettings()); await page.waitForTimeout(450);
+  await targets('settings About row', '#settings .abt-set-row');
+  await tapEl('#settings .abt-set-row'); await page.waitForTimeout(500);
+  ok('Settings -> About row opens About', await page.evaluate(() => BG.About.isOpen() && !BG.Hud.settingsOpen()));
+  await page.evaluate(() => BG.About.close()); await page.waitForTimeout(350);
   await tapEl('#screen-title [data-act=play]'); await page.waitForTimeout(900);
   ok('tap Play -> level select', await page.evaluate(() => BG.Game.state) === 'levelSelect');
   await overflow('level select'); await targets('level select header + chapter (i)', '.ls-head button, .ch-info'); await shot('02-levels');
@@ -522,6 +558,7 @@ async function runDevice(browser, dev) {
   // ---- title with Continue / Resume / Daily / Endless
   await page.evaluate(() => BG.Game.goTitle()); await page.waitForTimeout(1600);
   await overflow('title (all entry points)'); await targets('title (all entry points)', '#screen-title button');
+  ok('title (all entry points): credit and About clear the buttons, chips and hints', (await page.evaluate(TITLE_CLEAR_JS)).length === 0, await page.evaluate(TITLE_CLEAR_JS));
   await shot('25-title-again');
 
   // ---- performance mode + particle cap

@@ -1,5 +1,9 @@
 # <img src="assets/icons/app/icon.svg" alt="" width="44" align="top"> SPAN: Bridge Builder
 
+<a href="https://umage.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/umage-ai-logo-white.svg"><img src="assets/brand/umage-ai-logo.svg" alt="umage.ai" height="34" align="right"></picture></a>
+
+**An open-source demo of agentic development by [umage.ai](https://umage.ai).** SPAN was designed and built by AI agents (Claude Code) directed by umage.ai, from a written spec to tested releases. See [About SPAN](#about-span-an-umageai-demo).
+
 ### ▶ [Play SPAN in your browser](https://umage-ai.github.io/SpanGame/)
 Free, no install. Works on desktop, tablet and phone, and can be installed as an app that plays offline.
 
@@ -93,6 +97,10 @@ A new generated crossing every day, the same for everyone in every browser, from
 ![The level select: chapters of level tiles with stars and badge counts, and the Roads, Iron Road and Famous Bridges tabs](docs/screenshots/levels.jpg)
 
 Each level awards up to three stars for staying under budget, plus two or three optional **challenge badges** (Minimalist, Penny Pincher, Featherweight, Cool Head, Symmetric, No Steel, Timber Only, No Piers, Smooth Ride). Every badge is proven achievable with a saved design. Every test run is recorded: personal bests per level, a cost sparkline, lifetime stats, one-tap loading of any earlier design, autosave and resume, and save export / import.
+
+### About SPAN: an umage.ai demo
+
+The title screen opens with **umage.ai presents**, and the **About** button (bottom left on the title screen, and the last row in Settings) tells how the game was made: designed and built by Claude Code agents directed by [umage.ai](https://umage.ai), with people setting the direction and making the decisions. It shows the project by the numbers (levels, designs the simulator proves, test suites, languages, lines of JavaScript, commits, days from the first commit to the release), the steps from spec to release, the credits, and links to the source, the documentation, the issue tracker, the license and this version's release notes. The numbers are generated from the repository by `node tools/gen-about.js`.
 
 ## Play on your phone or tablet
 
@@ -221,7 +229,7 @@ node tools/test-physics.js     # one suite on its own
 node tools/verify-levels.js --only 101-120
 ```
 
-What each suite covers, and how to add one, is in [docs/TESTING.md](docs/TESTING.md). After changing any shipped file, run `node tools/gen-precache.js` so the service worker's file list and version match.
+What each suite covers, and how to add one, is in [docs/TESTING.md](docs/TESTING.md). After changing any shipped file, run `node tools/gen-precache.js` so the service worker's file list and version match. Before a release (after tagging it), run `node tools/gen-about.js` to refresh the numbers on the About screen.
 
 The screenshots in this README are generated headlessly too: `node tools/screenshots.js` replays saved designs on a fake clock and writes `docs/screenshots/`, including the collapse GIF (encoded by a small dependency-free GIF writer in `tools/gif.js`).
 
@@ -237,8 +245,8 @@ js/core/              simulation core: runs in the browser AND in Node, no DOM
 js/render/            canvas renderer (parallax scenery, water, beams, vehicles, trains) and effects
 js/ui/                editor, HUD, synthesized audio, storage, derailment explainer
 js/main.js            BG.Game: the state machine and main loop
-js/features/          optional modules that wrap the core: goals, forces, daily, famous, history, PWA, mobile
-assets/               SVG sprites and icons, famous-bridge illustrations, painted backgrounds
+js/features/          optional modules that wrap the core: goals, forces, daily, famous, history, PWA, about, mobile
+assets/               SVG sprites and icons, famous-bridge illustrations, painted backgrounds, umage.ai logos
 sw.js, manifest.webmanifest   the PWA shell
 tools/                Node tooling: test suites, level verifier, level builder, headless harness, screenshots
 tools/levels/         one JSON file per level (the source of js/core/levels.js)
@@ -274,7 +282,7 @@ Contributions are welcome: bug reports, level ideas, new levels, fixes. The grou
 
 ## Credits
 
-- **Design and code:** Allan Thraen.
+- **Made by:** [umage.ai](https://umage.ai) (Allan Thraen) with Claude Code agents: an open-source demo of agentic development.
 - **Backgrounds:** the painterly scenery behind each theme was generated with [ComfyUI](https://github.com/comfyanonymous/ComfyUI) and the Qwen-Image model (see `assets/bg/credits.txt`).
 - **Sprites, icons and illustrations:** hand-made SVG (vehicles, rolling stock, UI icons, badge medallions and the Famous Bridges illustrations).
 - **Audio:** every sound is synthesized at runtime with the Web Audio API. There are no audio files.
