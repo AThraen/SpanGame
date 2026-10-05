@@ -6,10 +6,10 @@ By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Ways to help
 
-- **Report a bug** with the [bug report template](https://github.com/AThraen/SpanGame/issues/new?template=bug_report.yml). Include the level, your browser and device, and if you can, your design: in the browser console run `copy(BG.Model.serialize(BG.Game.getDesign()))` and paste the result.
-- **Suggest a level** with the [level idea template](https://github.com/AThraen/SpanGame/issues/new?template=level_idea.yml). A sketch of the gap and the idea it teaches is enough.
+- **Report a bug** with the [bug report template](https://github.com/umage-ai/SpanGame/issues/new?template=bug_report.yml). Include the level, your browser and device, and if you can, your design: in the browser console run `copy(BG.Model.serialize(BG.Game.getDesign()))` and paste the result.
+- **Suggest a level** with the [level idea template](https://github.com/umage-ai/SpanGame/issues/new?template=level_idea.yml). A sketch of the gap and the idea it teaches is enough.
 - **Build a level** and send it as a pull request (see below).
-- **Fix or improve** something from the [issue tracker](https://github.com/AThraen/SpanGame/issues).
+- **Fix or improve** something from the [issue tracker](https://github.com/umage-ai/SpanGame/issues).
 
 For a large change (a new campaign, a new mechanic, an engine change) please open an issue first, so we can agree on the approach before you invest the time.
 
@@ -39,7 +39,7 @@ Engine changes are held to the same standard: **a physics change must keep every
 ## Development setup
 
 ```sh
-git clone https://github.com/AThraen/SpanGame.git
+git clone https://github.com/umage-ai/SpanGame.git
 cd SpanGame
 npm install            # Playwright, for the headless browser tests
 ```

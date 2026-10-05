@@ -5,13 +5,13 @@
   "private": true,
   "license": "MIT",
   "author": "Allan Thraen",
-  "homepage": "https://athraen.github.io/SpanGame/",
+  "homepage": "https://umage-ai.github.io/SpanGame/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AThraen/SpanGame.git"
+    "url": "https://github.com/umage-ai/SpanGame.git"
   },
   "bugs": {
-    "url": "https://github.com/AThraen/SpanGame/issues"
+    "url": "https://github.com/umage-ai/SpanGame/issues"
   },
   "keywords": [
     "game",

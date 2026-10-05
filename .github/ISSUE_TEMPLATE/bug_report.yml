@@ -36,7 +36,7 @@ body:
     attributes:
       label: Where were you playing?
       options:
-        - Online (athraen.github.io/SpanGame)
+        - Online (umage-ai.github.io/SpanGame)
         - Installed app (PWA)
         - Local copy (index.html opened from disk)
         - Local server (tools/serve.js)

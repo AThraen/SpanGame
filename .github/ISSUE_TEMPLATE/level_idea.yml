@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Got an idea for a crossing? Describe the gap and what it should teach. A rough sketch is plenty.
-        If you want to build it yourself, see [docs/LEVEL-AUTHORING.md](https://github.com/AThraen/SpanGame/blob/main/docs/LEVEL-AUTHORING.md): every level ships with two saved designs that prove it can be solved.
+        If you want to build it yourself, see [docs/LEVEL-AUTHORING.md](https://github.com/umage-ai/SpanGame/blob/main/docs/LEVEL-AUTHORING.md): every level ships with two saved designs that prove it can be solved.
   - type: dropdown
     id: campaign
     attributes:
