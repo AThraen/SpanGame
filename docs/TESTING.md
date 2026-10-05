@@ -69,7 +69,7 @@ npm run test:all       # both; run this before a pull request
 
 | Tool | Use |
 |---|---|
-| `node tools/gen-about.js [--print]` | regenerates `js/features/about-data.js`, the numbers on the About screen: version (latest git tag, else `package.json`), levels and campaigns, designs the simulator proves, test suites, languages, lines of JavaScript, commits and dates. **Run it before a release (after tagging)** or whenever levels, solutions, suites or languages change, then `node tools/gen-precache.js`; commit the result |
+| `node tools/gen-about.js [--print]` | regenerates `js/features/about-data.js`, the numbers on the About screen: version (latest git tag, else `package.json`), levels and campaigns, designs the simulator proves, test suites, languages, lines of JavaScript, commits and dates. **Run it before a release (after tagging)** or whenever levels, solutions, suites or languages change, then `node tools/gen-precache.js`; commit the result. With uncommitted changes the commit count and the date include the commit about to be made, so commit the data together with those changes |
 | `node tools/gen-precache.js [--check]` | rewrites the service worker's precache list and version. **Run it after changing any shipped file**; `--check` only reports a stale list |
 | `node tools/build-levels.js` | compiles `tools/levels/*.json` into `js/core/levels.js` |
 | `node tools/gen-goals.js [--only ids]` | generates and proves challenge badges (minutes; runs in parallel worker processes) |

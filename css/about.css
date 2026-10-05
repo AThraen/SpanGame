@@ -24,6 +24,7 @@
 .abt-modal { z-index: 47; }
 .abt-card { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 14px; }
 .abt-card .modal-head h3 .ico { color: var(--primary); }
+.abt-card:focus { outline: none; }
 .abt-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; margin: 0 -8px; padding: 2px 8px 6px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
 .abt-body a { -webkit-tap-highlight-color: transparent; }
 
@@ -42,7 +43,7 @@
 .abt-umage { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; padding: 8px 10px; border-radius: 12px; color: var(--muted); text-decoration: none; transition: background .2s; }
 .abt-umage small { font-size: 10.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .abt-umage:hover, .abt-umage:focus-visible { background: rgba(255, 255, 255, .07); outline: none; }
-.abt-umage-logo { display: block; height: 44px; width: auto; }
+.abt-umage-logo { display: block; height: 34px; width: auto; }   /* the SPAN wordmark stays the hero */
 
 .abt-intro { padding: 18px 4px 2px; }
 .abt-eyebrow { margin: 0 0 10px; font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.25; color: var(--text); text-wrap: balance; }
@@ -72,17 +73,19 @@
 .abt-step-ico .ico { width: 22px; height: 22px; }
 .abt-step-ico i { position: absolute; top: -7px; right: -7px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: var(--primary); color: #2b1300; font-style: normal; font-size: 11px; font-weight: 800; box-shadow: 0 0 0 2px #121a2c; }
 .abt-step b { font-size: 13px; line-height: 1.25; }
-.abt-step small { font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.abt-step small { font-size: 11.5px; line-height: 1.4; color: var(--muted); text-wrap: pretty; }
 
 /* credits + links */
 .abt-credits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; }
-.abt-credits li { display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; font-size: 13.5px; line-height: 1.45; color: #c9d4e6; }
+.abt-credits li { text-wrap: pretty; display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; font-size: 13.5px; line-height: 1.45; color: #c9d4e6; }
 .abt-credits li .ico { flex: none; width: 18px; height: 18px; margin-top: 1px; color: var(--primary); }
 .abt-credits b { color: var(--text); }
 .abt-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .abt-link { height: 38px; padding: 0 14px 0 11px; border-radius: 10px; font-size: 13px; color: var(--text); text-decoration: none; }
 .abt-link .ico { width: 16px; height: 16px; color: var(--muted); }
-.abt-link:hover .ico { color: var(--primary); }
+.abt-link:hover .ico, .abt-link:focus-visible .ico { color: var(--primary); }
+.abt-link:focus-visible, .abt-umage:focus-visible { box-shadow: 0 0 0 2px var(--blue); }
+.abt-cta:focus-visible { box-shadow: 0 0 0 2px var(--blue), 0 10px 28px rgba(255, 122, 61, .18); }
 
 /* call to action */
 .abt-cta {
@@ -94,7 +97,7 @@
 .abt-cta-mark { flex: none; display: block; width: 44px; height: 44px; border-radius: 10px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .2); }
 .abt-cta-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .abt-cta-text b { font-family: var(--font-display); font-size: 17px; font-weight: 800; line-height: 1.25; }
-.abt-cta-text small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.abt-cta-text small { font-size: 12.5px; line-height: 1.4; color: var(--muted); text-wrap: pretty; }
 .abt-cta-go { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 12px; white-space: nowrap; font-weight: 700; font-size: 14px; color: #2b1300; background: linear-gradient(180deg, #ffc65c, var(--primary-2)); box-shadow: 0 6px 18px rgba(255, 122, 61, .3), inset 0 1px 0 rgba(255, 255, 255, .45); }
 .abt-cta-go .ico { width: 18px; height: 18px; }
 
@@ -111,9 +114,10 @@
 @media (max-width: 680px) {
   .abt-card { width: calc(100vw - 16px); padding: 14px 12px 10px; }
   .abt-hero { padding: 14px; gap: 10px; }
-  .abt-wordmark { font-size: 34px; }
+  .abt-wordmark { font-size: 40px; }
   .abt-umage { padding: 6px; }
-  .abt-umage-logo { height: 34px; }
+  .abt-umage-logo { height: 26px; }
+  .abt-umage small { font-size: 9.5px; letter-spacing: .14em; }
   .abt-eyebrow { font-size: 17.5px; }
   .abt-intro p { font-size: 14px; }
   .abt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -126,6 +130,10 @@
   .abt-step-ico { grid-row: 1 / span 2; }
   .abt-step b { padding-top: 4px; font-size: 14px; }
   .abt-credits { grid-template-columns: 1fr; }
+  /* links: one even column (the labels differ too much in length for two) */
+  .abt-links { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .abt-link { justify-content: flex-start; min-width: 0; }
+  .abt-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .abt-cta { flex-wrap: wrap; }
   .abt-cta-go { flex: 1 1 100%; }
 }
@@ -152,6 +160,6 @@
 .m-phone.m-landscape .abt-hero { padding: 10px 14px; }
 .m-phone.m-landscape .abt-wordmark { font-size: 32px; }
 .m-phone.m-landscape .abt-umage { padding: 4px 8px; gap: 4px; }
-.m-phone.m-landscape .abt-umage-logo { height: 30px; }
+.m-phone.m-landscape .abt-umage-logo { height: 26px; }
 .m-phone.m-landscape .abt-intro { padding-top: 12px; }
 .m-lowperf .abt-title-btn { -webkit-backdrop-filter: none; backdrop-filter: none; }

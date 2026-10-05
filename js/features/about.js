@@ -70,8 +70,8 @@
       { id: 'umage', href: UMAGE, ico: 'ext' },
       { id: 'source', href: REPO, ico: 'code' },
       { id: 'docs', href: REPO + '/tree/main/docs', ico: 'book' },
-      { id: 'issues', href: REPO + '/issues', ico: 'bug' },
       { id: 'license', href: REPO + '/blob/main/LICENSE', ico: 'scale' },
+      { id: 'issues', href: REPO + '/issues', ico: 'bug' },
       { id: 'notes', href: (d && d.releaseNotes) || REPO + '/releases', ico: 'tag' },
     ];
   }
@@ -120,7 +120,7 @@
 
     // the modal
     const modal = h(`<div id="about" class="modal abt-modal" role="dialog" aria-modal="true" data-i18n-aria="features.about.title">
-        <div class="modal-card glass abt-card">
+        <div class="modal-card glass abt-card" tabindex="-1">
           <div class="modal-head"><h3 data-i18n="features.about.title">${icon('info')}</h3><button class="btn btn-icon btn-ghost" type="button" data-aact="close" data-i18n-title="features.closeEsc">${icon('close')}</button></div>
           <div class="abt-body">
             <header class="abt-hero">
@@ -129,7 +129,7 @@
                 <div class="abt-sub"><span class="abt-ver" data-aref="ver"></span><span data-i18n="features.about.subtitle"></span></div>
               </div>
               <a class="abt-umage" href="${UMAGE}" ${EXT} data-i18n-title="features.about.visit" data-i18n-aria="features.about.visit">
-                <small data-i18n="features.about.by"></small>${logoImg('abt-umage-logo', 44)}</a>
+                <small data-i18n="features.about.by"></small>${logoImg('abt-umage-logo', 34)}</a>
             </header>
             <section class="abt-intro">
               <p class="abt-eyebrow" data-i18n="features.about.eyebrow"></p>
@@ -221,28 +221,52 @@
       tile(num(d.designs), t('features.about.stat.designs')),
       tile(num(d.testSuites), t('features.about.stat.suites', { n: d.testSuites })),
       tile(num(d.languages), t('features.about.stat.languages', { n: d.languages })),
-      tile(num(lines), t('features.about.stat.lines')),
+      tile(num(lines), t('features.about.stat.lines'), '', d.jsLines && d.jsLines.game ? t('features.about.stat.linesSplit', { game: num(d.jsLines.game), tools: num(d.jsLines.tools) }) : ''),
       tile(num(d.commits), t('features.about.stat.commits', { n: d.commits })),
       span,
     ].join('');
     m.querySelector('[data-aref=asof]').textContent = t('features.about.asOf', { date: day(d.asOf), version: ver });
   }
 
+  // focus: the card takes it on open (so Tab starts inside and the arrow keys scroll it), Tab stays inside while it
+  // is open, and focus returns to where it was on close
+  let returnFocus = null;
   function open() {
     const m = el.modal;
     if (!m) return;
     render();
+    const a = doc.activeElement;
+    returnFocus = a && a !== doc.body && !m.contains(a) ? a : null;
     m.classList.add('show');
     const body = m.querySelector('.abt-body');
     if (body) body.scrollTop = 0;
+    const card = m.querySelector('.abt-card');
+    if (card) safe(() => card.focus({ preventScroll: true }));
   }
-  function close() { if (el.modal) el.modal.classList.remove('show'); }
+  function close() {
+    if (!el.modal || !el.modal.classList.contains('show')) return;
+    el.modal.classList.remove('show');
+    const a = doc.activeElement;
+    if (a && el.modal.contains(a) && a.blur) a.blur();
+    if (returnFocus && returnFocus.isConnected) safe(() => returnFocus.focus({ preventScroll: true }));
+    returnFocus = null;
+  }
+  function trapTab(e) {
+    const f = Array.from(el.modal.querySelectorAll('a[href], button:not(:disabled)')).filter(x => x.offsetParent !== null);
+    if (!f.length) return;
+    const a = doc.activeElement, i = f.indexOf(a);
+    if (!el.modal.contains(a) || (e.shiftKey && i <= 0) || (!e.shiftKey && i === f.length - 1)) {
+      e.preventDefault();
+      (e.shiftKey ? f[f.length - 1] : f[0]).focus();
+    }
+  }
 
   if (I()) I().on('languagechange', () => safe(render));
   // Esc closes the About screen; other keys must not reach the game while it is open
   root.addEventListener('keydown', e => {
     if (!About.isOpen()) return;
     if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Tab') trapTab(e);
     e.stopImmediatePropagation();
   }, true);
 })(typeof window !== 'undefined' ? window : globalThis);

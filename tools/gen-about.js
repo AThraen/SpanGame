@@ -7,6 +7,8 @@
 // levels and languages from the game data (tools/harness.js), proven designs from tools/solutions/, test suites
 // from tools/run-tests.js, lines of JavaScript from js/ and tools/ (generated files excluded), commits and dates
 // from git. The output is data only (no names, no e-mail addresses) and deterministic for a given commit.
+// Run with uncommitted changes (the usual case: the data file is committed together with the change), the commit
+// count and the "as of" date include that pending commit, so a re-run after committing gives the same numbers.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -48,6 +50,9 @@ function collect() {
   const version = tag || 'v' + pkg.version;
   const released = tag ? git(['log', '-1', '--format=%cs', tag]) : null;
   const first = git(['log', '--reverse', '--format=%cs']).split('\n')[0] || null;
+  // uncommitted changes to tracked files: the numbers are for the commit about to be made
+  const pending = git(['status', '--porcelain', '--untracked-files=no']) !== '';
+  const today = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
   const levels = BG.Levels || [];
   const perCampaign = {};
   levels.forEach(l => { const c = l.campaign || 'road'; perCampaign[c] = (perCampaign[c] || 0) + 1; });
@@ -60,8 +65,8 @@ function collect() {
     versionFrom: tag ? 'tag' : 'package.json',
     released,                                   // date of the release tag's commit (YYYY-MM-DD) or null
     firstCommit: first,                         // the day the spec was written
-    asOf: git(['log', '-1', '--format=%cs']) || null,   // date of the commit the numbers were taken from
-    commits: +git(['rev-list', '--count', 'HEAD']) || 0,
+    asOf: pending ? today : (git(['log', '-1', '--format=%cs']) || null),   // date of the commit the numbers describe
+    commits: (+git(['rev-list', '--count', 'HEAD']) || 0) + (pending ? 1 : 0),
     levels: levels.length,
     campaigns: Object.keys(perCampaign).length,
     campaignLevels: perCampaign,

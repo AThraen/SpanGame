@@ -132,6 +132,10 @@ const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); c
   }, [other, LANG || 'en']);
   ok('About: switching the language re-renders it in place (' + other + ' and back)', sw.title === sw.want && sw.title !== AM.title && sw.eyebrow === sw.wantEyebrow && sw.linesLbl.indexOf(sw.wantLines) >= 0 && sw.linesLbl.indexOf(sw.before) < 0 &&
     sw.presents === sw.wantPresents && sw.setRow === sw.want && sw.back, sw);
+  // keyboard: the card has focus on open, Tab and Shift+Tab stay inside the dialog
+  const kf = { start: await page.evaluate(() => document.activeElement === document.querySelector('#about .abt-card')), inside: true };
+  for (let i = 0; i < 16; i++) { await page.keyboard.press(i < 12 ? 'Tab' : 'Shift+Tab'); if (!await page.evaluate(() => document.querySelector('#about').contains(document.activeElement))) kf.inside = false; }
+  ok('About: focus starts on the dialog; Tab and Shift+Tab stay inside it', kf.start && kf.inside, kf);
   await page.keyboard.press('Escape'); await page.waitForTimeout(350);
   ok('About: Esc closes it', await page.evaluate(() => !BG.About.isOpen() && BG.Game.state === 'title'));
   await page.click('#screen-title [data-act=settings]'); await page.waitForTimeout(400);
