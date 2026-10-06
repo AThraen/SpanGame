@@ -4,12 +4,12 @@
   'use strict';
   const BG = (root.BG = root.BG || {});
   BG.AboutData = {
-    "version": "v1.1.0",
+    "version": "v1.2.0",
     "versionFrom": "tag",
-    "released": "2026-10-04",
+    "released": "2026-10-06",
     "firstCommit": "2026-10-02",
     "asOf": "2026-10-06",
-    "commits": 46,
+    "commits": 47,
     "levels": 90,
     "campaigns": 3,
     "campaignLevels": {
@@ -31,7 +31,7 @@
     },
     "jsFiles": 89,
     "repo": "https://github.com/umage-ai/SpanGame",
-    "releaseNotes": "https://github.com/umage-ai/SpanGame/releases/tag/v1.1.0",
+    "releaseNotes": "https://github.com/umage-ai/SpanGame/releases/tag/v1.2.0",
     "agentic": {
       "agents": 77,
       "workflows": 13,
