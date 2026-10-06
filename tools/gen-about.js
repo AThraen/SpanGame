@@ -90,7 +90,7 @@ function agenticStats() {
   const f = path.join(ROOT, 'docs', 'agentic-stats.json');
   if (!fs.existsSync(f)) return null;
   const s = JSON.parse(fs.readFileSync(f, 'utf8'));
-  return { agents: s.agents, workflows: s.workflows, toolCalls: s.toolCalls, models: s.models, asOf: s.asOf };
+  return { agents: s.agents, workflows: s.workflows, toolCalls: s.toolCalls, models: s.models, asOf: s.asOf, milestones: s.milestones || null };
 }
 
 function render(data) {

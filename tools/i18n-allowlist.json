@@ -33,6 +33,7 @@
     "features.forces.windShort.6",
     "vehicles.road.bus",
     "vehicles.car.tender",
-    "features.history.dur.min"
+    "features.history.dur.min",
+    "features.about.stat.minutes"
   ]
 }

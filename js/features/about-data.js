@@ -8,8 +8,8 @@
     "versionFrom": "tag",
     "released": "2026-10-04",
     "firstCommit": "2026-10-02",
-    "asOf": "2026-10-05",
-    "commits": 45,
+    "asOf": "2026-10-06",
+    "commits": 46,
     "levels": 90,
     "campaigns": 3,
     "campaignLevels": {
@@ -25,8 +25,8 @@
     "browserSuites": 14,
     "languages": 2,
     "jsLines": {
-      "total": 34846,
-      "game": 25719,
+      "total": 34861,
+      "game": 25734,
       "tools": 9127
     },
     "jsFiles": 89,
@@ -40,7 +40,12 @@
         "Claude Opus": 72,
         "Claude Sonnet": 5
       },
-      "asOf": "2026-10-05"
+      "asOf": "2026-10-05",
+      "milestones": {
+        "spec": "2026-10-02T13:52",
+        "playable": "2026-10-02T14:46",
+        "levels50": "2026-10-02T17:41"
+      }
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

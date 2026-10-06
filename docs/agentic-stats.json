@@ -4,5 +4,19 @@
   "agents": 77,
   "workflows": 13,
   "toolCalls": 6150,
-  "models": { "Claude Opus": 72, "Claude Sonnet": 5 }
+  "models": {
+    "Claude Opus": 72,
+    "Claude Sonnet": 5
+  },
+  "milestones": {
+    "spec": "2026-10-02T13:52",
+    "playable": "2026-10-02T14:46",
+    "levels50": "2026-10-02T17:41"
+  },
+  "localAI": {
+    "tool": "ComfyUI",
+    "model": "Qwen-Image",
+    "hardware": "a single local workstation GPU",
+    "assets": "painted backgrounds for every theme"
+  }
 }

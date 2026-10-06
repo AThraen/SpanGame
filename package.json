@@ -1,6 +1,6 @@
 {
   "name": "span-bridge-builder",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "SPAN: a physics bridge-construction puzzle game for the browser. 90 levels across road, railway and famous-bridge campaigns, daily challenges, touch support and offline play. Plain HTML, CSS and JavaScript with no build step.",
   "private": true,
   "license": "MIT",

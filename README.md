@@ -283,7 +283,7 @@ Contributions are welcome: bug reports, level ideas, new levels, fixes. The grou
 ## Credits
 
 - **Made by:** [umage.ai](https://umage.ai) (Allan Thraen) with Claude Code agents: an open-source demo of agentic development.
-- **Backgrounds:** the painterly scenery behind each theme was generated with [ComfyUI](https://github.com/comfyanonymous/ComfyUI) and the Qwen-Image model (see `assets/bg/credits.txt`).
+- **Backgrounds:** the painterly scenery behind each theme was generated with **local AI**: [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running the Qwen-Image model on a single workstation GPU, driven by the agents through MCP (see `assets/bg/credits.txt`).
 - **Sprites, icons and illustrations:** hand-made SVG (vehicles, rolling stock, UI icons, badge medallions and the Famous Bridges illustrations).
 - **Audio:** every sound is synthesized at runtime with the Web Audio API. There are no audio files.
 - **Fonts:** the system font stack; nothing is loaded from a font service.

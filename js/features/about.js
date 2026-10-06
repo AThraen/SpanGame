@@ -134,6 +134,8 @@
             <section class="abt-intro">
               <p class="abt-eyebrow" data-i18n="features.about.eyebrow"></p>
               <p data-i18n-html="features.about.p1"></p>
+              <p data-i18n-html="features.about.pFriday"></p>
+              <p data-i18n-html="features.about.pLocal"></p>
               <p data-i18n-html="features.about.p2"></p>
               <p data-i18n-html="features.about.p3"></p>
             </section>
@@ -206,6 +208,7 @@
       '<span>' + esc(l.id === 'umage' ? 'umage.ai' : t('features.about.link.' + l.id, { version: ver })) + '</span></a>').join('');
     m.querySelector('[data-aref=foot]').textContent = d ? t('features.about.foot', { version: ver }) : '';
     if (!d) return;
+    const mins = (x, y) => Math.round((Date.parse(y) - Date.parse(x)) / 60000);
     const tile = (value, label, cls, sub) => '<div class="abt-stat ' + (cls || '') + '"><b>' + esc(value) + '</b><span>' + esc(label) + '</span>' +
       (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>';
     const lines = (d.jsLines && d.jsLines.total) || 0;
@@ -227,6 +230,8 @@
       tile(num(lines), t('features.about.stat.lines'), '', d.jsLines && d.jsLines.game ? t('features.about.stat.linesSplit', { game: num(d.jsLines.game), tools: num(d.jsLines.tools) }) : ''),
       tile(num(d.commits), t('features.about.stat.commits', { n: d.commits })),
       span,
+      ag && ag.milestones ? tile(t('features.about.stat.minutes', { n: mins(ag.milestones.spec, ag.milestones.playable) }), t('features.about.stat.toPlayable'), '',
+        t('features.about.stat.toLevels', { h: Math.round(mins(ag.milestones.spec, ag.milestones.levels50) / 60) })) : '',
     ].join('');
     m.querySelector('[data-aref=asof]').textContent = t('features.about.asOf', { date: day(d.asOf), version: ver });
   }
